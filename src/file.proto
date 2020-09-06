@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+package file;
+
+message Point {
+	sint32 x = 1;
+	sint32 y = 2;
+}
+
+message Stroke {
+	repeated Point points = 1;
+	sint32 width = 2;
+}
+
+message NormalLayer {
+	repeated Stroke strokes = 1;
+}
+
+message Layer {
+	oneof layer {
+		NormalLayer normal = 1;
+	}
+}
+
+message Page {
+	sint32 width = 1;
+	sint32 height = 2;
+	repeated Layer layers = 3;
+}
+
+message File {
+	repeated Page pages = 1;
+}
