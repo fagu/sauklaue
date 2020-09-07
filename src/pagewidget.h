@@ -10,7 +10,7 @@
 #include <cairomm/context.h>
 #include <cairomm/surface.h>
 
-class sauklaue;
+class MainWindow;
 class PagePicture;
 
 class LayerPicture : public QObject {
@@ -68,7 +68,7 @@ class PageWidget : public QWidget
 	Q_OBJECT
 
 public:
-	explicit PageWidget(sauklaue *view);
+	explicit PageWidget(MainWindow *view);
 	
 	void setPage(Page *page);
 	
@@ -96,7 +96,7 @@ private:
 	void finish_path();
 	
 private:
-	sauklaue *m_view;
+	MainWindow *m_view;
 	Page *m_page = nullptr;
 	std::unique_ptr<PagePicture> m_page_picture;
 	std::optional<unique_ptr_Stroke> m_current_path;

@@ -1,13 +1,13 @@
 // Large parts copied from https://doc.qt.io/qt-5/qtwidgets-mainwindows-application-example.html
 
-#include "sauklaue.h"
+#include "mainwindow.h"
 
 #include "util.h"
 #include "actions.h"
 
 #include <QtWidgets>
 
-sauklaue::sauklaue(QWidget *parent) :
+MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent)
 {
 	undoStack = new QUndoStack(this);
@@ -19,12 +19,12 @@ sauklaue::sauklaue(QWidget *parent) :
 	
 	readSettings();
 	
-	connect(undoStack, &QUndoStack::cleanChanged, this, &sauklaue::documentWasModified);
+	connect(undoStack, &QUndoStack::cleanChanged, this, &MainWindow::documentWasModified);
 	
 #ifndef QT_NO_SESSIONMANAGER
 	QGuiApplication::setFallbackSessionManagementEnabled(false);
 	connect(qApp, &QGuiApplication::commitDataRequest,
-			this, &sauklaue::commitData);
+			this, &MainWindow::commitData);
 #endif
 	
 	doc = std::make_unique<Document>();
@@ -35,7 +35,7 @@ sauklaue::sauklaue(QWidget *parent) :
 	setUnifiedTitleAndToolBarOnMac(true);
 }
 
-void sauklaue::loadFile(const QString& fileName)
+void MainWindow::loadFile(const QString& fileName)
 {
 	QFile file(fileName);
 	if (!file.open(QFile::ReadOnly)) {
@@ -61,7 +61,7 @@ void sauklaue::loadFile(const QString& fileName)
 // 	statusBar()->showMessage(tr("File loaded"), 2000);
 }
 
-void sauklaue::closeEvent(QCloseEvent* event)
+void MainWindow::closeEvent(QCloseEvent* event)
 {
 	if (maybeSave()) {
 		writeSettings();
@@ -71,12 +71,12 @@ void sauklaue::closeEvent(QCloseEvent* event)
 	}
 }
 
-void sauklaue::moveEvent(QMoveEvent* event)
+void MainWindow::moveEvent(QMoveEvent* event)
 {
 	pagewidget->update_tablet_map();
 }
 
-void sauklaue::newFile()
+void MainWindow::newFile()
 {
 	if (maybeSave()) {
 		doc = std::make_unique<Document>();
@@ -88,7 +88,7 @@ void sauklaue::newFile()
 	}
 }
 
-void sauklaue::open()
+void MainWindow::open()
 {
 	if (maybeSave()) {
 		QString fileName = QFileDialog::getOpenFileName(this);
@@ -99,7 +99,7 @@ void sauklaue::open()
 	}
 }
 
-bool sauklaue::save()
+bool MainWindow::save()
 {
 	if (curFile.isEmpty()) {
 		return saveAs();
@@ -108,7 +108,7 @@ bool sauklaue::save()
 	}
 }
 
-bool sauklaue::saveAs()
+bool MainWindow::saveAs()
 {
 	QFileDialog dialog(this);
 	dialog.setWindowModality(Qt::WindowModal);
@@ -118,13 +118,13 @@ bool sauklaue::saveAs()
 	return saveFile(dialog.selectedFiles().first());
 }
 
-void sauklaue::documentWasModified()
+void MainWindow::documentWasModified()
 {
 	qDebug() << "mod" << undoStack->isClean();
 	setWindowModified(!undoStack->isClean());
 }
 
-void sauklaue::createActions()
+void MainWindow::createActions()
 {
 	QMenu *fileMenu = menuBar()->addMenu(tr("&File"));
 // 	QToolBar *fileToolBar = addToolBar(tr("File"));
@@ -133,7 +133,7 @@ void sauklaue::createActions()
 		QAction *action = new QAction(newIcon, tr("&New"), this);
 		action->setShortcuts(QKeySequence::New);
 		action->setStatusTip(tr("Create a new file"));
-		connect(action, &QAction::triggered, this, &sauklaue::newFile);
+		connect(action, &QAction::triggered, this, &MainWindow::newFile);
 		fileMenu->addAction(action);
 	// 	fileToolBar->addAction(action);
 	}
@@ -142,7 +142,7 @@ void sauklaue::createActions()
 		QAction *action = new QAction(openIcon, tr("&Open..."), this);
 		action->setShortcuts(QKeySequence::Open);
 		action->setStatusTip(tr("Open an existing file"));
-		connect(action, &QAction::triggered, this, &sauklaue::open);
+		connect(action, &QAction::triggered, this, &MainWindow::open);
 		fileMenu->addAction(action);
 	// 	fileToolBar->addAction(action);
 	}
@@ -151,7 +151,7 @@ void sauklaue::createActions()
 		QAction *action = new QAction(saveIcon, tr("&Save"), this);
 		action->setShortcuts(QKeySequence::Save);
 		action->setStatusTip(tr("Save the document to disk"));
-		connect(action, &QAction::triggered, this, &sauklaue::save);
+		connect(action, &QAction::triggered, this, &MainWindow::save);
 		fileMenu->addAction(action);
 	// 	fileToolBar->addAction(action);
 	}
@@ -160,7 +160,7 @@ void sauklaue::createActions()
 		QAction *action = new QAction(saveAsIcon, tr("Save &As..."), this);
 		action->setShortcuts(QKeySequence::SaveAs);
 		action->setStatusTip(tr("Save the document under a new name"));
-		connect(action, &QAction::triggered, this, &sauklaue::saveAs);
+		connect(action, &QAction::triggered, this, &MainWindow::saveAs);
 		fileMenu->addAction(action);
 	// 	fileToolBar->addAction(action);
 	}
@@ -169,7 +169,7 @@ void sauklaue::createActions()
 		QAction *action = new QAction(saveAsIcon, tr("&Export PDF"), this);
 		action->setShortcut(QKeySequence(Qt::CTRL + Qt::Key_E));
 		action->setStatusTip(tr("Export PDF file"));
-		connect(action, &QAction::triggered, this, &sauklaue::exportPDF);
+		connect(action, &QAction::triggered, this, &MainWindow::exportPDF);
 		fileMenu->addAction(action);
 	// 	fileToolBar->addAction(action);
 	}
@@ -196,13 +196,13 @@ void sauklaue::createActions()
 		QAction *action = new QAction(tr("New &Page"));
 		action->setStatusTip(tr("Add a new page after the current one"));
 		action->setShortcut(QKeySequence(Qt::CTRL + Qt::Key_D));
-		connect(action, &QAction::triggered, this, &sauklaue::newPage);
+		connect(action, &QAction::triggered, this, &MainWindow::newPage);
 		pagesMenu->addAction(action);
 	}
 	{
 		QAction *action = new QAction(tr("&Delete Page"));
 		action->setStatusTip(tr("Delete the current page"));
-		connect(action, &QAction::triggered, this, &sauklaue::deletePage);
+		connect(action, &QAction::triggered, this, &MainWindow::deletePage);
 		pagesMenu->addAction(action);
 		deletePageAction = action;
 	}
@@ -210,7 +210,7 @@ void sauklaue::createActions()
 		QAction *action = new QAction(tr("&Next Page"));
 		action->setStatusTip(tr("Move to the next page"));
 		action->setShortcuts(QKeySequence::MoveToNextPage);
-		connect(action, &QAction::triggered, this, &sauklaue::nextPage);
+		connect(action, &QAction::triggered, this, &MainWindow::nextPage);
 		pagesMenu->addAction(action);
 		nextPageAction = action;
 	}
@@ -218,13 +218,13 @@ void sauklaue::createActions()
 		QAction *action = new QAction(tr("&Previous Page"));
 		action->setStatusTip(tr("Move to the previous page"));
 		action->setShortcuts(QKeySequence::MoveToPreviousPage);
-		connect(action, &QAction::triggered, this, &sauklaue::previousPage);
+		connect(action, &QAction::triggered, this, &MainWindow::previousPage);
 		pagesMenu->addAction(action);
 		previousPageAction = action;
 	}
 }
 
-void sauklaue::readSettings()
+void MainWindow::readSettings()
 {
     QSettings settings(QCoreApplication::organizationName(), QCoreApplication::applicationName());
     const QByteArray geometry = settings.value("geometry", QByteArray()).toByteArray();
@@ -238,13 +238,13 @@ void sauklaue::readSettings()
     }
 }
 
-void sauklaue::writeSettings()
+void MainWindow::writeSettings()
 {
     QSettings settings(QCoreApplication::organizationName(), QCoreApplication::applicationName());
     settings.setValue("geometry", saveGeometry());
 }
 
-bool sauklaue::maybeSave()
+bool MainWindow::maybeSave()
 {
 	if (undoStack->isClean())
 		return true;
@@ -264,7 +264,7 @@ bool sauklaue::maybeSave()
 	return true;
 }
 
-bool sauklaue::saveFile(const QString& fileName)
+bool MainWindow::saveFile(const QString& fileName)
 {
 	QString errorMessage;
 	
@@ -294,7 +294,7 @@ bool sauklaue::saveFile(const QString& fileName)
 	return true;
 }
 
-void sauklaue::setCurrentFile(const QString& fileName)
+void MainWindow::setCurrentFile(const QString& fileName)
 {
 	curFile = fileName;
 	setWindowModified(false);
@@ -305,12 +305,12 @@ void sauklaue::setCurrentFile(const QString& fileName)
 	setWindowFilePath(shownName);
 }
 
-QString sauklaue::strippedName(const QString& fullFileName)
+QString MainWindow::strippedName(const QString& fullFileName)
 {
 	return QFileInfo(fullFileName).fileName();
 }
 
-void sauklaue::newPage()
+void MainWindow::newPage()
 {
 	// A4 paper
 	double m2unit = 72000/0.0254; // 1 unit = 1pt/1000 = 1in/72000 = 25.4mm/72000 = 0.0254m/72000
@@ -322,7 +322,7 @@ void sauklaue::newPage()
 	gotoPage(current_page+1);
 }
 
-void sauklaue::deletePage()
+void MainWindow::deletePage()
 {
 	if (current_page == -1)
 		return;
@@ -330,17 +330,17 @@ void sauklaue::deletePage()
 	updatePageNavigation();
 }
 
-void sauklaue::nextPage()
+void MainWindow::nextPage()
 {
 	gotoPage(current_page+1);
 }
 
-void sauklaue::previousPage()
+void MainWindow::previousPage()
 {
 	gotoPage(current_page-1);
 }
 
-void sauklaue::gotoPage(int index)
+void MainWindow::gotoPage(int index)
 {
 	if (doc->number_of_pages() == 0)
 		index = -1;
@@ -355,7 +355,7 @@ void sauklaue::gotoPage(int index)
 
 
 #ifndef QT_NO_SESSIONMANAGER
-void sauklaue::commitData(QSessionManager &manager)
+void MainWindow::commitData(QSessionManager &manager)
 {
 	if (manager.allowsInteraction()) {
 		if (!maybeSave())
@@ -368,7 +368,7 @@ void sauklaue::commitData(QSessionManager &manager)
 }
 #endif
 
-void sauklaue::updatePageNavigation() {
+void MainWindow::updatePageNavigation() {
 	deletePageAction->setEnabled(current_page != -1);
 	nextPageAction->setEnabled(current_page+1 < doc->number_of_pages());
 	previousPageAction->setEnabled(current_page > 0);
@@ -386,7 +386,7 @@ void draw_path(Cairo::RefPtr<Cairo::Context> cr, const std::vector<Point> &point
 	cr->stroke();
 }
 
-void sauklaue::exportPDF()
+void MainWindow::exportPDF()
 {
 	if (!save())
 		return;

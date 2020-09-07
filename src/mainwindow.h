@@ -1,5 +1,5 @@
-#ifndef SAUKLAUE_H
-#define SAUKLAUE_H
+#ifndef MAINWINDOW_H
+#define MAINWINDOW_H
 
 #include <memory>
 
@@ -9,12 +9,12 @@ class QUndoStack;
 
 #include "pagewidget.h"
 
-class sauklaue : public QMainWindow
+class MainWindow : public QMainWindow
 {
 	Q_OBJECT
 
 public:
-	explicit sauklaue(QWidget *parent = nullptr);
+	explicit MainWindow(QWidget *parent = nullptr);
 	
 	void loadFile(const QString &fileName);
 	
@@ -63,4 +63,4 @@ public:
 	QUndoStack *undoStack;
 };
 
-#endif // SAUKLAUE_H
+#endif // MAINWINDOW_H

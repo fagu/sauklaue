@@ -27,7 +27,7 @@ protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS src/file1.proto src/file3.proto)
 
 set(sauklaue_SRC
   src/main.cpp
-  src/sauklaue.cpp
+  src/mainwindow.cpp
   src/pagewidget.cpp
   src/document.cpp
   src/actions.cpp

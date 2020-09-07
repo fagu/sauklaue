@@ -1,10 +1,10 @@
 #include "actions.h"
 
-#include "sauklaue.h"
+#include "mainwindow.h"
 
 #include <QtWidgets>
 
-NewPageCommand::NewPageCommand(sauklaue* _view, int _index, std::unique_ptr<Page> _page, QUndoCommand *parent) :
+NewPageCommand::NewPageCommand(MainWindow* _view, int _index, std::unique_ptr<Page> _page, QUndoCommand *parent) :
 	QUndoCommand(parent),
 	view(_view),
 	index(_index),
@@ -28,7 +28,7 @@ void NewPageCommand::undo()
 }
 
 
-DeletePageCommand::DeletePageCommand(sauklaue* _view, int _index, QUndoCommand *parent) :
+DeletePageCommand::DeletePageCommand(MainWindow* _view, int _index, QUndoCommand *parent) :
 	QUndoCommand(parent),
 	view(_view),
 	index(_index)
@@ -51,7 +51,7 @@ void DeletePageCommand::undo()
 }
 
 template <class StrokeType>
-AddStrokeCommand<StrokeType>::AddStrokeCommand(sauklaue* _view, int _page, int _layer, std::unique_ptr<StrokeType> _stroke, QUndoCommand *parent) :
+AddStrokeCommand<StrokeType>::AddStrokeCommand(MainWindow* _view, int _page, int _layer, std::unique_ptr<StrokeType> _stroke, QUndoCommand *parent) :
 	QUndoCommand(parent),
 	view(_view),
 	page(_page),
@@ -74,12 +74,12 @@ void AddStrokeCommand<StrokeType>::undo()
 	stroke = std::get<std::unique_ptr<StrokeType> >(view->doc->page(page)->layer(layer)->delete_stroke());
 }
 
-AddPenStrokeCommand::AddPenStrokeCommand(sauklaue* _view, int _page, int _layer, std::unique_ptr<PenStroke> _stroke, QUndoCommand* parent) : AddStrokeCommand<PenStroke>(_view, _page, _layer, std::move(_stroke), parent)
+AddPenStrokeCommand::AddPenStrokeCommand(MainWindow* _view, int _page, int _layer, std::unique_ptr<PenStroke> _stroke, QUndoCommand* parent) : AddStrokeCommand<PenStroke>(_view, _page, _layer, std::move(_stroke), parent)
 {
 	setText(QObject::tr("Draw stroke"));
 }
 
-AddEraserStrokeCommand::AddEraserStrokeCommand(sauklaue* _view, int _page, int _layer, std::unique_ptr<EraserStroke> _stroke, QUndoCommand* parent) : AddStrokeCommand<EraserStroke>(_view, _page, _layer, std::move(_stroke), parent)
+AddEraserStrokeCommand::AddEraserStrokeCommand(MainWindow* _view, int _page, int _layer, std::unique_ptr<EraserStroke> _stroke, QUndoCommand* parent) : AddStrokeCommand<EraserStroke>(_view, _page, _layer, std::move(_stroke), parent)
 {
 	setText(QObject::tr("Erase"));
 }

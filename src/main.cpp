@@ -1,4 +1,4 @@
-#include "sauklaue.h"
+#include "mainwindow.h"
 
 #include "file.pb.h"
 
@@ -11,7 +11,7 @@ int main(int argc, char *argv[])
 	GOOGLE_PROTOBUF_VERIFY_VERSION;
 	
 	QApplication app(argc, argv);
-	sauklaue w;
+	MainWindow w;
 	w.show();
 
 	int res = app.exec();

@@ -1,7 +1,7 @@
 #include "pagewidget.h"
 
 #include "util.h"
-#include "sauklaue.h"
+#include "mainwindow.h"
 #include "actions.h"
 
 #include <QtWidgets>
@@ -188,7 +188,7 @@ void PagePicture::update_layer(const QRect& rect)
 
 
 
-PageWidget::PageWidget(sauklaue* view) :
+PageWidget::PageWidget(MainWindow* view) :
 	QWidget(nullptr),
 	m_view(view)
 {

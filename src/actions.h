@@ -5,28 +5,28 @@
 
 #include <QUndoCommand>
 
-class sauklaue;
+class MainWindow;
 
 class NewPageCommand : public QUndoCommand {
 public:
-	NewPageCommand(sauklaue* _view, int _index, std::unique_ptr<Page> _page, QUndoCommand *parent=nullptr);
+	NewPageCommand(MainWindow* _view, int _index, std::unique_ptr<Page> _page, QUndoCommand *parent=nullptr);
 	void redo() override;
 	void undo() override;
 	
 private:
-	sauklaue *view;
+	MainWindow *view;
 	int index;
 	std::unique_ptr<Page> page;
 };
 
 class DeletePageCommand : public QUndoCommand {
 public:
-	DeletePageCommand(sauklaue* _view, int _index, QUndoCommand *parent=nullptr);
+	DeletePageCommand(MainWindow* _view, int _index, QUndoCommand *parent=nullptr);
 	void redo() override;
 	void undo() override;
 	
 private:
-	sauklaue *view;
+	MainWindow *view;
 	int index;
 	std::unique_ptr<Page> page;
 };
@@ -34,12 +34,12 @@ private:
 template <class StrokeType>
 class AddStrokeCommand : public QUndoCommand {
 public:
-	AddStrokeCommand(sauklaue* _view, int _page, int _layer, std::unique_ptr<StrokeType> _stroke, QUndoCommand *parent=nullptr);
+	AddStrokeCommand(MainWindow* _view, int _page, int _layer, std::unique_ptr<StrokeType> _stroke, QUndoCommand *parent=nullptr);
 	void redo() override;
 	void undo() override;
 	
 private:
-	sauklaue *view;
+	MainWindow *view;
 	int page;
 	int layer;
 	std::unique_ptr<StrokeType> stroke;
@@ -47,12 +47,12 @@ private:
 
 class AddPenStrokeCommand : public AddStrokeCommand<PenStroke> {
 public:
-	AddPenStrokeCommand(sauklaue* _view, int _page, int _layer, std::unique_ptr<PenStroke> _stroke, QUndoCommand *parent=nullptr);
+	AddPenStrokeCommand(MainWindow* _view, int _page, int _layer, std::unique_ptr<PenStroke> _stroke, QUndoCommand *parent=nullptr);
 };
 
 class AddEraserStrokeCommand : public AddStrokeCommand<EraserStroke> {
 public:
-	AddEraserStrokeCommand(sauklaue* _view, int _page, int _layer, std::unique_ptr<EraserStroke> _stroke, QUndoCommand *parent=nullptr);
+	AddEraserStrokeCommand(MainWindow* _view, int _page, int _layer, std::unique_ptr<EraserStroke> _stroke, QUndoCommand *parent=nullptr);
 };
 
 #endif // ACTIONS_H
