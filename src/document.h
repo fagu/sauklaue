@@ -75,6 +75,9 @@ private:
 
 typedef std::variant<PenStroke*, EraserStroke*> ptr_Stroke;
 typedef std::variant<std::unique_ptr<PenStroke>, std::unique_ptr<EraserStroke> > unique_ptr_Stroke;
+inline ptr_Stroke get(const unique_ptr_Stroke& s) {
+	return std::visit([](const auto& p) -> ptr_Stroke {return p.get();}, s);
+}
 
 class NormalLayer : public QObject {
 	Q_OBJECT

@@ -78,15 +78,15 @@ void LayerPicture::draw_path(const std::vector<Point> &points) {
 void LayerPicture::draw_stroke(int i)
 {
 	CairoGroup cg(cr);
-	const unique_ptr_Stroke& stroke = m_layer->strokes()[i];
+	ptr_Stroke stroke = get(m_layer->strokes()[i]);
 	std::visit(overloaded {
-		[&](const std::unique_ptr<PenStroke>& st) {
+		[&](const PenStroke* st) {
 			cr->set_line_width(st->width());
 			Color co = st->color();
 			cr->set_source_rgba(co.r(), co.g(), co.b(), co.a());
 			draw_path(st->points());
 		},
-		[&](const std::unique_ptr<EraserStroke>& st) {
+		[&](const EraserStroke* st) {
 			cr->set_line_width(st->width());
 			cr->set_source_rgba(0,0,0,0); // Transparent
 			// Replace layer color by transparent instead of making a transparent drawing on top of the layer.
@@ -347,17 +347,17 @@ void PageWidget::start_path(double x, double y, StrokeType type)
 			m_current_path = std::make_unique<EraserStroke>(DEFAULT_ERASER_WIDTH);
 		}
 		std::visit(overloaded {
-			[&](const std::unique_ptr<PenStroke> &st) {
+			[&](PenStroke* st) {
 				st->push_back(p);
 				assert(m_page_picture->layers.size() == 1);
-				m_page_picture->layers[0]->draw_line(p, p, st.get());
+				m_page_picture->layers[0]->draw_line(p, p, st);
 			},
-			[&](const std::unique_ptr<EraserStroke> &st) {
+			[&](EraserStroke* st) {
 				st->push_back(p);
 				assert(m_page_picture->layers.size() == 1);
-				m_page_picture->layers[0]->draw_line(p, p, st.get());
+				m_page_picture->layers[0]->draw_line(p, p, st);
 			}
-		}, m_current_path.value());
+		}, get(m_current_path.value()));
 	}
 }
 
@@ -370,19 +370,19 @@ void PageWidget::continue_path(double x, double y)
 		qDebug() << "draw stroke";
 		Point p(x,y);
 		std::visit(overloaded {
-			[&](const std::unique_ptr<PenStroke> &st) {
+			[&](PenStroke* st) {
 				Point old = st->points().back();
 				st->push_back(p);
 				assert(m_page_picture->layers.size() == 1);
-				m_page_picture->layers[0]->draw_line(old, p, st.get());
+				m_page_picture->layers[0]->draw_line(old, p, st);
 			},
-			[&](const std::unique_ptr<EraserStroke> &st) {
+			[&](EraserStroke* st) {
 				Point old = st->points().back();
 				st->push_back(p);
 				assert(m_page_picture->layers.size() == 1);
-				m_page_picture->layers[0]->draw_line(old, p, st.get());
+				m_page_picture->layers[0]->draw_line(old, p, st);
 			}
-		}, m_current_path.value());
+		}, get(m_current_path.value()));
 	}
 }
 

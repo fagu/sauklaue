@@ -416,19 +416,19 @@ void sauklaue::exportPDF()
 // 			cairo_set_operator(cr->cobj(), CAIRO_OPERATOR_SOURCE);
 			for (const auto& stroke : layer->strokes()) {
 				std::visit(overloaded {
-					[&](const std::unique_ptr<PenStroke>& st) {
+					[&](PenStroke* st) {
 						cr->set_line_width(st->width());
 						Color co = st->color();
 						cr->set_source_rgba(co.r(), co.g(), co.b(), co.a());
 						draw_path(cr, st->points());
 					},
-					[&](const std::unique_ptr<EraserStroke>& st) {
+					[&](EraserStroke* st) {
 						cr->set_line_width(st->width());
 						// TODO This seems to slow down the PDF viewer.
 						cr->set_source(background); // Erase = draw the background again on top of this layer
 						draw_path(cr, st->points());
 					}
-				}, stroke);
+				}, get(stroke));
 			}
 		}
 		surface->show_page();
