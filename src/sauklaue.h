@@ -32,6 +32,7 @@ private slots:
 	void nextPage();
 	void previousPage();
 	void documentWasModified();
+	void exportPDF();
 #ifndef QT_NO_SESSIONMANAGER
 	void commitData(QSessionManager &);
 #endif

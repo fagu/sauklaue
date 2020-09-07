@@ -10,6 +10,7 @@ message Point {
 message Stroke {
 	repeated Point points = 1;
 	sint32 width = 2;
+	fixed32 color = 3;
 }
 
 message NormalLayer {

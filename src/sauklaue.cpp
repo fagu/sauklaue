@@ -18,7 +18,7 @@ sauklaue::sauklaue(QWidget *parent) :
 	
 	readSettings();
 	
-// 	connect(textedit->document(), &QTextDocument::contentsChanged, this, &sauklaue::documentWasModified);
+	connect(undoStack, &QUndoStack::cleanChanged, this, &sauklaue::documentWasModified);
 	
 #ifndef QT_NO_SESSIONMANAGER
 	QGuiApplication::setFallbackSessionManagementEnabled(false);
@@ -37,7 +37,7 @@ sauklaue::sauklaue(QWidget *parent) :
 void sauklaue::loadFile(const QString& fileName)
 {
 	QFile file(fileName);
-	if (!file.open(QFile::ReadOnly | QFile::Text)) {
+	if (!file.open(QFile::ReadOnly)) {
 		QMessageBox::warning(this, tr("Application"),
 		                     tr("Cannot read file %1:\n%2.")
 		                     .arg(QDir::toNativeSeparators(fileName), file.errorString()));
@@ -83,6 +83,7 @@ void sauklaue::newFile()
 		pagewidget->setPage(nullptr);
 		setCurrentFile(QString());
 		updatePageNavigation();
+		undoStack->clear();
 	}
 }
 
@@ -90,8 +91,10 @@ void sauklaue::open()
 {
 	if (maybeSave()) {
 		QString fileName = QFileDialog::getOpenFileName(this);
-		if (!fileName.isEmpty())
+		if (!fileName.isEmpty()) {
 			loadFile(fileName);
+			undoStack->clear();
+		}
 	}
 }
 
@@ -116,7 +119,8 @@ bool sauklaue::saveAs()
 
 void sauklaue::documentWasModified()
 {
-// 	setWindowModified(textedit->document()->isModified());
+	qDebug() << "mod" << undoStack->isClean();
+	setWindowModified(!undoStack->isClean());
 }
 
 void sauklaue::createActions()
@@ -156,6 +160,15 @@ void sauklaue::createActions()
 		action->setShortcuts(QKeySequence::SaveAs);
 		action->setStatusTip(tr("Save the document under a new name"));
 		connect(action, &QAction::triggered, this, &sauklaue::saveAs);
+		fileMenu->addAction(action);
+	// 	fileToolBar->addAction(action);
+	}
+	{
+		const QIcon saveAsIcon = QIcon::fromTheme("document-export", QIcon(":/images/export.png"));
+		QAction *action = new QAction(saveAsIcon, tr("&Export PDF"), this);
+		action->setShortcut(QKeySequence(Qt::CTRL + Qt::Key_E));
+		action->setStatusTip(tr("Export PDF file"));
+		connect(action, &QAction::triggered, this, &sauklaue::exportPDF);
 		fileMenu->addAction(action);
 	// 	fileToolBar->addAction(action);
 	}
@@ -232,7 +245,7 @@ void sauklaue::writeSettings()
 
 bool sauklaue::maybeSave()
 {
-// 	if (!textEdit->document()->isModified())
+	if (undoStack->isClean())
 		return true;
 	const QMessageBox::StandardButton ret
 		= QMessageBox::warning(this, tr("Application"),
@@ -256,7 +269,7 @@ bool sauklaue::saveFile(const QString& fileName)
 	
 	QGuiApplication::setOverrideCursor(Qt::WaitCursor);
 	QSaveFile file(fileName);
-	if (file.open(QFile::WriteOnly | QFile::Text)) {
+	if (file.open(QFile::WriteOnly)) {
 		QDataStream out(&file);
 		doc->save(out);
 		if (!file.commit()) {
@@ -275,6 +288,7 @@ bool sauklaue::saveFile(const QString& fileName)
 	}
 	
 	setCurrentFile(fileName);
+	undoStack->setClean();
 // 	statusBar()->showMessage(tr("File saved"), 2000);
 	return true;
 }
@@ -282,7 +296,6 @@ bool sauklaue::saveFile(const QString& fileName)
 void sauklaue::setCurrentFile(const QString& fileName)
 {
 	curFile = fileName;
-// 	textEdit->document()->setModified(false);
 	setWindowModified(false);
 	
 	QString shownName = curFile;
@@ -299,7 +312,7 @@ QString sauklaue::strippedName(const QString& fullFileName)
 void sauklaue::newPage()
 {
 	// A4 paper
-	double m2unit = 720/0.0254; // 1 unit = 1pt/10 = 1in/720 = 25.4mm/720 = 0.0254m/720
+	double m2unit = 72000/0.0254; // 1 unit = 1pt/1000 = 1in/72000 = 25.4mm/72000 = 0.0254m/72000
 	int width = pow(2, -0.25 - 2) * m2unit;
 	int height = pow(2, 0.25 - 2) * m2unit;
 	auto page = std::make_unique<Page>(width, height);
@@ -348,7 +361,7 @@ void sauklaue::commitData(QSessionManager &manager)
 			manager.cancel();
 	} else {
 		// Non-interactive: save without asking
-// 		if (textEdit->document()->isModified())
+		if (!undoStack->isClean())
 			save();
 	}
 }
@@ -358,4 +371,57 @@ void sauklaue::updatePageNavigation() {
 	deletePageAction->setEnabled(current_page != -1);
 	nextPageAction->setEnabled(current_page+1 < doc->number_of_pages());
 	previousPageAction->setEnabled(current_page > 0);
+}
+
+void sauklaue::exportPDF()
+{
+	if (!save())
+		return;
+	assert(!curFile.isEmpty());
+	QString pdf_file_name = curFile + ".pdf";
+	Cairo::RefPtr<Cairo::PdfSurface> surface = Cairo::PdfSurface::create(pdf_file_name.toStdString(), 0, 0);
+	Cairo::RefPtr<Cairo::Context> cr = Cairo::Context::create(surface);
+	cr->set_line_cap(Cairo::LINE_CAP_ROUND);
+	cr->set_line_join(Cairo::LINE_JOIN_ROUND);
+	cr->scale(0.1, 0.1);
+	for (int ipage = 0; ipage < doc->number_of_pages(); ipage++) {
+		Page *page = doc->page(ipage);
+		surface->set_size(0.1*page->width(), 0.1*page->height());
+		cr->rectangle(0,0,page->width(),page->height());
+		cr->clip();
+		for (size_t i = 0; i < page->layers().size(); i++)
+			cr->push_group_with_content(Cairo::CONTENT_COLOR_ALPHA);
+		cr->set_source_rgb(0.95,0.95,0.95);
+		cr->paint();
+		for (const auto& layer : page->layers()) {
+			// Retrieve and draw the previous layers
+			Cairo::RefPtr<Cairo::Pattern> background = cr->pop_group();
+			cr->set_source(background);
+			cr->paint();
+			// TODO Find a better way to support the eraser.
+			// The operator CAIRO_OPERATOR_SOURCE is apparently not supported by PDF files. Therefore Cairo falls back to saving a raster image in the PDF file, which uses a lot of space!
+// 			cairo_set_operator(cr->cobj(), CAIRO_OPERATOR_SOURCE);
+			for (const auto& stroke : layer->strokes()) {
+				cr->set_line_width(stroke->width());
+				Color co = stroke->color();
+				// TODO This alternative seems to slow down the PDF viewer.
+				// TODO Split Eraser and Pen into two completely different stroke types.
+				if (co.a() > 0.5) // pen
+					cr->set_source_rgba(co.r(), co.g(), co.b(), co.a());
+				else // eraser
+					cr->set_source(background); // Erase = draw the background again on top of this layer
+				const auto & points = stroke->points();
+				assert(!points.empty());
+				cr->move_to(points[0].x, points[0].y);
+				if (points.size() == 1) {
+					cr->line_to(points[0].x, points[0].y);
+				} else {
+					for (size_t i = 1; i < points.size(); i++)
+						cr->line_to(points[i].x, points[i].y);
+				}
+				cr->stroke();
+			}
+		}
+		surface->show_page();
+	}
 }

@@ -7,6 +7,9 @@
 
 #include <QDebug>
 
+const uint32_t Color::BLACK = Color::color(0,0,0,255);
+const uint32_t Color::TRANSPARENT = Color::color(0,0,0,0);
+
 const std::vector<Point> & Stroke::points() const
 {
 	return m_points;
@@ -76,7 +79,7 @@ int Document::number_of_pages()
 	return pages.size();
 }
 
-const uint32_t FILE_FORMAT_VERSION = 1;
+const uint32_t FILE_FORMAT_VERSION = 2;
 
 void Document::save(QDataStream &stream)
 {
@@ -92,6 +95,7 @@ void Document::save(QDataStream &stream)
 			for (const auto& stroke : layer->strokes()) {
 				file::Stroke *s_stroke = s_normal_layer->add_strokes();
 				s_stroke->set_width(stroke->width());
+				s_stroke->set_color(stroke->color());
 				for (const auto& point : stroke->points()) {
 					file::Point *s_point = s_stroke->add_points();
 					s_point->set_x(point.x);
@@ -101,7 +105,6 @@ void Document::save(QDataStream &stream)
 		}
 	}
 	std::string data = s_file.SerializeAsString();
-	qDebug() << "Debug string" << s_file.DebugString().c_str() << data.size();
 	stream.writeBytes(data.c_str(), data.length());
 }
 
@@ -123,7 +126,8 @@ std::unique_ptr<Document> Document::load(QDataStream& stream)
 			auto s_normal_layer = s_layer.normal();
 			auto layer = std::make_unique<NormalLayer>();
 			for (const auto& s_stroke : s_normal_layer.strokes()) {
-				auto stroke = std::make_unique<Stroke>(s_stroke.width());
+				uint32_t color = file_format_version >= 2 ? s_stroke.color() : Color::BLACK;
+				auto stroke = std::make_unique<Stroke>(s_stroke.width(), color);
 				for (const auto& s_point : s_stroke.points()) {
 					Point point(s_point.x(), s_point.y());
 					stroke->push_back(point);
@@ -134,5 +138,6 @@ std::unique_ptr<Document> Document::load(QDataStream& stream)
 		}
 		doc->add_page(doc->number_of_pages(), std::move(page));
 	}
+	qDebug() << "Number of pages read: " << doc->number_of_pages();
 	return doc;
 }

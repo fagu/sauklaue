@@ -7,6 +7,40 @@
 #include <QString>
 #include <QDataStream>
 
+class Color {
+public:
+	Color(uint32_t _x) : x(_x) {}
+	
+	uint32_t x;
+	
+	static constexpr uint32_t MASK = 255;
+	
+	double r() const {
+		return (double)((x>>24)&MASK)/(1<<8);
+	}
+	double g() const {
+		return (double)((x>>16)&MASK)/(1<<8);
+	}
+	double b() const {
+		return (double)((x>>8)&MASK)/(1<<8);
+	}
+	double a() const {
+		return (double)(x&MASK)/(1<<8);
+	}
+	static constexpr uint32_t color(int r, int g, int b, int a) {
+		uint32_t res = r;
+		res >>= 8;
+		res |= g;
+		res >>= 8;
+		res |= b;
+		res >>= 8;
+		res |= a;
+		return res;
+	}
+	static const uint32_t BLACK;
+	static const uint32_t TRANSPARENT;
+};
+
 struct Point {
 	int x, y;
 	Point(int _x, int _y) : x(_x), y(_y) {}
@@ -14,13 +48,15 @@ struct Point {
 
 class Stroke {
 public:
-	Stroke(int w) : m_width(w) {}
+	Stroke(int w, uint32_t color) : m_width(w), m_color(color) {}
 	const std::vector<Point> &points() const;
 	Point push_back(Point point);
 	int width() const {return m_width;}
+	uint32_t color() const {return m_color;}
 private:
 	std::vector<Point> m_points;
 	int m_width;
+	uint32_t m_color;
 };
 
 class NormalLayer : public QObject {
@@ -35,14 +71,14 @@ public:
 	}
 	std::unique_ptr<Stroke> delete_stroke()
 	{
+		emit stroke_deleting();
 		std::unique_ptr<Stroke> stroke = std::move(m_strokes.back());
 		m_strokes.pop_back();
-		emit stroke_deleted();
 		return stroke;
 	}
 signals:
-	void stroke_added();
-	void stroke_deleted();
+	void stroke_added(); // Emitted after adding a stroke in the end.
+	void stroke_deleting(); // Emitted before deleting the last stroke.
 private:
 	std::vector<std::unique_ptr<Stroke> > m_strokes;
 };

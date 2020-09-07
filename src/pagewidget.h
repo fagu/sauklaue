@@ -17,18 +17,49 @@ class LayerPicture : public QObject {
 	Q_OBJECT
 public:
 	explicit LayerPicture(NormalLayer *layer, PagePicture *page_picture);
+	
+	Cairo::RefPtr<Cairo::ImageSurface> cairo_surface;
+	Cairo::RefPtr<Cairo::Context> cr;
+	
+private slots:
+	void stroke_added();
+	void stroke_deleting();
+	
+signals:
+	void update(const QRect& rect);
+	
 private:
-	PagePicture *m_page_picture;
 	NormalLayer *m_layer;
+	PagePicture *m_page_picture;
+	
+	void setup();
+	void draw_stroke(int i);
+public:
+	void draw_line(Point a, Point b, Stroke *stroke);
+private:
+	void bounding_rect_helper(double x, double y, double &minx, double &maxx, double &miny, double &maxy);
+	void updatePageRect(double x1, double y1, double x2, double y2);
 };
 
 class PagePicture : public QObject {
 	Q_OBJECT
 public:
-	explicit PagePicture(Page *page);
+	explicit PagePicture(Page *_page, int _width, int _height);
 	
-private:
-	Page *m_page;
+	Cairo::Matrix page2widget, widget2page;
+	Page *page;
+	int width;
+	int height;
+	std::vector<std::unique_ptr<LayerPicture> > layers;
+	
+private slots:
+	void register_layer(int index);
+	void unregister_layer(int index);
+	
+	void update_layer(const QRect& rect);
+	
+signals:
+	void update(const QRect& rect);
 };
 
 class PageWidget : public QWidget
@@ -49,28 +80,24 @@ protected:
 	void mousePressEvent(QMouseEvent *event) override;
 	void mouseReleaseEvent(QMouseEvent *event) override;
 	void mouseMoveEvent(QMouseEvent *event) override;
-	
-private:
-	void setupCairo();
-	Point add_to_path(Point p);
-	void finish_path();
-	void draw_line(Point a, Point b);
-	void bounding_rect_helper(double x, double y, double &minx, double &maxx, double &miny, double &maxy);
-	void updatePageRect(double x1, double y1, double x2, double y2);
+	void tabletEvent(QTabletEvent * event) override;
 	
 private slots:
-	void register_layer(int index);
-	void unregister_layer(int index);
-	void stroke_added();
-	void stroke_deleted();
+	void update_page(const QRect& rect);
+	
+private:
+	enum struct StrokeType {
+		Pen,
+		Eraser
+	};
+	void start_path(double x, double y, StrokeType type);
+	void continue_path(double x, double y);
+	void finish_path();
 	
 private:
 	sauklaue *m_view;
-	Cairo::RefPtr<Cairo::ImageSurface> cairo_surface;
-	Cairo::RefPtr<Cairo::Context> cr;
-	Cairo::Matrix page2widget, widget2page;
-	bool pressed = false;
 	Page *m_page = nullptr;
+	std::unique_ptr<PagePicture> m_page_picture;
 	std::unique_ptr<Stroke> m_current_path;
 };
 
