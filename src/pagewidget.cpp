@@ -16,6 +16,9 @@ LayerPicture::LayerPicture(NormalLayer* layer, PagePicture* page_picture) :
 	
 	cairo_surface = Cairo::ImageSurface::create(Cairo::FORMAT_ARGB32, m_page_picture->width, m_page_picture->height);
 	cr = Cairo::Context::create(cairo_surface);
+// 	cr->set_antialias(Cairo::ANTIALIAS_GRAY);
+	cr->set_line_cap(Cairo::LINE_CAP_ROUND);
+	cr->set_line_join(Cairo::LINE_JOIN_ROUND);
 	cr->save();
 	setup();
 	for (int i = 0; i < (int)m_layer->strokes().size(); i++)
@@ -44,28 +47,16 @@ void LayerPicture::setup()
 {
 	cr->restore();
 	cr->save();
-	cr->set_source_rgba(0,0,0,0);
-	cr->set_operator(Cairo::OPERATOR_SOURCE);
-	cr->paint(); // Reset every pixel to transparent.
-	cr->restore();
-	cr->save();
-	
-// 	cr->save();
-// 	cr->set_source_rgb(0.8,0.8,0.8);
-// 	cr->paint();
-// 	cr->restore();
-	
 	cr->transform(m_page_picture->page2widget);
+	{
+		CairoGroup cg(cr);
+		cr->set_source_rgba(0,0,0,0);
+		cr->set_operator(Cairo::OPERATOR_SOURCE);
+		cr->paint(); // Reset every pixel to transparent.
+	}
+	
 	cr->rectangle(0,0,m_page_picture->page->width(),m_page_picture->page->height());
 	cr->clip();
-// 	cr->clip_preserve();
-// 	cr->save();
-// 	cr->set_source_rgb(1,1,1);
-// 	cr->fill();
-// 	cr->restore();
-// 	cr->set_antialias(Cairo::ANTIALIAS_GRAY);
-	cr->set_line_cap(Cairo::LINE_CAP_ROUND);
-	cr->set_line_join(Cairo::LINE_JOIN_ROUND);
 }
 
 void LayerPicture::draw_path(const std::vector<Point> &points) {
@@ -86,7 +77,7 @@ void LayerPicture::draw_path(const std::vector<Point> &points) {
 
 void LayerPicture::draw_stroke(int i)
 {
-	cr->save();
+	CairoGroup cg(cr);
 	const unique_ptr_Stroke& stroke = m_layer->strokes()[i];
 	std::visit(overloaded {
 		[&](const std::unique_ptr<PenStroke>& st) {
@@ -103,12 +94,11 @@ void LayerPicture::draw_stroke(int i)
 			draw_path(st->points());
 		}
 	}, stroke);
-	cr->restore();
 }
 
 void LayerPicture::draw_line(Point a, Point b, ptr_Stroke stroke)
 {
-	cr->save();
+	CairoGroup cg(cr);
 	std::visit(overloaded {
 		[&](const PenStroke* st) {
 			cr->set_line_width(st->width());
@@ -127,7 +117,6 @@ void LayerPicture::draw_line(Point a, Point b, ptr_Stroke stroke)
 	double x1, y1, x2, y2;
 	cr->get_stroke_extents(x1, y1, x2, y2);
 	cr->stroke();
-	cr->restore();
 	updatePageRect(x1, y1, x2, y2);
 }
 
