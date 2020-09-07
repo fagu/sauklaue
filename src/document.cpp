@@ -58,6 +58,7 @@ void Document::add_page(int at, std::unique_ptr<Page> page)
 {
 	assert(0 <= at && at <= (int)pages.size());
 	pages.insert(pages.begin() + at, std::move(page));
+	emit page_added(at);
 }
 
 std::unique_ptr<Page> Document::delete_page(int index)
@@ -65,6 +66,7 @@ std::unique_ptr<Page> Document::delete_page(int index)
 	assert(0 <= index && index < (int)pages.size());
 	std::unique_ptr<Page> page = std::move(pages[index]);
 	pages.erase(pages.begin() + index);
+	emit page_deleted(index);
 	return page;
 }
 

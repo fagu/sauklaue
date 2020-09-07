@@ -36,6 +36,9 @@ private slots:
 #ifndef QT_NO_SESSIONMANAGER
 	void commitData(QSessionManager &);
 #endif
+	
+	void page_added(int index);
+	void page_deleted(int index);
 
 private:
 	void createActions();
@@ -45,6 +48,8 @@ private:
 	bool saveFile(const QString& fileName);
 	void setCurrentFile(const QString& fileName);
 	QString strippedName(const QString& fullFileName);
+	
+	void setDocument(std::unique_ptr<Document> _doc);
 	
 public:
 	std::unique_ptr<Document> doc;

@@ -384,10 +384,10 @@ void PageWidget::finish_path()
 	// TODO This unnecessarily redraws the stroke!
 	std::visit(overloaded {
 		[&](std::unique_ptr<PenStroke> &st) {
-			m_view->undoStack->push(new AddPenStrokeCommand(m_view, m_view->current_page, 0, std::move(st)));
+			m_view->undoStack->push(new AddPenStrokeCommand(m_view->doc.get(), m_view->current_page, 0, std::move(st)));
 		},
 		[&](std::unique_ptr<EraserStroke> &st) {
-			m_view->undoStack->push(new AddEraserStrokeCommand(m_view, m_view->current_page, 0, std::move(st)));
+			m_view->undoStack->push(new AddEraserStrokeCommand(m_view->doc.get(), m_view->current_page, 0, std::move(st)));
 		}
 	}, m_current_path.value());
 	m_current_path.reset();

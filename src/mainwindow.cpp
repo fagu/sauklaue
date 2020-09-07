@@ -26,14 +26,23 @@ MainWindow::MainWindow(QWidget *parent) :
 	connect(qApp, &QGuiApplication::commitDataRequest,
 			this, &MainWindow::commitData);
 #endif
-	
-	doc = std::make_unique<Document>();
-	current_page = -1;
-	pagewidget->setPage(nullptr);
+	setDocument(std::make_unique<Document>());
 	setCurrentFile(QString());
 	updatePageNavigation();
 	setUnifiedTitleAndToolBarOnMac(true);
 }
+
+void MainWindow::setDocument(std::unique_ptr<Document> _doc)
+{
+	if (doc)
+		disconnect(doc.get(), 0, this, 0);
+	doc = std::move(_doc);
+	assert(doc);
+	connect(doc.get(), &Document::page_added, this, &MainWindow::page_added);
+	connect(doc.get(), &Document::page_deleted, this, &MainWindow::page_deleted);
+	gotoPage(doc->number_of_pages()-1);
+}
+
 
 void MainWindow::loadFile(const QString& fileName)
 {
@@ -49,9 +58,7 @@ void MainWindow::loadFile(const QString& fileName)
 #ifndef QT_NO_CURSOR
 	QGuiApplication::setOverrideCursor(Qt::WaitCursor);
 #endif
-	doc = Document::load(in);
-	current_page = doc->number_of_pages() - 1;
-	pagewidget->setPage(current_page == -1 ? nullptr : doc->page(current_page));
+	setDocument(Document::load(in));
 #ifndef QT_NO_CURSOR
 	QGuiApplication::restoreOverrideCursor();
 #endif
@@ -79,7 +86,6 @@ void MainWindow::moveEvent(QMoveEvent* event)
 void MainWindow::newFile()
 {
 	if (maybeSave()) {
-		doc = std::make_unique<Document>();
 		current_page = -1;
 		pagewidget->setPage(nullptr);
 		setCurrentFile(QString());
@@ -318,16 +324,14 @@ void MainWindow::newPage()
 	int height = pow(2, 0.25 - 2) * m2unit;
 	auto page = std::make_unique<Page>(width, height);
 	page->add_layer(0);
-	undoStack->push(new NewPageCommand(this, current_page+1, std::move(page)));
-	gotoPage(current_page+1);
+	undoStack->push(new NewPageCommand(doc.get(), current_page+1, std::move(page)));
 }
 
 void MainWindow::deletePage()
 {
 	if (current_page == -1)
 		return;
-	undoStack->push(new DeletePageCommand(this, current_page));
-	updatePageNavigation();
+	undoStack->push(new DeletePageCommand(doc.get(), current_page));
 }
 
 void MainWindow::nextPage()
@@ -367,6 +371,17 @@ void MainWindow::commitData(QSessionManager &manager)
 	}
 }
 #endif
+
+void MainWindow::page_added(int index)
+{
+	gotoPage(index);
+}
+
+void MainWindow::page_deleted(int index)
+{
+	gotoPage(index);
+}
+
 
 void MainWindow::updatePageNavigation() {
 	deletePageAction->setEnabled(current_page != -1);
