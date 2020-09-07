@@ -347,13 +347,9 @@ void PageWidget::start_path(double x, double y, StrokeType type)
 			m_current_path = std::make_unique<EraserStroke>(DEFAULT_ERASER_WIDTH);
 		}
 		std::visit(overloaded {
-			[&](PenStroke* st) {
-				st->push_back(p);
-				assert(m_page_picture->layers.size() == 1);
-				m_page_picture->layers[0]->draw_line(p, p, st);
-			},
-			[&](EraserStroke* st) {
-				st->push_back(p);
+			[&](std::variant<PenStroke*,EraserStroke*> st) {
+				PathStroke* pst = convert_variant<PathStroke*>(st);
+				pst->push_back(p);
 				assert(m_page_picture->layers.size() == 1);
 				m_page_picture->layers[0]->draw_line(p, p, st);
 			}
@@ -370,15 +366,10 @@ void PageWidget::continue_path(double x, double y)
 		qDebug() << "draw stroke";
 		Point p(x,y);
 		std::visit(overloaded {
-			[&](PenStroke* st) {
-				Point old = st->points().back();
-				st->push_back(p);
-				assert(m_page_picture->layers.size() == 1);
-				m_page_picture->layers[0]->draw_line(old, p, st);
-			},
-			[&](EraserStroke* st) {
-				Point old = st->points().back();
-				st->push_back(p);
+			[&](std::variant<PenStroke*,EraserStroke*> st) {
+				PathStroke* pst = convert_variant<PathStroke*>(st);
+				Point old = pst->points().back();
+				pst->push_back(p);
 				assert(m_page_picture->layers.size() == 1);
 				m_page_picture->layers[0]->draw_line(old, p, st);
 			}

@@ -75,8 +75,14 @@ private:
 
 typedef std::variant<PenStroke*, EraserStroke*> ptr_Stroke;
 typedef std::variant<std::unique_ptr<PenStroke>, std::unique_ptr<EraserStroke> > unique_ptr_Stroke;
+// Convert unique_ptr_Stroke into ptr_Stroke.
 inline ptr_Stroke get(const unique_ptr_Stroke& s) {
 	return std::visit([](const auto& p) -> ptr_Stroke {return p.get();}, s);
+}
+// Converts variant<U1,U2,...> to T by using the default conversion Ui -> T for each alternative Ui.
+template <class T, class ... U>
+T convert_variant(const std::variant<U...> &s) {
+	return std::visit([](const auto &s) -> T {return s;}, s);
 }
 
 class NormalLayer : public QObject {
