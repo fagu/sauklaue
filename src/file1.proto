@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package file;
+package file1;
 
 message Point {
 	sint32 x = 1;

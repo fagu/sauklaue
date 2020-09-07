@@ -33,9 +33,10 @@ private:
 	PagePicture *m_page_picture;
 	
 	void setup();
+	void draw_path(const std::vector<Point> &points);
 	void draw_stroke(int i);
 public:
-	void draw_line(Point a, Point b, Stroke *stroke);
+	void draw_line(Point a, Point b, ptr_Stroke stroke);
 private:
 	void bounding_rect_helper(double x, double y, double &minx, double &maxx, double &miny, double &maxy);
 	void updatePageRect(double x1, double y1, double x2, double y2);
@@ -98,7 +99,7 @@ private:
 	sauklaue *m_view;
 	Page *m_page = nullptr;
 	std::unique_ptr<PagePicture> m_page_picture;
-	std::unique_ptr<Stroke> m_current_path;
+	std::optional<unique_ptr_Stroke> m_current_path;
 };
 
 #endif // PAGEWIDGET_H

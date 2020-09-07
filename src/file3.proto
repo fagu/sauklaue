@@ -1,0 +1,50 @@
+syntax = "proto3";
+
+package file3;
+
+message Point {
+	sint32 x = 1;
+	sint32 y = 2;
+}
+
+message Path {
+	repeated Point points = 1;
+}
+
+message PenStroke {
+	Path path = 1;
+	sint32 width = 2;
+	fixed32 color = 3;
+}
+
+message EraserStroke {
+	Path path = 1;
+	sint32 width = 2;
+}
+
+message Stroke {
+	oneof stroke {
+		PenStroke pen = 1;
+		EraserStroke eraser = 2;
+	}
+}
+
+message NormalLayer {
+	repeated Stroke strokes = 1;
+}
+
+message Layer {
+	oneof layer {
+		NormalLayer normal = 1;
+	}
+}
+
+message Page {
+	sint32 width = 1;
+	sint32 height = 2;
+	repeated Layer layers = 3;
+}
+
+message File {
+	repeated Page pages = 1;
+}

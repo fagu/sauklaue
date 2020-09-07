@@ -2,6 +2,7 @@
 
 #include "sauklaue.h"
 
+#include "util.h"
 #include "actions.h"
 
 #include <QtWidgets>
@@ -373,6 +374,18 @@ void sauklaue::updatePageNavigation() {
 	previousPageAction->setEnabled(current_page > 0);
 }
 
+void draw_path(Cairo::RefPtr<Cairo::Context> cr, const std::vector<Point> &points) {
+	assert(!points.empty());
+	cr->move_to(points[0].x, points[0].y);
+	if (points.size() == 1) {
+		cr->line_to(points[0].x, points[0].y);
+	} else {
+		for (size_t i = 1; i < points.size(); i++)
+			cr->line_to(points[i].x, points[i].y);
+	}
+	cr->stroke();
+}
+
 void sauklaue::exportPDF()
 {
 	if (!save())
@@ -402,24 +415,20 @@ void sauklaue::exportPDF()
 			// The operator CAIRO_OPERATOR_SOURCE is apparently not supported by PDF files. Therefore Cairo falls back to saving a raster image in the PDF file, which uses a lot of space!
 // 			cairo_set_operator(cr->cobj(), CAIRO_OPERATOR_SOURCE);
 			for (const auto& stroke : layer->strokes()) {
-				cr->set_line_width(stroke->width());
-				Color co = stroke->color();
-				// TODO This alternative seems to slow down the PDF viewer.
-				// TODO Split Eraser and Pen into two completely different stroke types.
-				if (co.a() > 0.5) // pen
-					cr->set_source_rgba(co.r(), co.g(), co.b(), co.a());
-				else // eraser
-					cr->set_source(background); // Erase = draw the background again on top of this layer
-				const auto & points = stroke->points();
-				assert(!points.empty());
-				cr->move_to(points[0].x, points[0].y);
-				if (points.size() == 1) {
-					cr->line_to(points[0].x, points[0].y);
-				} else {
-					for (size_t i = 1; i < points.size(); i++)
-						cr->line_to(points[i].x, points[i].y);
-				}
-				cr->stroke();
+				std::visit(overloaded {
+					[&](const std::unique_ptr<PenStroke>& st) {
+						cr->set_line_width(st->width());
+						Color co = st->color();
+						cr->set_source_rgba(co.r(), co.g(), co.b(), co.a());
+						draw_path(cr, st->points());
+					},
+					[&](const std::unique_ptr<EraserStroke>& st) {
+						cr->set_line_width(st->width());
+						// TODO This seems to slow down the PDF viewer.
+						cr->set_source(background); // Erase = draw the background again on top of this layer
+						draw_path(cr, st->points());
+					}
+				}, stroke);
 			}
 		}
 		surface->show_page();

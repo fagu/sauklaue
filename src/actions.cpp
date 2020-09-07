@@ -50,27 +50,36 @@ void DeletePageCommand::undo()
 	view->gotoPage(index);
 }
 
-
-AddStrokeCommand::AddStrokeCommand(sauklaue* _view, int _page, int _layer, std::unique_ptr<Stroke> _stroke, QUndoCommand *parent) :
+template <class StrokeType>
+AddStrokeCommand<StrokeType>::AddStrokeCommand(sauklaue* _view, int _page, int _layer, std::unique_ptr<StrokeType> _stroke, QUndoCommand *parent) :
 	QUndoCommand(parent),
 	view(_view),
 	page(_page),
 	layer(_layer),
 	stroke(std::move(_stroke))
 {
-	setText(QObject::tr("Draw stroke"));
 }
 
-void AddStrokeCommand::redo()
+template <class StrokeType>
+void AddStrokeCommand<StrokeType>::redo()
 {
 	assert(stroke);
 	view->doc->page(page)->layer(layer)->add_stroke(std::move(stroke));
 }
 
-void AddStrokeCommand::undo()
+template <class StrokeType>
+void AddStrokeCommand<StrokeType>::undo()
 {
 	assert(!stroke);
-	stroke = view->doc->page(page)->layer(layer)->delete_stroke();
+	stroke = std::get<std::unique_ptr<StrokeType> >(view->doc->page(page)->layer(layer)->delete_stroke());
 }
 
+AddPenStrokeCommand::AddPenStrokeCommand(sauklaue* _view, int _page, int _layer, std::unique_ptr<PenStroke> _stroke, QUndoCommand* parent) : AddStrokeCommand<PenStroke>(_view, _page, _layer, std::move(_stroke), parent)
+{
+	setText(QObject::tr("Draw stroke"));
+}
 
+AddEraserStrokeCommand::AddEraserStrokeCommand(sauklaue* _view, int _page, int _layer, std::unique_ptr<EraserStroke> _stroke, QUndoCommand* parent) : AddStrokeCommand<EraserStroke>(_view, _page, _layer, std::move(_stroke), parent)
+{
+	setText(QObject::tr("Erase"));
+}

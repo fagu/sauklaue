@@ -1,5 +1,6 @@
 #include "pagewidget.h"
 
+#include "util.h"
 #include "sauklaue.h"
 #include "actions.h"
 
@@ -43,6 +44,11 @@ void LayerPicture::setup()
 {
 	cr->restore();
 	cr->save();
+	cr->set_source_rgba(0,0,0,0);
+	cr->set_operator(Cairo::OPERATOR_SOURCE);
+	cr->paint(); // Reset every pixel to transparent.
+	cr->restore();
+	cr->save();
 	
 // 	cr->save();
 // 	cr->set_source_rgb(0.8,0.8,0.8);
@@ -60,17 +66,9 @@ void LayerPicture::setup()
 // 	cr->set_antialias(Cairo::ANTIALIAS_GRAY);
 	cr->set_line_cap(Cairo::LINE_CAP_ROUND);
 	cr->set_line_join(Cairo::LINE_JOIN_ROUND);
-	cr->set_operator(Cairo::OPERATOR_SOURCE);
 }
 
-void LayerPicture::draw_stroke(int i)
-{
-	cr->save();
-	const std::unique_ptr<Stroke>& stroke = m_layer->strokes()[i];
-	cr->set_line_width(stroke->width());
-	Color co = stroke->color();
-	cr->set_source_rgba(co.r(), co.g(), co.b(), co.a());
-	const auto & points = stroke->points();
+void LayerPicture::draw_path(const std::vector<Point> &points) {
 	assert(!points.empty());
 	cr->move_to(points[0].x, points[0].y);
 	if (points.size() == 1) {
@@ -83,16 +81,47 @@ void LayerPicture::draw_stroke(int i)
 	double x1, y1, x2, y2;
 	cr->get_stroke_extents(x1, y1, x2, y2);
 	cr->stroke();
-	cr->restore();
 	updatePageRect(x1, y1, x2, y2);
 }
 
-void LayerPicture::draw_line(Point a, Point b, Stroke *stroke)
+void LayerPicture::draw_stroke(int i)
 {
 	cr->save();
-	cr->set_line_width(stroke->width());
-	Color co = stroke->color();
-	cr->set_source_rgba(co.r(), co.g(), co.b(), co.a());
+	const unique_ptr_Stroke& stroke = m_layer->strokes()[i];
+	std::visit(overloaded {
+		[&](const std::unique_ptr<PenStroke>& st) {
+			cr->set_line_width(st->width());
+			Color co = st->color();
+			cr->set_source_rgba(co.r(), co.g(), co.b(), co.a());
+			draw_path(st->points());
+		},
+		[&](const std::unique_ptr<EraserStroke>& st) {
+			cr->set_line_width(st->width());
+			cr->set_source_rgba(0,0,0,0); // Transparent
+			// Replace layer color by transparent instead of making a transparent drawing on top of the layer.
+			cr->set_operator(Cairo::OPERATOR_SOURCE);
+			draw_path(st->points());
+		}
+	}, stroke);
+	cr->restore();
+}
+
+void LayerPicture::draw_line(Point a, Point b, ptr_Stroke stroke)
+{
+	cr->save();
+	std::visit(overloaded {
+		[&](const PenStroke* st) {
+			cr->set_line_width(st->width());
+			Color co = st->color();
+			cr->set_source_rgba(co.r(), co.g(), co.b(), co.a());
+		},
+		[&](const EraserStroke* st) {
+			cr->set_line_width(st->width());
+			cr->set_source_rgba(0,0,0,0); // Transparent
+			// Replace layer color by transparent instead of making a transparent drawing on top of the layer.
+			cr->set_operator(Cairo::OPERATOR_SOURCE);
+		}
+	}, stroke);
 	cr->move_to(a.x, a.y);
 	cr->line_to(b.x, b.y);
 	double x1, y1, x2, y2;
@@ -180,7 +209,7 @@ PageWidget::PageWidget(sauklaue* view) :
 void PageWidget::setPage(Page* page)
 {
 	m_page = page;
-	m_current_path = nullptr;
+	m_current_path.reset();
 	if (page) {
 		m_page_picture = std::make_unique<PagePicture>(page, width(), height());
 		connect(m_page_picture.get(), &PagePicture::update, this, &PageWidget::update_page);
@@ -324,13 +353,22 @@ void PageWidget::start_path(double x, double y, StrokeType type)
 		qDebug() << "draw at" << x << y;
 		Point p(x,y);
 		if (type == StrokeType::Pen) {
-			m_current_path = std::make_unique<Stroke>(DEFAULT_LINE_WIDTH, Color::BLACK);
+			m_current_path = std::make_unique<PenStroke>(DEFAULT_LINE_WIDTH, Color::BLACK);
 		} else if (type == StrokeType::Eraser) {
-			m_current_path = std::make_unique<Stroke>(DEFAULT_ERASER_WIDTH, Color::TRANSPARENT);
+			m_current_path = std::make_unique<EraserStroke>(DEFAULT_ERASER_WIDTH);
 		}
-		m_current_path->push_back(p);
-		assert(m_page_picture->layers.size() == 1);
-		m_page_picture->layers[0]->draw_line(p, p, m_current_path.get());
+		std::visit(overloaded {
+			[&](const std::unique_ptr<PenStroke> &st) {
+				st->push_back(p);
+				assert(m_page_picture->layers.size() == 1);
+				m_page_picture->layers[0]->draw_line(p, p, st.get());
+			},
+			[&](const std::unique_ptr<EraserStroke> &st) {
+				st->push_back(p);
+				assert(m_page_picture->layers.size() == 1);
+				m_page_picture->layers[0]->draw_line(p, p, st.get());
+			}
+		}, m_current_path.value());
 	}
 }
 
@@ -342,10 +380,20 @@ void PageWidget::continue_path(double x, double y)
 	if (m_current_path) {
 		qDebug() << "draw stroke";
 		Point p(x,y);
-		Point old = m_current_path->points().back();
-		m_current_path->push_back(p);
-		assert(m_page_picture->layers.size() == 1);
-		m_page_picture->layers[0]->draw_line(old, p, m_current_path.get());
+		std::visit(overloaded {
+			[&](const std::unique_ptr<PenStroke> &st) {
+				Point old = st->points().back();
+				st->push_back(p);
+				assert(m_page_picture->layers.size() == 1);
+				m_page_picture->layers[0]->draw_line(old, p, st.get());
+			},
+			[&](const std::unique_ptr<EraserStroke> &st) {
+				Point old = st->points().back();
+				st->push_back(p);
+				assert(m_page_picture->layers.size() == 1);
+				m_page_picture->layers[0]->draw_line(old, p, st.get());
+			}
+		}, m_current_path.value());
 	}
 }
 
@@ -354,5 +402,13 @@ void PageWidget::finish_path()
 	if (!m_current_path)
 		return;
 	// TODO This unnecessarily redraws the stroke!
-	m_view->undoStack->push(new AddStrokeCommand(m_view, m_view->current_page, 0, std::move(m_current_path)));
+	std::visit(overloaded {
+		[&](std::unique_ptr<PenStroke> &st) {
+			m_view->undoStack->push(new AddPenStrokeCommand(m_view, m_view->current_page, 0, std::move(st)));
+		},
+		[&](std::unique_ptr<EraserStroke> &st) {
+			m_view->undoStack->push(new AddEraserStrokeCommand(m_view, m_view->current_page, 0, std::move(st)));
+		}
+	}, m_current_path.value());
+	m_current_path.reset();
 }

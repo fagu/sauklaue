@@ -2,6 +2,7 @@
 #define DOCUMENT_H
 
 #include <memory>
+#include <variant>
 #include <vector>
 
 #include <QString>
@@ -9,7 +10,7 @@
 
 class Color {
 public:
-	Color(uint32_t _x) : x(_x) {}
+	constexpr Color(uint32_t _x) : x(_x) {}
 	
 	uint32_t x;
 	
@@ -27,7 +28,7 @@ public:
 	double a() const {
 		return (double)(x&MASK)/(1<<8);
 	}
-	static constexpr uint32_t color(int r, int g, int b, int a) {
+	static constexpr Color color(int r, int g, int b, int a) {
 		uint32_t res = r;
 		res >>= 8;
 		res |= g;
@@ -37,8 +38,7 @@ public:
 		res |= a;
 		return res;
 	}
-	static const uint32_t BLACK;
-	static const uint32_t TRANSPARENT;
+	static const Color BLACK;
 };
 
 struct Point {
@@ -46,33 +46,50 @@ struct Point {
 	Point(int _x, int _y) : x(_x), y(_y) {}
 };
 
-class Stroke {
+class PathStroke {
 public:
-	Stroke(int w, uint32_t color) : m_width(w), m_color(color) {}
+	PathStroke() {}
 	const std::vector<Point> &points() const;
-	Point push_back(Point point);
-	int width() const {return m_width;}
-	uint32_t color() const {return m_color;}
+	void push_back(Point point);
 private:
 	std::vector<Point> m_points;
-	int m_width;
-	uint32_t m_color;
 };
+
+class PenStroke : public PathStroke {
+public:
+	PenStroke(int w, Color color) : m_width(w), m_color(color) {}
+	int width() const {return m_width;}
+	Color color() const {return m_color;}
+private:
+	int m_width;
+	Color m_color;
+};
+
+class EraserStroke : public PathStroke {
+public:
+	EraserStroke(int w) : m_width(w) {}
+	int width() const {return m_width;}
+private:
+	int m_width;
+};
+
+typedef std::variant<PenStroke*, EraserStroke*> ptr_Stroke;
+typedef std::variant<std::unique_ptr<PenStroke>, std::unique_ptr<EraserStroke> > unique_ptr_Stroke;
 
 class NormalLayer : public QObject {
 	Q_OBJECT
 public:
 	NormalLayer();
-	const std::vector<std::unique_ptr<Stroke> > & strokes();
-	void add_stroke(std::unique_ptr<Stroke> stroke)
+	const std::vector<unique_ptr_Stroke> & strokes();
+	void add_stroke(unique_ptr_Stroke stroke)
 	{
 		m_strokes.emplace_back(std::move(stroke));
 		emit stroke_added();
 	}
-	std::unique_ptr<Stroke> delete_stroke()
+	unique_ptr_Stroke delete_stroke()
 	{
 		emit stroke_deleting();
-		std::unique_ptr<Stroke> stroke = std::move(m_strokes.back());
+		unique_ptr_Stroke stroke = std::move(m_strokes.back());
 		m_strokes.pop_back();
 		return stroke;
 	}
@@ -80,7 +97,7 @@ signals:
 	void stroke_added(); // Emitted after adding a stroke in the end.
 	void stroke_deleting(); // Emitted before deleting the last stroke.
 private:
-	std::vector<std::unique_ptr<Stroke> > m_strokes;
+	std::vector<unique_ptr_Stroke> m_strokes;
 };
 
 class Page : public QObject {
