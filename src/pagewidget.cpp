@@ -120,8 +120,10 @@ void LayerPicture::draw_line(Point a, Point b, ptr_Stroke stroke)
 	updatePageRect(x1, y1, x2, y2);
 }
 
-void LayerPicture::bounding_rect_helper(double x, double y, double &minx, double &maxx, double &miny, double &maxy) {
-	m_page_picture->page2widget.transform_point(x, y);
+double PLUS_INF = +1./0, MINUS_INF = -1./0;
+
+void bounding_rect_helper(Cairo::Matrix mat, double x, double y, double &minx, double &maxx, double &miny, double &maxy) {
+	mat.transform_point(x, y);
 	if (minx > x)
 		minx = x;
 	if (maxx < x)
@@ -134,11 +136,11 @@ void LayerPicture::bounding_rect_helper(double x, double y, double &minx, double
 
 void LayerPicture::updatePageRect(double x1, double y1, double x2, double y2)
 {
-	double minx = +1./0, maxx = -1./0, miny = +1./0, maxy = -1./0;
-	bounding_rect_helper(x1, y1, minx, maxx, miny, maxy);
-	bounding_rect_helper(x1, y2, minx, maxx, miny, maxy);
-	bounding_rect_helper(x2, y1, minx, maxx, miny, maxy);
-	bounding_rect_helper(x2, y2, minx, maxx, miny, maxy);
+	double minx = PLUS_INF, maxx = MINUS_INF, miny = PLUS_INF, maxy = MINUS_INF;
+	bounding_rect_helper(m_page_picture->page2widget, x1, y1, minx, maxx, miny, maxy);
+	bounding_rect_helper(m_page_picture->page2widget, x1, y2, minx, maxx, miny, maxy);
+	bounding_rect_helper(m_page_picture->page2widget, x2, y1, minx, maxx, miny, maxy);
+	bounding_rect_helper(m_page_picture->page2widget, x2, y2, minx, maxx, miny, maxy);
 	emit update(QRect(minx-1, miny-1, maxx-minx+3, maxy-miny+3));
 }
 
@@ -195,12 +197,20 @@ PageWidget::PageWidget(MainWindow* view) :
 	setMinimumSize(20,20);
 }
 
-void PageWidget::setPage(Page* page)
+void PageWidget::setPage(Page* page, int index)
 {
+	if (m_page == page)
+		return;
+	page_index = index;
 	m_page = page;
 	m_current_path.reset();
-	if (page) {
-		m_page_picture = std::make_unique<PagePicture>(page, width(), height());
+	setupPicture();
+}
+
+void PageWidget::setupPicture()
+{
+	if (m_page) {
+		m_page_picture = std::make_unique<PagePicture>(m_page, width(), height());
 		connect(m_page_picture.get(), &PagePicture::update, this, &PageWidget::update_page);
 	} else {
 		m_page_picture = nullptr;
@@ -214,32 +224,87 @@ void PageWidget::update_page(const QRect& rect)
 	update(rect);
 }
 
+// Map tablet coordinates in [0,1] x [0,1] to coordinates in real life.
+Cairo::Matrix PageWidget::tablet_to_reality()
+{
+	// Tablet size: 28cm x 15.8cm
+	// Rotated 90 degrees clockwise
+	return Cairo::scaling_matrix(28, 15.8) * Cairo::rotation_matrix(M_PI/2);
+}
 
-// Tablet size: 28cm x 15.8cm
+Cairo::Matrix PageWidget::page_to_pixels()
+{
+	assert(m_page_picture);
+	// We assume here that mapToGlobal is always a translation.
+	// TODO Find out if that assumption is correct.
+	QPoint translation = mapToGlobal(QPoint(0,0));
+	return m_page_picture->page2widget * Cairo::translation_matrix(translation.x(), translation.y());
+}
+
+QRectF PageWidget::minimum_rect_in_pixels()
+{
+	Cairo::Matrix p2s = page_to_pixels();
+	// Compute the bounding rectangle of the page in screen coordinates.
+	double minx = PLUS_INF, maxx = MINUS_INF, miny = PLUS_INF, maxy = MINUS_INF;
+	bounding_rect_helper(p2s, 0, 0, minx, maxx, miny, maxy);
+	bounding_rect_helper(p2s, 0, m_page->height(), minx, maxx, miny, maxy);
+	bounding_rect_helper(p2s, m_page->width(), 0, minx, maxx, miny, maxy);
+	bounding_rect_helper(p2s, m_page->width(), m_page->height(), minx, maxx, miny, maxy);
+	static const int MARGIN = 50;
+	return QRectF(QPointF(minx-MARGIN, miny-MARGIN), QPointF(maxx+MARGIN, maxy+MARGIN));
+}
+
+Cairo::Matrix PageWidget::tablet_to_screen()
+{
+	assert(m_page);
+	Cairo::Matrix t2pi = tablet_to_reality() * page_to_pixels();
+	Cairo::Matrix pi2t = t2pi; pi2t.invert();
+	// Compute the minimum bounding rectangle in tablet coordinates.
+	QRectF minrect = minimum_rect_in_pixels();
+	double minx = PLUS_INF, maxx = MINUS_INF, miny = PLUS_INF, maxy = MINUS_INF;
+	bounding_rect_helper(pi2t, minrect.left(), minrect.top(), minx, maxx, miny, maxy);
+	bounding_rect_helper(pi2t, minrect.left(), minrect.bottom(), minx, maxx, miny, maxy);
+	bounding_rect_helper(pi2t, minrect.right(), minrect.top(), minx, maxx, miny, maxy);
+	bounding_rect_helper(pi2t, minrect.right(), minrect.bottom(), minx, maxx, miny, maxy);
+	double scale = std::max(maxx-minx, maxy-miny);
+	double dx = (maxx+minx-scale)/2, dy = (maxy+miny-scale)/2;
+	QRect scr = screen()->geometry();
+	return Cairo::scaling_matrix(scale, scale) * Cairo::translation_matrix(dx, dy) * t2pi * Cairo::scaling_matrix(1./scr.width(), 1./scr.height());
+}
+
+void tablet_set_coordinate_transformation_matrix(Cairo::Matrix m) {
+	double dx = 0, dy = 0;
+	m.transform_point(dx, dy);
+	double e1x = 1, e1y = 0;
+	m.transform_distance(e1x, e1y);
+	double e2x = 0, e2y = 1;
+	m.transform_distance(e2x, e2y);
+	qDebug() << QPointF(dx,dy) << QPointF(e1x, e1y) << QPointF(e2x, e2y);
+	QProcess::execute("xinput", {"set-prop", "XPPEN Tablet Pen (0)", "--type=float", "Coordinate Transformation Matrix", QString::number(e1x), QString::number(e2x), QString::number(dx), QString::number(e1y), QString::number(e2y), QString::number(dy), "0", "0", "1"});
+}
+
 void PageWidget::update_tablet_map()
 {
-	if (!m_page_picture) {
-		QProcess::execute("xinput", {"set-prop", "XPPEN Tablet Pen (0)", "--type=float", "Coordinate Transformation Matrix", "1", "0", "0", "0", "1", "0", "0", "0", "1"});
+	if (!has_focus) {
+// 		QProcess::execute("xinput", {"set-prop", "XPPEN Tablet Pen (0)", "--type=float", "Coordinate Transformation Matrix", "1", "0", "0", "0", "1", "0", "0", "0", "1"});
 		return;
 	}
-	double x = 0, y = 0;
-	m_page_picture->page2widget.transform_point(x, y);
-	QPoint topleft = mapToGlobal(QPoint(x,y));
-	x = m_page->width(); y = m_page->height();
-	m_page_picture->page2widget.transform_point(x, y);
-	QPoint bottomright = mapToGlobal(QPoint(x,y));
-// 	qDebug() << "map" <<  << ;
-	double tablet_margin_left = 0.1, tablet_margin_right = 0.1, tablet_margin_top = 0.1, tablet_margin_bottom = 0.1;
-	QRect scr = screen()->geometry();
-	double x1 = (double)topleft.x() / scr.width();
-	double x2 = (double)bottomright.x() / scr.width();
-	double y1 = (double)topleft.y() / scr.height();
-	double y2 = (double)bottomright.y() / scr.height();
-	double a = (x1-x2)/(1-tablet_margin_left-tablet_margin_right);
-	double b = (x2*(1-tablet_margin_left) - x1*tablet_margin_right)/(1-tablet_margin_left-tablet_margin_right);
-	double c = (y2-y1)/(1-tablet_margin_top-tablet_margin_bottom);
-	double d = (y1*(1-tablet_margin_bottom) - y2*tablet_margin_top)/(1-tablet_margin_top-tablet_margin_bottom);
-	QProcess::execute("xinput", {"set-prop", "XPPEN Tablet Pen (0)", "--type=float", "Coordinate Transformation Matrix", "0", QString::number(a), QString::number(b), QString::number(c), "0", QString::number(d), "0", "0", "1"});
+	assert(m_page_picture);
+	tablet_set_coordinate_transformation_matrix(tablet_to_screen());
+}
+
+void PageWidget::focusPage()
+{
+	has_focus = true;
+	update_tablet_map();
+	update();
+}
+
+void PageWidget::unfocusPage()
+{
+	has_focus = false;
+	update_tablet_map();
+	update();
 }
 
 void PageWidget::paintEvent(QPaintEvent* event)
@@ -266,12 +331,16 @@ void PageWidget::paintEvent(QPaintEvent* event)
 		QImage img((const uchar*)layer_picture->cairo_surface->get_data(), width(), height(), QImage::Format_ARGB32_Premultiplied);
 		painter.drawImage(0, 0, img);
 	}
+	if (has_focus) {
+		painter.setPen(QPen(QColorConstants::Red, 3));
+		painter.drawRect(x1, y1, x2-x1, y2-y1);
+	}
 }
 
 void PageWidget::resizeEvent(QResizeEvent* event)
 {
 	qDebug() << "resize" << event->size();
-	setPage(m_page);
+	setupPicture();
 }
 
 void PageWidget::moveEvent(QMoveEvent* event)
@@ -281,7 +350,8 @@ void PageWidget::moveEvent(QMoveEvent* event)
 
 void PageWidget::mousePressEvent(QMouseEvent* event)
 {
-	qDebug() << "Mouse event";
+	if (!has_focus)
+		return;
 	if (event->button() == Qt::LeftButton)
 		start_path(event->pos().x(), event->pos().y(), StrokeType::Pen);
 	else if (event->button() == Qt::RightButton)
@@ -290,18 +360,24 @@ void PageWidget::mousePressEvent(QMouseEvent* event)
 
 void PageWidget::mouseMoveEvent(QMouseEvent* event)
 {
-	qDebug() << "Mouse event";
 	continue_path(event->pos().x(), event->pos().y());
 }
 
 void PageWidget::mouseReleaseEvent(QMouseEvent* event)
 {
-	qDebug() << "Mouse event";
 	finish_path();
+}
+
+void PageWidget::mouseDoubleClickEvent(QMouseEvent* event)
+{
+	if (page_index != -1)
+		m_view->gotoPage(page_index);
 }
 
 void PageWidget::tabletEvent(QTabletEvent* event)
 {
+	if (!has_focus)
+		return;
 	if (event->pointerType() == QTabletEvent::Pen || event->pointerType() == QTabletEvent::Eraser) {
 		qDebug() << "Tablet pen event" << event->pressure();
 		event->pressure();
@@ -384,10 +460,10 @@ void PageWidget::finish_path()
 	// TODO This unnecessarily redraws the stroke!
 	std::visit(overloaded {
 		[&](std::unique_ptr<PenStroke> &st) {
-			m_view->undoStack->push(new AddPenStrokeCommand(m_view->doc.get(), m_view->current_page, 0, std::move(st)));
+			m_view->undoStack->push(new AddPenStrokeCommand(m_view->doc.get(), page_index, 0, std::move(st)));
 		},
 		[&](std::unique_ptr<EraserStroke> &st) {
-			m_view->undoStack->push(new AddEraserStrokeCommand(m_view->doc.get(), m_view->current_page, 0, std::move(st)));
+			m_view->undoStack->push(new AddEraserStrokeCommand(m_view->doc.get(), page_index, 0, std::move(st)));
 		}
 	}, m_current_path.value());
 	m_current_path.reset();

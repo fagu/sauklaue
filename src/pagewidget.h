@@ -38,7 +38,6 @@ private:
 public:
 	void draw_line(Point a, Point b, ptr_Stroke stroke);
 private:
-	void bounding_rect_helper(double x, double y, double &minx, double &maxx, double &miny, double &maxy);
 	void updatePageRect(double x1, double y1, double x2, double y2);
 };
 
@@ -70,9 +69,16 @@ class PageWidget : public QWidget
 public:
 	explicit PageWidget(MainWindow *view);
 	
-	void setPage(Page *page);
+	void setPage(Page *page, int index);
 	
+	Cairo::Matrix tablet_to_reality();
+	Cairo::Matrix page_to_pixels();
+	QRectF minimum_rect_in_pixels();
+	Cairo::Matrix tablet_to_screen();
 	void update_tablet_map();
+	
+	void focusPage();
+	void unfocusPage();
 	
 protected:
 	void paintEvent(QPaintEvent *event) override;
@@ -81,12 +87,15 @@ protected:
 	void mousePressEvent(QMouseEvent *event) override;
 	void mouseReleaseEvent(QMouseEvent *event) override;
 	void mouseMoveEvent(QMouseEvent *event) override;
+	void mouseDoubleClickEvent(QMouseEvent * event) override;
 	void tabletEvent(QTabletEvent * event) override;
 	
 private slots:
 	void update_page(const QRect& rect);
 	
 private:
+	void setupPicture();
+	
 	enum struct StrokeType {
 		Pen,
 		Eraser
@@ -96,6 +105,8 @@ private:
 	void finish_path();
 	
 private:
+	bool has_focus = false;
+	int page_index;
 	MainWindow *m_view;
 	Page *m_page = nullptr;
 	std::unique_ptr<PagePicture> m_page_picture;

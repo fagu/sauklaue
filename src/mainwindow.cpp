@@ -11,9 +11,14 @@ MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent)
 {
 	undoStack = new QUndoStack(this);
-	pagewidget = new PageWidget(this);
-	
-	setCentralWidget(pagewidget);
+	QWidget *mainArea = new QWidget();
+	QHBoxLayout *layout = new QHBoxLayout();
+	pagewidgets.emplace_back(new PageWidget(this));
+	pagewidgets.emplace_back(new PageWidget(this));
+	for (PageWidget *p : pagewidgets)
+		layout->addWidget(p);
+	mainArea->setLayout(layout);
+	setCentralWidget(mainArea);
 	
 	createActions();
 	
@@ -80,14 +85,14 @@ void MainWindow::closeEvent(QCloseEvent* event)
 
 void MainWindow::moveEvent(QMoveEvent* event)
 {
-	pagewidget->update_tablet_map();
+	for (PageWidget* p : pagewidgets)
+		p->update_tablet_map();
 }
 
 void MainWindow::newFile()
 {
 	if (maybeSave()) {
-		current_page = -1;
-		pagewidget->setPage(nullptr);
+		setDocument(std::make_unique<Document>());
 		setCurrentFile(QString());
 		updatePageNavigation();
 		undoStack->clear();
@@ -318,42 +323,74 @@ QString MainWindow::strippedName(const QString& fullFileName)
 
 void MainWindow::newPage()
 {
+	qDebug() << "new page" << current_page()+1;
 	// A4 paper
 	double m2unit = 72000/0.0254; // 1 unit = 1pt/1000 = 1in/72000 = 25.4mm/72000 = 0.0254m/72000
 	int width = pow(2, -0.25 - 2) * m2unit;
 	int height = pow(2, 0.25 - 2) * m2unit;
 	auto page = std::make_unique<Page>(width, height);
 	page->add_layer(0);
-	undoStack->push(new NewPageCommand(doc.get(), current_page+1, std::move(page)));
+	undoStack->push(new NewPageCommand(doc.get(), current_page()+1, std::move(page)));
 }
 
 void MainWindow::deletePage()
 {
-	if (current_page == -1)
+	if (current_page() == -1)
 		return;
-	undoStack->push(new DeletePageCommand(doc.get(), current_page));
+	undoStack->push(new DeletePageCommand(doc.get(), current_page()));
 }
 
 void MainWindow::nextPage()
 {
-	gotoPage(current_page+1);
+	gotoPage(current_page()+1);
 }
 
 void MainWindow::previousPage()
 {
-	gotoPage(current_page-1);
+	gotoPage(current_page()-1);
 }
 
 void MainWindow::gotoPage(int index)
 {
-	if (doc->number_of_pages() == 0)
-		index = -1;
-	else if (index < 0) // Page out of bounds => set to something reasonable
-		index = 0;
-	else if (index >= doc->number_of_pages()) // Page out of bounds => set to something reasonable
-		index = doc->number_of_pages() - 1;
-	current_page = index;
-	pagewidget->setPage(index == -1 ? nullptr : doc->page(index));
+	int new_first_displayed_page = first_displayed_page;
+	int new_focused_view = focused_view;
+	if (doc->number_of_pages() == 0) {
+		new_first_displayed_page = 0;
+		new_focused_view = -1;
+	} else {
+		if (index < 0) // Page out of bounds => set to something reasonable
+			index = 0;
+		else if (index >= doc->number_of_pages()) // Page out of bounds => set to something reasonable
+			index = doc->number_of_pages() - 1;
+		if (index < first_displayed_page) {
+			new_first_displayed_page = index;
+		} else if (index >= first_displayed_page + (int)pagewidgets.size()) {
+			new_first_displayed_page = index - (int)pagewidgets.size() + 1;
+		}
+		if (new_first_displayed_page + (int)pagewidgets.size() > doc->number_of_pages())
+			new_first_displayed_page = doc->number_of_pages() - (int)pagewidgets.size();
+		if (new_first_displayed_page < 0)
+			new_first_displayed_page = 0;
+		new_focused_view = index - new_first_displayed_page;
+	}
+	assert(new_first_displayed_page >= 0);
+	assert(new_focused_view == -1 || (0 <= new_focused_view && new_focused_view < (int)pagewidgets.size()));
+	if (new_focused_view != focused_view && focused_view != -1) {
+		pagewidgets[focused_view]->unfocusPage();
+	}
+	first_displayed_page = new_first_displayed_page;
+	for (int i = 0; i < (int)pagewidgets.size(); i++) {
+		int index = first_displayed_page + i;
+		if (index < doc->number_of_pages())
+			pagewidgets[i]->setPage(doc->page(index), index);
+		else
+			pagewidgets[i]->setPage(nullptr, -1);
+	}
+	if (new_focused_view != focused_view) {
+		focused_view = new_focused_view;
+		if (focused_view != -1)
+			pagewidgets[focused_view]->focusPage();
+	}
 	updatePageNavigation();
 }
 
@@ -384,9 +421,9 @@ void MainWindow::page_deleted(int index)
 
 
 void MainWindow::updatePageNavigation() {
-	deletePageAction->setEnabled(current_page != -1);
-	nextPageAction->setEnabled(current_page+1 < doc->number_of_pages());
-	previousPageAction->setEnabled(current_page > 0);
+	deletePageAction->setEnabled(focused_view != -1);
+	nextPageAction->setEnabled(focused_view != -1 && current_page()+1 < doc->number_of_pages());
+	previousPageAction->setEnabled(focused_view != -1 && current_page() > 0);
 }
 
 void draw_path(Cairo::RefPtr<Cairo::Context> cr, const std::vector<Point> &points) {

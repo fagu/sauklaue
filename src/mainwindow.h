@@ -51,12 +51,14 @@ private:
 	
 	void setDocument(std::unique_ptr<Document> _doc);
 	
+	int current_page() {return focused_view == -1 ? -1 : first_displayed_page + focused_view;}
+	
 public:
 	std::unique_ptr<Document> doc;
 	void gotoPage(int index);
 	void updatePageNavigation();
 private:
-	PageWidget *pagewidget; // owned and deleted by the QMainWindow
+	std::vector<PageWidget*> pagewidgets; // owned and deleted by the QMainWindow
 	QString curFile;
 	
 	QAction *deletePageAction;
@@ -64,7 +66,8 @@ private:
 	QAction *previousPageAction;
 	
 public:
-	int current_page;
+	int first_displayed_page; // The first displayed page (0 if the document is empty).
+	int focused_view; // Index of the focused PageWidget.
 	QUndoStack *undoStack;
 };
 
