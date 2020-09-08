@@ -181,6 +181,34 @@ void Document::save(QDataStream &stream)
 	stream.writeBytes(out.getArray().asChars().begin(), out.getArray().size());
 }
 
+void load_path_4(file4::Path::Reader s_path, PathStroke *path) {
+	auto s_points = s_path.getPoints();
+	assert(s_points.size() > 0);
+	path->reserve_points(s_points.size());
+	for (const auto& s_point : s_points) {
+		Point point(s_point.getX(), s_point.getY());
+		path->push_back(point);
+	}
+}
+
+void load_path_3(file3::Path s_path, PathStroke *path) {
+	assert(!s_path.points().empty());
+	path->reserve_points(s_path.points_size());
+	for (const auto& s_point : s_path.points()) {
+		Point point(s_point.x(), s_point.y());
+		path->push_back(point);
+	}
+}
+
+void load_path_1(file1::Stroke s_path, PathStroke *path) {
+	assert(!s_path.points().empty());
+	path->reserve_points(s_path.points_size());
+	for (const auto& s_point : s_path.points()) {
+		Point point(s_point.x(), s_point.y());
+		path->push_back(point);
+	}
+}
+
 std::unique_ptr<Document> Document::load(QDataStream& stream)
 {
 	uint32_t file_format_version;
@@ -206,27 +234,15 @@ std::unique_ptr<Document> Document::load(QDataStream& stream)
 					if (s_stroke.hasPen()) {
 						auto s_special_stroke = s_stroke.getPen();
 						auto special_stroke = std::make_unique<PenStroke>(s_special_stroke.getWidth(), s_special_stroke.getColor());
-						auto s_path = s_special_stroke.getPath();
-						auto s_points = s_path.getPoints();
-						assert(s_points.size() > 0);
-						special_stroke->reserve_points(s_points.size());
-						for (const auto& s_point : s_points) {
-							Point point(s_point.getX(), s_point.getY());
-							special_stroke->push_back(point);
-						}
+						load_path_4(s_special_stroke.getPath(), special_stroke.get());
 						stroke = std::move(special_stroke);
 					} else if (s_stroke.hasEraser()) {
 						auto s_special_stroke = s_stroke.getEraser();
 						auto special_stroke = std::make_unique<EraserStroke>(s_special_stroke.getWidth());
-						auto s_path = s_special_stroke.getPath();
-						auto s_points = s_path.getPoints();
-						assert(s_points.size() > 0);
-						special_stroke->reserve_points(s_points.size());
-						for (const auto& s_point : s_points) {
-							Point point(s_point.getX(), s_point.getY());
-							special_stroke->push_back(point);
-						}
+						load_path_4(s_special_stroke.getPath(), special_stroke.get());
 						stroke = std::move(special_stroke);
+					} else {
+						assert(false);
 					}
 					layer->add_stroke(std::move(stroke));
 				}
@@ -256,23 +272,15 @@ std::unique_ptr<Document> Document::load(QDataStream& stream)
 							const auto &s_special_stroke = s_stroke.pen();
 							Color color = s_special_stroke.color();
 							auto special_stroke = std::make_unique<PenStroke>(s_special_stroke.width(), color);
-							assert(!s_special_stroke.path().points().empty());
-							special_stroke->reserve_points(s_special_stroke.path().points_size());
-							for (const auto& s_point : s_special_stroke.path().points()) {
-								Point point(s_point.x(), s_point.y());
-								special_stroke->push_back(point);
-							}
+							load_path_3(s_special_stroke.path(), special_stroke.get());
 							stroke = std::move(special_stroke);
 						} else if (s_stroke.has_eraser()) {
 							const auto &s_special_stroke = s_stroke.eraser();
 							auto special_stroke = std::make_unique<EraserStroke>(s_special_stroke.width());
-							assert(!s_special_stroke.path().points().empty());
-							special_stroke->reserve_points(s_special_stroke.path().points_size());
-							for (const auto& s_point : s_special_stroke.path().points()) {
-								Point point(s_point.x(), s_point.y());
-								special_stroke->push_back(point);
-							}
+							load_path_3(s_special_stroke.path(), special_stroke.get());
 							stroke = std::move(special_stroke);
+						} else {
+							assert(false);
 						}
 						layer->add_stroke(std::move(stroke));
 					}
@@ -292,21 +300,13 @@ std::unique_ptr<Document> Document::load(QDataStream& stream)
 						Color color = file_format_version >= 2 ? s_stroke.color() : Color::BLACK;
 						unique_ptr_Stroke stroke;
 						if (color.a() > 0.5) { // Opaque => Assume PenStroke
-							stroke = std::make_unique<PenStroke>(s_stroke.width(), color);
+							auto special_stroke = std::make_unique<PenStroke>(s_stroke.width(), color);
+							load_path_1(s_stroke, special_stroke.get());
+							stroke = std::move(special_stroke);
 						} else {
-							stroke = std::make_unique<EraserStroke>(s_stroke.width());
-						}
-						assert(!s_stroke.points().empty());
-						for (const auto& s_point : s_stroke.points()) {
-							Point point(s_point.x(), s_point.y());
-							std::visit(overloaded {
-								[&](PenStroke* st) {
-									st->push_back(point);
-								},
-								[&](EraserStroke* st) {
-									st->push_back(point);
-								}
-							}, get(stroke));
+							auto special_stroke = std::make_unique<EraserStroke>(s_stroke.width());
+							load_path_1(s_stroke, special_stroke.get());
+							stroke = std::move(special_stroke);
 						}
 						layer->add_stroke(std::move(stroke));
 					}
