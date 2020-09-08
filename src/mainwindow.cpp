@@ -4,6 +4,7 @@
 
 #include "util.h"
 #include "actions.h"
+#include "serializer.h"
 
 #include <QtWidgets>
 
@@ -69,7 +70,7 @@ void MainWindow::loadFile(const QString& fileName)
 #ifndef QT_NO_CURSOR
 	QGuiApplication::setOverrideCursor(Qt::WaitCursor);
 #endif
-	setDocument(Document::load(in));
+	setDocument(Serializer::load(in));
 #ifndef QT_NO_CURSOR
 	QGuiApplication::restoreOverrideCursor();
 #endif
@@ -305,11 +306,15 @@ bool MainWindow::saveFile(const QString& fileName)
 	QSaveFile file(fileName);
 	if (file.open(QFile::WriteOnly)) {
 		QDataStream out(&file);
-		doc->save(out);
+		QElapsedTimer save_timer; save_timer.start();
+		Serializer::save(doc.get(), out);
+		qDebug() << "Serializer::save(doc, out)" << save_timer.elapsed();
+		QElapsedTimer commit_timer; commit_timer.start();
 		if (!file.commit()) {
 			errorMessage = tr("Cannot write file %1:\n%2.")
 				.arg(QDir::toNativeSeparators(fileName), file.errorString());
 		}
+		qDebug() << "file.commit()" << commit_timer.elapsed();
 	} else {
 		errorMessage = tr("Cannot open file %1 for writing:\n%2.")
 			.arg(QDir::toNativeSeparators(fileName), file.errorString());

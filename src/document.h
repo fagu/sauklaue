@@ -158,7 +158,6 @@ public:
 	std::unique_ptr<Page> delete_page(int index); // Delete and return a page. This returns the page's ownership to the caller. (So if the caller doesn't use the result, the page will be deleted from memory.) We return the deleted page so that we can undo deletion.
 	Page* page(int index);
 	int number_of_pages();
-	void save(QDataStream &stream);
 signals:
 	void page_added(int index);
 	void page_deleted(int index);
@@ -166,7 +165,6 @@ private:
 	std::vector<std::unique_ptr<Page> > pages;
 public:
 	static std::unique_ptr<Document> concatenate(const std::vector<std::unique_ptr<Document> > &in_docs);
-	static std::unique_ptr<Document> load(QDataStream &stream);
 };
 
 #endif // DOCUMENT_H

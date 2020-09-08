@@ -1,5 +1,7 @@
 #include "document.h"
 
+#include "serializer.h"
+
 #include "file.pb.h"
 
 #include <QtWidgets>
@@ -23,7 +25,7 @@ int main(int argc, char *argv[])
 		}
 
 		QDataStream in(&file);
-		in_docs.emplace_back(Document::load(in));
+		in_docs.emplace_back(Serializer::load(in));
 	}
 	
 	std::unique_ptr<Document> out_doc = Document::concatenate(in_docs);
@@ -32,7 +34,7 @@ int main(int argc, char *argv[])
 	QSaveFile file(fileName);
 	if (file.open(QFile::WriteOnly)) {
 		QDataStream out(&file);
-		out_doc->save(out);
+		Serializer::save(out_doc.get(), out);
 		if (!file.commit()) {
 			qCritical() << "Cannot write file" << fileName << file.errorString();
 		}

@@ -32,6 +32,7 @@ link_libraries(CapnProto::capnp)
 
 set(sauklaue_core_SRC
   src/document.cpp
+  src/serializer.cpp
 )
 
 set(sauklaue_SRC
