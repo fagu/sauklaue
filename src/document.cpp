@@ -5,6 +5,10 @@
 #include "file1.pb.h"
 #include "file3.pb.h"
 
+#include "src/file4.capnp.h"
+#include <capnp/message.h>
+#include <capnp/serialize-packed.h>
+
 #include <cassert>
 #include <iostream>
 
@@ -122,49 +126,59 @@ std::unique_ptr<Document> Document::concatenate(const std::vector<std::unique_pt
 }
 
 
-const uint32_t FILE_FORMAT_VERSION = 3;
+const uint32_t FILE_FORMAT_VERSION = 4;
 
-void write_path(file3::Path *s_path, const std::vector<Point> &points) {
-	for (const auto& point : points) {
-		file3::Point *s_point = s_path->add_points();
-		s_point->set_x(point.x);
-		s_point->set_y(point.y);
+void write_path(file4::Path::Builder s_path, const std::vector<Point> &points) {
+	auto s_points = s_path.initPoints(points.size());
+	for (size_t i_point = 0; i_point < points.size(); i_point++) {
+		const auto& point = points[i_point];
+		auto s_point = s_points[i_point];
+		s_point.setX(point.x);
+		s_point.setY(point.y);
 	}
 }
 
 void Document::save(QDataStream &stream)
 {
 	stream << FILE_FORMAT_VERSION;
-	file3::File s_file;
-	for (const auto& page : pages) {
-		file3::Page *s_page = s_file.add_pages();
-		s_page->set_width(page->width());
-		s_page->set_height(page->height());
-		for (const auto& layer : page->layers()) {
-			file3::Layer *s_layer = s_page->add_layers();
-			file3::NormalLayer *s_normal_layer = s_layer->mutable_normal();
-			for (const auto& stroke : layer->strokes()) {
-				file3::Stroke *s_stroke = s_normal_layer->add_strokes();
+	capnp::MallocMessageBuilder message;
+	auto s_file = message.initRoot<file4::File>();
+	auto s_pages = s_file.initPages(pages.size());
+	for (size_t i_page = 0; i_page < pages.size(); i_page++) {
+		const auto& page = pages[i_page];
+		auto s_page = s_pages[i_page];
+		s_page.setWidth(page->width());
+		s_page.setHeight(page->height());
+		auto s_layers = s_page.initLayers(page->layers().size());
+		for (size_t i_layer = 0; i_layer < page->layers().size(); i_layer++) {
+			const auto& layer = page->layers()[i_layer];
+			auto s_layer = s_layers[i_layer];
+			auto s_normal_layer = s_layer.initNormal();
+			auto s_strokes = s_normal_layer.initStrokes(layer->strokes().size());
+			for (size_t i_stroke = 0; i_stroke < layer->strokes().size(); i_stroke++) {
+				const auto& stroke = layer->strokes()[i_stroke];
+				auto s_stroke = s_strokes[i_stroke];
 				std::visit(overloaded {
 					[&](const PenStroke* st) {
-						file3::PenStroke *s_special_stroke = s_stroke->mutable_pen();
-						s_special_stroke->set_width(st->width());
-						s_special_stroke->set_color(st->color().x);
-						file3::Path *s_path = s_special_stroke->mutable_path();
+						auto s_special_stroke = s_stroke.initPen();
+						s_special_stroke.setWidth(st->width());
+						s_special_stroke.setColor(st->color().x);
+						auto s_path = s_special_stroke.initPath();
 						write_path(s_path, st->points());
 					},
 					[&](const EraserStroke* st) {
-						file3::EraserStroke *s_special_stroke = s_stroke->mutable_eraser();
-						s_special_stroke->set_width(st->width());
-						file3::Path *s_path = s_special_stroke->mutable_path();
+						auto s_special_stroke = s_stroke.initEraser();
+						s_special_stroke.setWidth(st->width());
+						auto s_path = s_special_stroke.initPath();
 						write_path(s_path, st->points());
 					}
 				}, get(stroke));
 			}
 		}
 	}
-	std::string data = s_file.SerializeAsString();
-	stream.writeBytes(data.c_str(), data.length());
+	kj::VectorOutputStream out;
+	capnp::writePackedMessage(out, message);
+	stream.writeBytes(out.getArray().asChars().begin(), out.getArray().size());
 }
 
 std::unique_ptr<Document> Document::load(QDataStream& stream)
@@ -172,41 +186,44 @@ std::unique_ptr<Document> Document::load(QDataStream& stream)
 	uint32_t file_format_version;
 	stream >> file_format_version;
 	assert(file_format_version <= FILE_FORMAT_VERSION);
-	char* c_data; uint len;
-	stream.readBytes(c_data, len);
-	std::string data(c_data, len);
-	delete[] c_data;
 	auto doc = std::make_unique<Document>();
-	google::protobuf::Arena arena;
-	if (file_format_version >= 3) {
-		file3::File *s_file = google::protobuf::Arena::CreateMessage<file3::File>(&arena);
-		assert(s_file->ParseFromString(data));
-		for (const auto& s_page : s_file->pages()) {
-			auto page = std::make_unique<Page>(s_page.width(), s_page.height());
-			for (const auto& s_layer : s_page.layers()) {
-				const auto &s_normal_layer = s_layer.normal();
+	if (file_format_version >= 4) {
+		char* c_data; uint len;
+		stream.readBytes(c_data, len);
+		kj::ArrayInputStream in(kj::arrayPtr((unsigned char*)c_data, len));
+		// TODO Set the traversalLimitInWords to something other than 64MB. (Maybe just set it to a constant times the file size?)
+		capnp::PackedMessageReader message(in);
+		auto s_file = message.getRoot<file4::File>();
+		for (auto s_page : s_file.getPages()) {
+			auto page = std::make_unique<Page>(s_page.getWidth(), s_page.getHeight());
+			for (auto s_layer : s_page.getLayers()) {
+				auto s_normal_layer = s_layer.getNormal();
 				auto layer = std::make_unique<NormalLayer>();
-				layer->reserve_strokes(s_normal_layer.strokes_size());
-				for (const auto& s_stroke : s_normal_layer.strokes()) {
+				auto s_strokes = s_normal_layer.getStrokes();
+				layer->reserve_strokes(s_strokes.size());
+				for (auto s_stroke : s_strokes) {
 					unique_ptr_Stroke stroke;
-					if (s_stroke.has_pen()) {
-						const auto &s_special_stroke = s_stroke.pen();
-						Color color = s_special_stroke.color();
-						auto special_stroke = std::make_unique<PenStroke>(s_special_stroke.width(), color);
-						assert(!s_special_stroke.path().points().empty());
-						special_stroke->reserve_points(s_special_stroke.path().points_size());
-						for (const auto& s_point : s_special_stroke.path().points()) {
-							Point point(s_point.x(), s_point.y());
+					if (s_stroke.hasPen()) {
+						auto s_special_stroke = s_stroke.getPen();
+						auto special_stroke = std::make_unique<PenStroke>(s_special_stroke.getWidth(), s_special_stroke.getColor());
+						auto s_path = s_special_stroke.getPath();
+						auto s_points = s_path.getPoints();
+						assert(s_points.size() > 0);
+						special_stroke->reserve_points(s_points.size());
+						for (const auto& s_point : s_points) {
+							Point point(s_point.getX(), s_point.getY());
 							special_stroke->push_back(point);
 						}
 						stroke = std::move(special_stroke);
-					} else if (s_stroke.has_eraser()) {
-						const auto &s_special_stroke = s_stroke.eraser();
-						auto special_stroke = std::make_unique<EraserStroke>(s_special_stroke.width());
-						assert(!s_special_stroke.path().points().empty());
-						special_stroke->reserve_points(s_special_stroke.path().points_size());
-						for (const auto& s_point : s_special_stroke.path().points()) {
-							Point point(s_point.x(), s_point.y());
+					} else if (s_stroke.hasEraser()) {
+						auto s_special_stroke = s_stroke.getEraser();
+						auto special_stroke = std::make_unique<EraserStroke>(s_special_stroke.getWidth());
+						auto s_path = s_special_stroke.getPath();
+						auto s_points = s_path.getPoints();
+						assert(s_points.size() > 0);
+						special_stroke->reserve_points(s_points.size());
+						for (const auto& s_point : s_points) {
+							Point point(s_point.getX(), s_point.getY());
 							special_stroke->push_back(point);
 						}
 						stroke = std::move(special_stroke);
@@ -217,43 +234,89 @@ std::unique_ptr<Document> Document::load(QDataStream& stream)
 			}
 			doc->add_page(doc->number_of_pages(), std::move(page));
 		}
+		delete[] c_data; // TODO Do this in an exception-safe way!
 	} else {
-		qDebug() << "Old file version";
-		file1::File *s_file = google::protobuf::Arena::CreateMessage<file1::File>(&arena);
-		assert(s_file->ParseFromString(data));
-		for (const auto& s_page : s_file->pages()) {
-			auto page = std::make_unique<Page>(s_page.width(), s_page.height());
-			for (const auto& s_layer : s_page.layers()) {
-				const auto &s_normal_layer = s_layer.normal();
-				auto layer = std::make_unique<NormalLayer>();
-				for (const auto& s_stroke : s_normal_layer.strokes()) {
-					Color color = file_format_version >= 2 ? s_stroke.color() : Color::BLACK;
-					unique_ptr_Stroke stroke;
-					if (color.a() > 0.5) { // Opaque => Assume PenStroke
-						stroke = std::make_unique<PenStroke>(s_stroke.width(), color);
-					} else {
-						stroke = std::make_unique<EraserStroke>(s_stroke.width());
-					}
-					assert(!s_stroke.points().empty());
-					for (const auto& s_point : s_stroke.points()) {
-						Point point(s_point.x(), s_point.y());
-						std::visit(overloaded {
-							[&](PenStroke* st) {
-								st->push_back(point);
-							},
-							[&](EraserStroke* st) {
-								st->push_back(point);
+		char* c_data; uint len;
+		stream.readBytes(c_data, len);
+		std::string data(c_data, len);
+		delete[] c_data;
+		google::protobuf::Arena arena;
+		if (file_format_version >= 3) {
+			file3::File *s_file = google::protobuf::Arena::CreateMessage<file3::File>(&arena);
+			assert(s_file->ParseFromString(data));
+			for (const auto& s_page : s_file->pages()) {
+				auto page = std::make_unique<Page>(s_page.width(), s_page.height());
+				for (const auto& s_layer : s_page.layers()) {
+					const auto &s_normal_layer = s_layer.normal();
+					auto layer = std::make_unique<NormalLayer>();
+					layer->reserve_strokes(s_normal_layer.strokes_size());
+					for (const auto& s_stroke : s_normal_layer.strokes()) {
+						unique_ptr_Stroke stroke;
+						if (s_stroke.has_pen()) {
+							const auto &s_special_stroke = s_stroke.pen();
+							Color color = s_special_stroke.color();
+							auto special_stroke = std::make_unique<PenStroke>(s_special_stroke.width(), color);
+							assert(!s_special_stroke.path().points().empty());
+							special_stroke->reserve_points(s_special_stroke.path().points_size());
+							for (const auto& s_point : s_special_stroke.path().points()) {
+								Point point(s_point.x(), s_point.y());
+								special_stroke->push_back(point);
 							}
-						}, get(stroke));
+							stroke = std::move(special_stroke);
+						} else if (s_stroke.has_eraser()) {
+							const auto &s_special_stroke = s_stroke.eraser();
+							auto special_stroke = std::make_unique<EraserStroke>(s_special_stroke.width());
+							assert(!s_special_stroke.path().points().empty());
+							special_stroke->reserve_points(s_special_stroke.path().points_size());
+							for (const auto& s_point : s_special_stroke.path().points()) {
+								Point point(s_point.x(), s_point.y());
+								special_stroke->push_back(point);
+							}
+							stroke = std::move(special_stroke);
+						}
+						layer->add_stroke(std::move(stroke));
 					}
-					layer->add_stroke(std::move(stroke));
+					page->add_layer(page->layers().size(), std::move(layer));
 				}
-				page->add_layer(page->layers().size(), std::move(layer));
+				doc->add_page(doc->number_of_pages(), std::move(page));
 			}
-			doc->add_page(doc->number_of_pages(), std::move(page));
+		} else {
+			file1::File *s_file = google::protobuf::Arena::CreateMessage<file1::File>(&arena);
+			assert(s_file->ParseFromString(data));
+			for (const auto& s_page : s_file->pages()) {
+				auto page = std::make_unique<Page>(s_page.width(), s_page.height());
+				for (const auto& s_layer : s_page.layers()) {
+					const auto &s_normal_layer = s_layer.normal();
+					auto layer = std::make_unique<NormalLayer>();
+					for (const auto& s_stroke : s_normal_layer.strokes()) {
+						Color color = file_format_version >= 2 ? s_stroke.color() : Color::BLACK;
+						unique_ptr_Stroke stroke;
+						if (color.a() > 0.5) { // Opaque => Assume PenStroke
+							stroke = std::make_unique<PenStroke>(s_stroke.width(), color);
+						} else {
+							stroke = std::make_unique<EraserStroke>(s_stroke.width());
+						}
+						assert(!s_stroke.points().empty());
+						for (const auto& s_point : s_stroke.points()) {
+							Point point(s_point.x(), s_point.y());
+							std::visit(overloaded {
+								[&](PenStroke* st) {
+									st->push_back(point);
+								},
+								[&](EraserStroke* st) {
+									st->push_back(point);
+								}
+							}, get(stroke));
+						}
+						layer->add_stroke(std::move(stroke));
+					}
+					page->add_layer(page->layers().size(), std::move(layer));
+				}
+				doc->add_page(doc->number_of_pages(), std::move(page));
+			}
 		}
+		qDebug() << "Arena space used:" << arena.SpaceUsed() << arena.SpaceAllocated();
 	}
-	qDebug() << "Arena space used:" << arena.SpaceUsed() << arena.SpaceAllocated();
 	qDebug() << "Read file";
 	qDebug() << "Number of pages:" << doc->number_of_pages();
 	int num_strokes = 0, num_points = 0;

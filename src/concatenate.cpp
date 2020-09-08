@@ -11,18 +11,6 @@ int main(int argc, char *argv[])
 	// compatible with the version of the headers we compiled against.
 	GOOGLE_PROTOBUF_VERIFY_VERSION;
 	
-	/*{
-		auto layer = std::make_unique<NormalLayer>();
-		for (int i = 0; i < 40000; i++) {
-			auto stroke = std::make_unique<PenStroke>(10, Color::BLACK);
-			for (int j = 0; j < 100; j++) {
-				stroke->push_back(Point(0,0));
-			}
-			layer->add_stroke(std::move(stroke));
-		}
-		while(1);
-	}*/
-	
 	assert(argc >= 4);
 	
 	std::vector<std::unique_ptr<Document> > in_docs;
@@ -36,9 +24,7 @@ int main(int argc, char *argv[])
 
 		QDataStream in(&file);
 		in_docs.emplace_back(Document::load(in));
-		in_docs.back().reset();
 	}
-	while(1);
 	
 	std::unique_ptr<Document> out_doc = Document::concatenate(in_docs);
 	
@@ -59,4 +45,3 @@ int main(int argc, char *argv[])
 	
 	return 0;
 }
-

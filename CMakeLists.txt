@@ -25,6 +25,11 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR})
 protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS src/file1.proto src/file3.proto)
 # protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS EXPORT_MACRO DLL_EXPORT src.proto)
 
+find_package(CapnProto)
+capnp_generate_cpp(CAPNP_SRCS CAPNP_HDRS src/file4.capnp)
+# include_directories(${CMAKE_CURRENT_BINARY_DIR})
+link_libraries(CapnProto::capnp)
+
 set(sauklaue_core_SRC
   src/document.cpp
 )
@@ -41,7 +46,7 @@ set(sauklaue_conc_SRC
 )
 
 # Tell CMake to create the helloworld executable
-add_executable(sauklaue ${sauklaue_SRC} ${sauklaue_core_SRC} ${PROTO_SRCS} ${PROTO_HDRS})
+add_executable(sauklaue ${sauklaue_SRC} ${sauklaue_core_SRC} ${PROTO_SRCS} ${PROTO_HDRS} ${CAPNP_SRCS})
 add_executable(sauklaue-conc ${sauklaue_conc_SRC} ${sauklaue_core_SRC} ${PROTO_SRCS} ${PROTO_HDRS})
 
 target_link_libraries(sauklaue Qt5::Widgets ${cairomm_LDFLAGS} ${Protobuf_LIBRARIES})

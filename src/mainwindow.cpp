@@ -135,6 +135,9 @@ bool MainWindow::saveAs()
 	return saveFile(dialog.selectedFiles().first());
 }
 
+// TODO Do autosaving in a different thread to avoid interruptions?
+// Question: Is copying a Document fast enough to make a separate copy for the autosave thread?
+// Otherwise, we could perhaps always keep two copies of the Document, one for the view, one for the autosave thread. While the autosave thread is saving, its Document doesn't update but instead keeps track of the edits it's currently missing. The edits are applied as soon as the autosave is complete.
 void MainWindow::autoSave()
 {
 	if (doc && !curFile.isEmpty()) {
