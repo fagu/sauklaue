@@ -51,6 +51,9 @@ public:
 	PathStroke() {}
 	const std::vector<Point> &points() const;
 	void push_back(Point point);
+	void reserve_points(size_t n) {
+		m_points.reserve(n);
+	}
 private:
 	std::vector<Point> m_points;
 };
@@ -89,6 +92,7 @@ class NormalLayer : public QObject {
 	Q_OBJECT
 public:
 	NormalLayer();
+	explicit NormalLayer(const NormalLayer& a);
 	const std::vector<unique_ptr_Stroke> & strokes();
 	void add_stroke(unique_ptr_Stroke stroke)
 	{
@@ -102,6 +106,9 @@ public:
 		m_strokes.pop_back();
 		return stroke;
 	}
+	void reserve_strokes(size_t n) {
+		m_strokes.reserve(n);
+	}
 signals:
 	void stroke_added(); // Emitted after adding a stroke in the end.
 	void stroke_deleting(); // Emitted before deleting the last stroke.
@@ -113,6 +120,7 @@ class Page : public QObject {
 	Q_OBJECT
 public:
 	Page(int w, int h);
+	explicit Page(const Page& a);
 	int width();
 	int height();
 	const std::vector<std::unique_ptr<NormalLayer> > & layers() const
@@ -145,6 +153,7 @@ class Document : public QObject
 	Q_OBJECT
 public:
 	Document();
+	explicit Document(const Document& a);
 	void add_page(int at, std::unique_ptr<Page> page);
 	std::unique_ptr<Page> delete_page(int index); // Delete and return a page. This returns the page's ownership to the caller. (So if the caller doesn't use the result, the page will be deleted from memory.) We return the deleted page so that we can undo deletion.
 	Page* page(int index);
@@ -156,6 +165,7 @@ signals:
 private:
 	std::vector<std::unique_ptr<Page> > pages;
 public:
+	static std::unique_ptr<Document> concatenate(const std::vector<std::unique_ptr<Document> > &in_docs);
 	static std::unique_ptr<Document> load(QDataStream &stream);
 };
 

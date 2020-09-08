@@ -202,7 +202,7 @@ void PageWidget::setPage(Page* page, int index)
 		return;
 	page_index = index;
 	m_page = page;
-	m_current_path.reset();
+	m_current_stroke.reset();
 	setupPicture();
 }
 
@@ -406,12 +406,12 @@ void PageWidget::start_path(double x, double y, StrokeType type)
 	if (!m_page_picture)
 		return;
 	m_page_picture->widget2page.transform_point(x, y);
-	if (!m_current_path) {
+	if (!m_current_stroke) {
 		Point p(x,y);
 		if (type == StrokeType::Pen) {
-			m_current_path = std::make_unique<PenStroke>(DEFAULT_LINE_WIDTH, Color::BLACK);
+			m_current_stroke = std::make_unique<PenStroke>(DEFAULT_LINE_WIDTH, Color::BLACK);
 		} else if (type == StrokeType::Eraser) {
-			m_current_path = std::make_unique<EraserStroke>(DEFAULT_ERASER_WIDTH);
+			m_current_stroke = std::make_unique<EraserStroke>(DEFAULT_ERASER_WIDTH);
 		}
 		std::visit(overloaded {
 			[&](std::variant<PenStroke*,EraserStroke*> st) {
@@ -420,16 +420,16 @@ void PageWidget::start_path(double x, double y, StrokeType type)
 				assert(m_page_picture->layers.size() == 1);
 				m_page_picture->layers[0]->draw_line(p, p, st);
 			}
-		}, get(m_current_path.value()));
+		}, get(m_current_stroke.value()));
 	}
 }
 
 void PageWidget::continue_path(double x, double y)
 {
-	if (!m_current_path)
+	if (!m_current_stroke)
 		return;
 	m_page_picture->widget2page.transform_point(x, y);
-	if (m_current_path) {
+	if (m_current_stroke) {
 		Point p(x,y);
 		std::visit(overloaded {
 			[&](std::variant<PenStroke*,EraserStroke*> st) {
@@ -439,13 +439,13 @@ void PageWidget::continue_path(double x, double y)
 				assert(m_page_picture->layers.size() == 1);
 				m_page_picture->layers[0]->draw_line(old, p, st);
 			}
-		}, get(m_current_path.value()));
+		}, get(m_current_stroke.value()));
 	}
 }
 
 void PageWidget::finish_path()
 {
-	if (!m_current_path)
+	if (!m_current_stroke)
 		return;
 	// TODO This unnecessarily redraws the stroke!
 	std::visit(overloaded {
@@ -455,6 +455,6 @@ void PageWidget::finish_path()
 		[&](std::unique_ptr<EraserStroke> &st) {
 			m_view->undoStack->push(new AddEraserStrokeCommand(m_view->doc.get(), page_index, 0, std::move(st)));
 		}
-	}, m_current_path.value());
-	m_current_path.reset();
+	}, m_current_stroke.value());
+	m_current_stroke.reset();
 }

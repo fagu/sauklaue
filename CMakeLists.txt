@@ -25,18 +25,27 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR})
 protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS src/file1.proto src/file3.proto)
 # protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS EXPORT_MACRO DLL_EXPORT src.proto)
 
+set(sauklaue_core_SRC
+  src/document.cpp
+)
+
 set(sauklaue_SRC
   src/main.cpp
   src/mainwindow.cpp
   src/pagewidget.cpp
-  src/document.cpp
   src/actions.cpp
 )
 
+set(sauklaue_conc_SRC
+  src/concatenate.cpp
+)
+
 # Tell CMake to create the helloworld executable
-add_executable(sauklaue ${sauklaue_SRC} ${PROTO_SRCS} ${PROTO_HDRS})
+add_executable(sauklaue ${sauklaue_SRC} ${sauklaue_core_SRC} ${PROTO_SRCS} ${PROTO_HDRS})
+add_executable(sauklaue-conc ${sauklaue_conc_SRC} ${sauklaue_core_SRC} ${PROTO_SRCS} ${PROTO_HDRS})
 
 target_link_libraries(sauklaue Qt5::Widgets ${cairomm_LDFLAGS} ${Protobuf_LIBRARIES})
+target_link_libraries(sauklaue-conc Qt5::Widgets ${cairomm_LDFLAGS} ${Protobuf_LIBRARIES})
 
 # Install the executable
 install(TARGETS sauklaue DESTINATION bin)

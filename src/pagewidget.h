@@ -110,7 +110,7 @@ private:
 	MainWindow *m_view;
 	Page *m_page = nullptr;
 	std::unique_ptr<PagePicture> m_page_picture;
-	std::optional<unique_ptr_Stroke> m_current_path;
+	std::optional<unique_ptr_Stroke> m_current_stroke;
 };
 
 #endif // PAGEWIDGET_H

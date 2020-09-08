@@ -26,6 +26,18 @@ NormalLayer::NormalLayer()
 {
 }
 
+NormalLayer::NormalLayer(const NormalLayer& a)
+{
+	// Copy the strokes.
+	for (const unique_ptr_Stroke &s : a.m_strokes) {
+		m_strokes.emplace_back(std::visit(
+			[](const auto& t) -> unique_ptr_Stroke {
+				return std::make_unique<typename std::remove_reference_t<decltype(t)>::element_type>(*t);
+			}, s));
+	}
+}
+
+
 const std::vector<unique_ptr_Stroke> & NormalLayer::strokes()
 {
 	return m_strokes;
@@ -36,6 +48,14 @@ Page::Page(int w, int h) :
 	m_width(w),
 	m_height(h)
 {
+}
+
+Page::Page(const Page& a) : Page(a.m_width, a.m_height)
+{
+	// Copy the layers.
+	for (const std::unique_ptr<NormalLayer> &l : a.m_layers) {
+		m_layers.emplace_back(std::make_unique<NormalLayer>(*l));
+	}
 }
 
 int Page::width()
@@ -52,6 +72,14 @@ int Page::height()
 Document::Document()
 {
 
+}
+
+Document::Document(const Document& a)
+{
+	// Copy the pages.
+	for (const std::unique_ptr<Page> &p : a.pages) {
+		pages.emplace_back(std::make_unique<Page>(*p));
+	}
 }
 
 void Document::add_page(int at, std::unique_ptr<Page> page)
@@ -80,6 +108,19 @@ int Document::number_of_pages()
 {
 	return pages.size();
 }
+
+std::unique_ptr<Document> Document::concatenate(const std::vector<std::unique_ptr<Document> >& in_docs)
+{
+	std::unique_ptr<Document> res = std::make_unique<Document>();
+	// Copy the pages.
+	for (const std::unique_ptr<Document> &a : in_docs) {
+		for (const std::unique_ptr<Page> &p : a->pages) {
+			res->pages.emplace_back(std::make_unique<Page>(*p));
+		}
+	}
+	return res;
+}
+
 
 const uint32_t FILE_FORMAT_VERSION = 3;
 
@@ -136,14 +177,16 @@ std::unique_ptr<Document> Document::load(QDataStream& stream)
 	std::string data(c_data, len);
 	delete[] c_data;
 	auto doc = std::make_unique<Document>();
+	google::protobuf::Arena arena;
 	if (file_format_version >= 3) {
-		file3::File s_file;
-		assert(s_file.ParseFromString(data));
-		for (const auto& s_page : s_file.pages()) {
+		file3::File *s_file = google::protobuf::Arena::CreateMessage<file3::File>(&arena);
+		assert(s_file->ParseFromString(data));
+		for (const auto& s_page : s_file->pages()) {
 			auto page = std::make_unique<Page>(s_page.width(), s_page.height());
 			for (const auto& s_layer : s_page.layers()) {
 				const auto &s_normal_layer = s_layer.normal();
 				auto layer = std::make_unique<NormalLayer>();
+				layer->reserve_strokes(s_normal_layer.strokes_size());
 				for (const auto& s_stroke : s_normal_layer.strokes()) {
 					unique_ptr_Stroke stroke;
 					if (s_stroke.has_pen()) {
@@ -151,6 +194,7 @@ std::unique_ptr<Document> Document::load(QDataStream& stream)
 						Color color = s_special_stroke.color();
 						auto special_stroke = std::make_unique<PenStroke>(s_special_stroke.width(), color);
 						assert(!s_special_stroke.path().points().empty());
+						special_stroke->reserve_points(s_special_stroke.path().points_size());
 						for (const auto& s_point : s_special_stroke.path().points()) {
 							Point point(s_point.x(), s_point.y());
 							special_stroke->push_back(point);
@@ -160,6 +204,7 @@ std::unique_ptr<Document> Document::load(QDataStream& stream)
 						const auto &s_special_stroke = s_stroke.eraser();
 						auto special_stroke = std::make_unique<EraserStroke>(s_special_stroke.width());
 						assert(!s_special_stroke.path().points().empty());
+						special_stroke->reserve_points(s_special_stroke.path().points_size());
 						for (const auto& s_point : s_special_stroke.path().points()) {
 							Point point(s_point.x(), s_point.y());
 							special_stroke->push_back(point);
@@ -173,9 +218,10 @@ std::unique_ptr<Document> Document::load(QDataStream& stream)
 			doc->add_page(doc->number_of_pages(), std::move(page));
 		}
 	} else {
-		file1::File s_file;
-		assert(s_file.ParseFromString(data));
-		for (const auto& s_page : s_file.pages()) {
+		qDebug() << "Old file version";
+		file1::File *s_file = google::protobuf::Arena::CreateMessage<file1::File>(&arena);
+		assert(s_file->ParseFromString(data));
+		for (const auto& s_page : s_file->pages()) {
 			auto page = std::make_unique<Page>(s_page.width(), s_page.height());
 			for (const auto& s_layer : s_page.layers()) {
 				const auto &s_normal_layer = s_layer.normal();
@@ -207,6 +253,23 @@ std::unique_ptr<Document> Document::load(QDataStream& stream)
 			doc->add_page(doc->number_of_pages(), std::move(page));
 		}
 	}
-	qDebug() << "Number of pages read: " << doc->number_of_pages();
+	qDebug() << "Arena space used:" << arena.SpaceUsed() << arena.SpaceAllocated();
+	qDebug() << "Read file";
+	qDebug() << "Number of pages:" << doc->number_of_pages();
+	int num_strokes = 0, num_points = 0;
+	for (const auto &page : doc->pages) {
+		for (const auto &layer : page->layers()) {
+			for (const auto &stroke : layer->strokes()) {
+				num_strokes++;
+				std::visit(overloaded {
+					[&](PathStroke* st) {
+						num_points += st->points().size();
+					}
+				}, get(stroke));
+			}
+		}
+	}
+	qDebug() << "Number of strokes:" << num_strokes;
+	qDebug() << "Number of points:" << num_points;
 	return doc;
 }
