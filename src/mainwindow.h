@@ -27,7 +27,8 @@ private slots:
 	void open();
 	bool save();
 	bool saveAs();
-	void newPage();
+	void newPageBefore();
+	void newPageAfter();
 	void deletePage();
 	void nextPage();
 	void previousPage();

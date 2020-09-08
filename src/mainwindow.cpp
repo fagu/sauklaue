@@ -204,10 +204,16 @@ void MainWindow::createActions()
 	}
 	QMenu *pagesMenu = menuBar()->addMenu(tr("&Pages"));
 	{
-		QAction *action = new QAction(tr("New &Page"));
+		QAction *action = new QAction(tr("New Page &Before"));
+		action->setStatusTip(tr("Add a new page before the current one"));
+		connect(action, &QAction::triggered, this, &MainWindow::newPageBefore);
+		pagesMenu->addAction(action);
+	}
+	{
+		QAction *action = new QAction(tr("New Page &After"));
 		action->setStatusTip(tr("Add a new page after the current one"));
 		action->setShortcut(QKeySequence(Qt::CTRL + Qt::Key_D));
-		connect(action, &QAction::triggered, this, &MainWindow::newPage);
+		connect(action, &QAction::triggered, this, &MainWindow::newPageAfter);
 		pagesMenu->addAction(action);
 	}
 	{
@@ -321,9 +327,19 @@ QString MainWindow::strippedName(const QString& fullFileName)
 	return QFileInfo(fullFileName).fileName();
 }
 
-void MainWindow::newPage()
+void MainWindow::newPageBefore()
 {
-	qDebug() << "new page" << current_page()+1;
+	// A4 paper
+	double m2unit = 72000/0.0254; // 1 unit = 1pt/1000 = 1in/72000 = 25.4mm/72000 = 0.0254m/72000
+	int width = pow(2, -0.25 - 2) * m2unit;
+	int height = pow(2, 0.25 - 2) * m2unit;
+	auto page = std::make_unique<Page>(width, height);
+	page->add_layer(0);
+	undoStack->push(new NewPageCommand(doc.get(), current_page(), std::move(page)));
+}
+
+void MainWindow::newPageAfter()
+{
 	// A4 paper
 	double m2unit = 72000/0.0254; // 1 unit = 1pt/1000 = 1in/72000 = 25.4mm/72000 = 0.0254m/72000
 	int width = pow(2, -0.25 - 2) * m2unit;
