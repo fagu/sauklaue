@@ -151,7 +151,6 @@ PagePicture::PagePicture(Page* _page, int _width, int _height) :
 {
 	assert(page);
 	assert(width >= 20 && height >= 20);
-	qDebug() << "size" << width << height;
 	int margin = 5;
 	int rem_width = width - 2*margin;
 	int rem_height = height - 2*margin;
@@ -279,7 +278,6 @@ void tablet_set_coordinate_transformation_matrix(Cairo::Matrix m) {
 	m.transform_distance(e1x, e1y);
 	double e2x = 0, e2y = 1;
 	m.transform_distance(e2x, e2y);
-	qDebug() << QPointF(dx,dy) << QPointF(e1x, e1y) << QPointF(e2x, e2y);
 	QProcess::execute("xinput", {"set-prop", "XPPEN Tablet Pen (0)", "--type=float", "Coordinate Transformation Matrix", QString::number(e1x), QString::number(e2x), QString::number(dx), QString::number(e1y), QString::number(e2y), QString::number(dy), "0", "0", "1"});
 }
 
@@ -327,7 +325,6 @@ void PageWidget::paintEvent(QPaintEvent* event)
 			qDebug() << "size has recently changed";
 			return;
 		}
-		qDebug() << "Draw layer";
 		QImage img((const uchar*)layer_picture->cairo_surface->get_data(), width(), height(), QImage::Format_ARGB32_Premultiplied);
 		painter.drawImage(0, 0, img);
 	}
@@ -379,12 +376,9 @@ void PageWidget::tabletEvent(QTabletEvent* event)
 	if (!has_focus)
 		return;
 	if (event->pointerType() == QTabletEvent::Pen || event->pointerType() == QTabletEvent::Eraser) {
-		qDebug() << "Tablet pen event" << event->pressure();
-		event->pressure();
 		if (event->type() == QEvent::TabletPress) {
 			// If we push the right button while touching the surface, the left button is automatically pushed as well.
 			if (event->button() == Qt::LeftButton) { // Do not draw if we only press the right button while hovering.
-				qDebug() << "press";
 				StrokeType type = StrokeType::Pen;
 				if (event->pointerType() == QTabletEvent::Eraser || (event->buttons() & Qt::RightButton))
 					type = StrokeType::Eraser;
@@ -396,11 +390,9 @@ void PageWidget::tabletEvent(QTabletEvent* event)
 			// We therefore accept the event no matter which button is pressed.
 			event->accept();
 		} else if (event->type() == QEvent::TabletMove) {
-			qDebug() << "move";
 			continue_path(event->posF().x(), event->posF().y());
 			event->accept();
 		} else if (event->type() == QEvent::TabletRelease) {
-			qDebug() << "release";
 			finish_path();
 			if (event->button() == Qt::RightButton)
 				unsetCursor();
@@ -415,7 +407,6 @@ void PageWidget::start_path(double x, double y, StrokeType type)
 		return;
 	m_page_picture->widget2page.transform_point(x, y);
 	if (!m_current_path) {
-		qDebug() << "draw at" << x << y;
 		Point p(x,y);
 		if (type == StrokeType::Pen) {
 			m_current_path = std::make_unique<PenStroke>(DEFAULT_LINE_WIDTH, Color::BLACK);
@@ -439,7 +430,6 @@ void PageWidget::continue_path(double x, double y)
 		return;
 	m_page_picture->widget2page.transform_point(x, y);
 	if (m_current_path) {
-		qDebug() << "draw stroke";
 		Point p(x,y);
 		std::visit(overloaded {
 			[&](std::variant<PenStroke*,EraserStroke*> st) {

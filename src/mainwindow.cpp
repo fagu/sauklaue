@@ -26,6 +26,12 @@ MainWindow::MainWindow(QWidget *parent) :
 	
 	connect(undoStack, &QUndoStack::cleanChanged, this, &MainWindow::documentWasModified);
 	
+	{
+		QTimer *timer = new QTimer(this);
+		connect(timer, &QTimer::timeout, this, &MainWindow::autoSave);
+		timer->start(60000);
+	}
+	
 #ifndef QT_NO_SESSIONMANAGER
 	QGuiApplication::setFallbackSessionManagementEnabled(false);
 	connect(qApp, &QGuiApplication::commitDataRequest,
@@ -129,9 +135,16 @@ bool MainWindow::saveAs()
 	return saveFile(dialog.selectedFiles().first());
 }
 
+void MainWindow::autoSave()
+{
+	if (doc && !curFile.isEmpty()) {
+		qDebug() << "Autosaving...";
+		save();
+	}
+}
+
 void MainWindow::documentWasModified()
 {
-	qDebug() << "mod" << undoStack->isClean();
 	setWindowModified(!undoStack->isClean());
 }
 

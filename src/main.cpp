@@ -11,6 +11,7 @@ int main(int argc, char *argv[])
 	GOOGLE_PROTOBUF_VERIFY_VERSION;
 	
 	QApplication app(argc, argv);
+	app.setApplicationDisplayName(QObject::tr("Sauklaue"));
 	MainWindow w;
 	w.show();
 
