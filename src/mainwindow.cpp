@@ -52,7 +52,7 @@ void MainWindow::setDocument(std::unique_ptr<Document> _doc)
 	assert(doc);
 	connect(doc.get(), &Document::page_added, this, &MainWindow::page_added);
 	connect(doc.get(), &Document::page_deleted, this, &MainWindow::page_deleted);
-	gotoPage(doc->number_of_pages()-1);
+	gotoPage(doc->pages().size()-1);
 }
 
 
@@ -391,21 +391,21 @@ void MainWindow::gotoPage(int index)
 {
 	int new_first_displayed_page = first_displayed_page;
 	int new_focused_view = focused_view;
-	if (doc->number_of_pages() == 0) {
+	if (doc->pages().size() == 0) {
 		new_first_displayed_page = 0;
 		new_focused_view = -1;
 	} else {
 		if (index < 0) // Page out of bounds => set to something reasonable
 			index = 0;
-		else if (index >= doc->number_of_pages()) // Page out of bounds => set to something reasonable
-			index = doc->number_of_pages() - 1;
+		else if (index >= doc->pages().size()) // Page out of bounds => set to something reasonable
+			index = doc->pages().size() - 1;
 		if (index < first_displayed_page) {
 			new_first_displayed_page = index;
 		} else if (index >= first_displayed_page + (int)pagewidgets.size()) {
 			new_first_displayed_page = index - (int)pagewidgets.size() + 1;
 		}
-		if (new_first_displayed_page + (int)pagewidgets.size() > doc->number_of_pages())
-			new_first_displayed_page = doc->number_of_pages() - (int)pagewidgets.size();
+		if (new_first_displayed_page + (int)pagewidgets.size() > doc->pages().size())
+			new_first_displayed_page = doc->pages().size() - (int)pagewidgets.size();
 		if (new_first_displayed_page < 0)
 			new_first_displayed_page = 0;
 		new_focused_view = index - new_first_displayed_page;
@@ -418,8 +418,8 @@ void MainWindow::gotoPage(int index)
 	first_displayed_page = new_first_displayed_page;
 	for (int i = 0; i < (int)pagewidgets.size(); i++) {
 		int index = first_displayed_page + i;
-		if (index < doc->number_of_pages())
-			pagewidgets[i]->setPage(doc->page(index), index);
+		if (index < doc->pages().size())
+			pagewidgets[i]->setPage(doc->pages()[index], index);
 		else
 			pagewidgets[i]->setPage(nullptr, -1);
 	}
@@ -459,7 +459,7 @@ void MainWindow::page_deleted(int index)
 
 void MainWindow::updatePageNavigation() {
 	deletePageAction->setEnabled(focused_view != -1);
-	nextPageAction->setEnabled(focused_view != -1 && current_page()+1 < doc->number_of_pages());
+	nextPageAction->setEnabled(focused_view != -1 && current_page()+1 < doc->pages().size());
 	previousPageAction->setEnabled(focused_view != -1 && current_page() > 0);
 }
 
@@ -486,8 +486,7 @@ void MainWindow::exportPDF()
 	cr->set_line_cap(Cairo::LINE_CAP_ROUND);
 	cr->set_line_join(Cairo::LINE_JOIN_ROUND);
 	cr->scale(0.1, 0.1);
-	for (int ipage = 0; ipage < doc->number_of_pages(); ipage++) {
-		Page *page = doc->page(ipage);
+	for (Page *page : doc->pages()) {
 		surface->set_size(0.1*page->width(), 0.1*page->height());
 		cr->rectangle(0,0,page->width(),page->height());
 		cr->clip();
@@ -495,7 +494,7 @@ void MainWindow::exportPDF()
 			cr->push_group_with_content(Cairo::CONTENT_COLOR_ALPHA);
 		cr->set_source_rgb(0.95,0.95,0.95);
 		cr->paint();
-		for (const auto& layer : page->layers()) {
+		for (auto layer : page->layers()) {
 			// Retrieve and draw the previous layers
 			Cairo::RefPtr<Cairo::Pattern> background = cr->pop_group();
 			cr->set_source(background);
@@ -503,7 +502,7 @@ void MainWindow::exportPDF()
 			// TODO Find a better way to support the eraser.
 			// The operator CAIRO_OPERATOR_SOURCE is apparently not supported by PDF files. Therefore Cairo falls back to saving a raster image in the PDF file, which uses a lot of space!
 // 			cairo_set_operator(cr->cobj(), CAIRO_OPERATOR_SOURCE);
-			for (const auto& stroke : layer->strokes()) {
+			for (auto stroke : layer->strokes()) {
 				std::visit(overloaded {
 					[&](PenStroke* st) {
 						cr->set_line_width(st->width());
@@ -517,7 +516,7 @@ void MainWindow::exportPDF()
 						cr->set_source(background); // Erase = draw the background again on top of this layer
 						draw_path(cr, st->points());
 					}
-				}, get(stroke));
+				}, stroke);
 			}
 		}
 		surface->show_page();

@@ -78,7 +78,7 @@ void LayerPicture::draw_path(const std::vector<Point> &points) {
 void LayerPicture::draw_stroke(int i)
 {
 	CairoGroup cg(cr);
-	ptr_Stroke stroke = get(m_layer->strokes()[i]);
+	ptr_Stroke stroke = m_layer->strokes()[i];
 	std::visit(overloaded {
 		[&](const PenStroke* st) {
 			cr->set_line_width(st->width());
@@ -173,13 +173,13 @@ PagePicture::PagePicture(Page* _page, int _width, int _height) :
 
 void PagePicture::register_layer(int index)
 {
-	layers.emplace(layers.begin() + index, std::make_unique<LayerPicture>(page->layer(index), this));
-	connect(layers[index].get(), &LayerPicture::update, this, &PagePicture::update_layer);
+	m_layers.emplace(m_layers.begin() + index, std::make_unique<LayerPicture>(page->layers()[index], this));
+	connect(m_layers[index].get(), &LayerPicture::update, this, &PagePicture::update_layer);
 }
 
 void PagePicture::unregister_layer(int index)
 {
-	layers.erase(layers.begin() + index);
+	m_layers.erase(m_layers.begin() + index);
 }
 
 void PagePicture::update_layer(const QRect& rect)
@@ -319,7 +319,7 @@ void PageWidget::paintEvent(QPaintEvent* event)
 	m_page_picture->page2widget.transform_point(x1, y1);
 	m_page_picture->page2widget.transform_point(x2, y2);
 	painter.fillRect(x1, y1, x2-x1, y2-y1, QColorConstants::White);
-	for (const auto& layer_picture : m_page_picture->layers) {
+	for (auto layer_picture : m_page_picture->layers()) {
 		layer_picture->cairo_surface->flush();
 		if (width() != layer_picture->cairo_surface->get_width() || height() != layer_picture->cairo_surface->get_height()) {
 			qDebug() << "size has recently changed";
@@ -417,8 +417,8 @@ void PageWidget::start_path(double x, double y, StrokeType type)
 			[&](std::variant<PenStroke*,EraserStroke*> st) {
 				PathStroke* pst = convert_variant<PathStroke*>(st);
 				pst->push_back(p);
-				assert(m_page_picture->layers.size() == 1);
-				m_page_picture->layers[0]->draw_line(p, p, st);
+				assert(m_page_picture->layers().size() == 1);
+				m_page_picture->layers()[0]->draw_line(p, p, st);
 			}
 		}, get(m_current_stroke.value()));
 	}
@@ -436,8 +436,8 @@ void PageWidget::continue_path(double x, double y)
 				PathStroke* pst = convert_variant<PathStroke*>(st);
 				Point old = pst->points().back();
 				pst->push_back(p);
-				assert(m_page_picture->layers.size() == 1);
-				m_page_picture->layers[0]->draw_line(old, p, st);
+				assert(m_page_picture->layers().size() == 1);
+				m_page_picture->layers()[0]->draw_line(old, p, st);
 			}
 		}, get(m_current_stroke.value()));
 	}

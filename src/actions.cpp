@@ -60,14 +60,14 @@ template <class StrokeType>
 void AddStrokeCommand<StrokeType>::redo()
 {
 	assert(stroke);
-	doc->page(page)->layer(layer)->add_stroke(std::move(stroke));
+	doc->pages()[page]->layers()[layer]->add_stroke(std::move(stroke));
 }
 
 template <class StrokeType>
 void AddStrokeCommand<StrokeType>::undo()
 {
 	assert(!stroke);
-	stroke = std::get<std::unique_ptr<StrokeType> >(doc->page(page)->layer(layer)->delete_stroke());
+	stroke = std::get<std::unique_ptr<StrokeType> >(doc->pages()[page]->layers()[layer]->delete_stroke());
 }
 
 AddPenStrokeCommand::AddPenStrokeCommand(Document* _doc, int _page, int _layer, std::unique_ptr<PenStroke> _stroke, QUndoCommand* parent) : AddStrokeCommand<PenStroke>(_doc, _page, _layer, std::move(_stroke), parent)

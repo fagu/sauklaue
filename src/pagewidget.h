@@ -50,7 +50,11 @@ public:
 	Page *page;
 	int width;
 	int height;
-	std::vector<std::unique_ptr<LayerPicture> > layers;
+	auto layers() const {
+		return vector_unique_to_pointer(m_layers);
+	}
+private:
+	std::vector<std::unique_ptr<LayerPicture> > m_layers;
 	
 private slots:
 	void register_layer(int index);
