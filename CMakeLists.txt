@@ -48,10 +48,10 @@ set(sauklaue_conc_SRC
 
 # Tell CMake to create the helloworld executable
 add_executable(sauklaue ${sauklaue_SRC} ${sauklaue_core_SRC} ${PROTO_SRCS} ${PROTO_HDRS} ${CAPNP_SRCS})
-add_executable(sauklaue-conc ${sauklaue_conc_SRC} ${sauklaue_core_SRC} ${PROTO_SRCS} ${PROTO_HDRS})
+# add_executable(sauklaue-conc ${sauklaue_conc_SRC} ${sauklaue_core_SRC} ${PROTO_SRCS} ${PROTO_HDRS})
 
 target_link_libraries(sauklaue Qt5::Widgets ${cairomm_LDFLAGS} ${Protobuf_LIBRARIES})
-target_link_libraries(sauklaue-conc Qt5::Widgets ${cairomm_LDFLAGS} ${Protobuf_LIBRARIES})
+# target_link_libraries(sauklaue-conc Qt5::Widgets ${cairomm_LDFLAGS} ${Protobuf_LIBRARIES})
 
 # Install the executable
 install(TARGETS sauklaue DESTINATION bin)

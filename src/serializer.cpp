@@ -114,11 +114,13 @@ std::unique_ptr<Document> Serializer::load(QDataStream& stream)
 	uint32_t file_format_version;
 	stream >> file_format_version;
 	assert(file_format_version <= FILE_FORMAT_VERSION);
+	char* c_data; uint len;
+	stream.readBytes(c_data, len);
+	std::string data(c_data, len);
+	delete[] c_data;
 	auto doc = std::make_unique<Document>();
 	if (file_format_version >= 4) {
-		char* c_data; uint len;
-		stream.readBytes(c_data, len);
-		kj::ArrayInputStream in(kj::arrayPtr((unsigned char*)c_data, len));
+		kj::ArrayInputStream in(kj::arrayPtr((unsigned char*)data.c_str(), len));
 		// TODO Set the traversalLimitInWords to something other than 64MB. (Maybe just set it to a constant times the file size?)
 		capnp::PackedMessageReader message(in);
 		auto s_file = message.getRoot<file4::File>();
@@ -150,12 +152,7 @@ std::unique_ptr<Document> Serializer::load(QDataStream& stream)
 			}
 			doc->add_page(doc->number_of_pages(), std::move(page));
 		}
-		delete[] c_data; // TODO Do this in an exception-safe way!
 	} else {
-		char* c_data; uint len;
-		stream.readBytes(c_data, len);
-		std::string data(c_data, len);
-		delete[] c_data;
 		google::protobuf::Arena arena;
 		if (file_format_version >= 3) {
 			file3::File *s_file = google::protobuf::Arena::CreateMessage<file3::File>(&arena);
