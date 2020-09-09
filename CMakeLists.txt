@@ -40,6 +40,7 @@ set(sauklaue_SRC
   src/mainwindow.cpp
   src/pagewidget.cpp
   src/actions.cpp
+  src/renderer.cpp
 )
 
 set(sauklaue_conc_SRC
