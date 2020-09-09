@@ -3,6 +3,7 @@
 #include "util.h"
 #include "mainwindow.h"
 #include "actions.h"
+#include "tablet.h"
 
 #include <QtWidgets>
 
@@ -65,13 +66,9 @@ QRectF PageWidget::minimum_rect_in_pixels()
 {
 	Cairo::Matrix p2s = page_to_pixels();
 	// Compute the bounding rectangle of the page in screen coordinates.
-	double minx = std::numeric_limits<double>::infinity(), maxx = -std::numeric_limits<double>::infinity(), miny = std::numeric_limits<double>::infinity(), maxy = -std::numeric_limits<double>::infinity();
-	bounding_rect_helper(p2s, 0, 0, minx, maxx, miny, maxy);
-	bounding_rect_helper(p2s, 0, m_page->height(), minx, maxx, miny, maxy);
-	bounding_rect_helper(p2s, m_page->width(), 0, minx, maxx, miny, maxy);
-	bounding_rect_helper(p2s, m_page->width(), m_page->height(), minx, maxx, miny, maxy);
+	QRectF rect = bounding_rect(p2s, QRectF(QPointF(0,0), QPointF(m_page->width(), m_page->height())));
 	static const int MARGIN = 50;
-	return QRectF(QPointF(minx-MARGIN, miny-MARGIN), QPointF(maxx+MARGIN, maxy+MARGIN));
+	return QRectF(QPointF(rect.left()-MARGIN, rect.top()-MARGIN), QPointF(rect.right()+MARGIN, rect.bottom()+MARGIN));
 }
 
 Cairo::Matrix PageWidget::tablet_to_screen()
@@ -81,35 +78,21 @@ Cairo::Matrix PageWidget::tablet_to_screen()
 	Cairo::Matrix pi2t = t2pi; pi2t.invert();
 	// Compute the minimum bounding rectangle in tablet coordinates.
 	QRectF minrect = minimum_rect_in_pixels();
-	double minx = std::numeric_limits<double>::infinity(), maxx = -std::numeric_limits<double>::infinity(), miny = std::numeric_limits<double>::infinity(), maxy = -std::numeric_limits<double>::infinity();
-	bounding_rect_helper(pi2t, minrect.left(), minrect.top(), minx, maxx, miny, maxy);
-	bounding_rect_helper(pi2t, minrect.left(), minrect.bottom(), minx, maxx, miny, maxy);
-	bounding_rect_helper(pi2t, minrect.right(), minrect.top(), minx, maxx, miny, maxy);
-	bounding_rect_helper(pi2t, minrect.right(), minrect.bottom(), minx, maxx, miny, maxy);
-	double scale = std::max(maxx-minx, maxy-miny);
-	double dx = (maxx+minx-scale)/2, dy = (maxy+miny-scale)/2;
+	QRectF minrect2 = bounding_rect(pi2t, minrect);
+	double scale = std::max(minrect2.width(), minrect2.height());
+	double dx = (minrect2.left()+minrect2.right()-scale)/2, dy = (minrect2.top()+minrect2.bottom()-scale)/2;
 	QRect scr = screen()->geometry();
 	return Cairo::scaling_matrix(scale, scale) * Cairo::translation_matrix(dx, dy) * t2pi * Cairo::scaling_matrix(1./scr.width(), 1./scr.height());
-}
-
-void tablet_set_coordinate_transformation_matrix(Cairo::Matrix m) {
-	double dx = 0, dy = 0;
-	m.transform_point(dx, dy);
-	double e1x = 1, e1y = 0;
-	m.transform_distance(e1x, e1y);
-	double e2x = 0, e2y = 1;
-	m.transform_distance(e2x, e2y);
-	QProcess::execute("xinput", {"set-prop", "XPPEN Tablet Pen (0)", "--type=float", "Coordinate Transformation Matrix", QString::number(e1x), QString::number(e2x), QString::number(dx), QString::number(e1y), QString::number(e2y), QString::number(dy), "0", "0", "1"});
 }
 
 void PageWidget::update_tablet_map()
 {
 	if (!has_focus) {
-// 		QProcess::execute("xinput", {"set-prop", "XPPEN Tablet Pen (0)", "--type=float", "Coordinate Transformation Matrix", "1", "0", "0", "0", "1", "0", "0", "0", "1"});
+// 		m_view->tablet->set_transformation_matrix(Cairo::identity_matrix());
 		return;
 	}
 	assert(m_page_picture);
-	tablet_set_coordinate_transformation_matrix(tablet_to_screen());
+	m_view->tablet->set_transformation_matrix(tablet_to_screen());
 }
 
 void PageWidget::focusPage()

@@ -5,6 +5,8 @@
 #include "util.h"
 #include "actions.h"
 #include "serializer.h"
+#include "renderer.h"
+#include "tablet.h"
 
 #include <QtWidgets>
 
@@ -12,6 +14,7 @@ MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent)
 {
 	undoStack = new QUndoStack(this);
+	tablet = std::make_unique<Tablet>();
 	QWidget *mainArea = new QWidget();
 	QHBoxLayout *layout = new QHBoxLayout();
 	pagewidgets.emplace_back(new PageWidget(this));
@@ -22,6 +25,7 @@ MainWindow::MainWindow(QWidget *parent) :
 	setCentralWidget(mainArea);
 	
 	createActions();
+	statusBar()->show();
 	
 	readSettings();
 	
@@ -77,7 +81,7 @@ void MainWindow::loadFile(const QString& fileName)
 
 	setCurrentFile(fileName);
 	updatePageNavigation();
-// 	statusBar()->showMessage(tr("File loaded"), 2000);
+	statusBar()->showMessage(tr("File loaded"), 2000);
 }
 
 void MainWindow::closeEvent(QCloseEvent* event)
@@ -328,7 +332,7 @@ bool MainWindow::saveFile(const QString& fileName)
 	
 	setCurrentFile(fileName);
 	undoStack->setClean();
-// 	statusBar()->showMessage(tr("File saved"), 2000);
+	statusBar()->showMessage(tr("File saved"), 2000);
 	return true;
 }
 
@@ -379,11 +383,13 @@ void MainWindow::deletePage()
 
 void MainWindow::nextPage()
 {
+	qDebug() << "nextPage";
 	gotoPage(current_page()+1);
 }
 
 void MainWindow::previousPage()
 {
+	qDebug() << "previousPage";
 	gotoPage(current_page()-1);
 }
 
@@ -461,64 +467,16 @@ void MainWindow::updatePageNavigation() {
 	deletePageAction->setEnabled(focused_view != -1);
 	nextPageAction->setEnabled(focused_view != -1 && current_page()+1 < doc->pages().size());
 	previousPageAction->setEnabled(focused_view != -1 && current_page() > 0);
-}
-
-void draw_path(Cairo::RefPtr<Cairo::Context> cr, const std::vector<Point> &points) {
-	assert(!points.empty());
-	cr->move_to(points[0].x, points[0].y);
-	if (points.size() == 1) {
-		cr->line_to(points[0].x, points[0].y);
-	} else {
-		for (size_t i = 1; i < points.size(); i++)
-			cr->line_to(points[i].x, points[i].y);
-	}
-	cr->stroke();
+	statusBar()->showMessage(QString("Page ")+QString::number(current_page()+1)+QString(" of ")+QString::number(doc->pages().size()));
 }
 
 void MainWindow::exportPDF()
 {
-	if (!save())
+	if (!maybeSave())
 		return;
 	assert(!curFile.isEmpty());
 	QString pdf_file_name = curFile + ".pdf";
-	Cairo::RefPtr<Cairo::PdfSurface> surface = Cairo::PdfSurface::create(pdf_file_name.toStdString(), 0, 0);
-	Cairo::RefPtr<Cairo::Context> cr = Cairo::Context::create(surface);
-	cr->set_line_cap(Cairo::LINE_CAP_ROUND);
-	cr->set_line_join(Cairo::LINE_JOIN_ROUND);
-	cr->scale(0.1, 0.1);
-	for (Page *page : doc->pages()) {
-		surface->set_size(0.1*page->width(), 0.1*page->height());
-		cr->rectangle(0,0,page->width(),page->height());
-		cr->clip();
-		for (size_t i = 0; i < page->layers().size(); i++)
-			cr->push_group_with_content(Cairo::CONTENT_COLOR_ALPHA);
-		cr->set_source_rgb(0.95,0.95,0.95);
-		cr->paint();
-		for (auto layer : page->layers()) {
-			// Retrieve and draw the previous layers
-			Cairo::RefPtr<Cairo::Pattern> background = cr->pop_group();
-			cr->set_source(background);
-			cr->paint();
-			// TODO Find a better way to support the eraser.
-			// The operator CAIRO_OPERATOR_SOURCE is apparently not supported by PDF files. Therefore Cairo falls back to saving a raster image in the PDF file, which uses a lot of space!
-// 			cairo_set_operator(cr->cobj(), CAIRO_OPERATOR_SOURCE);
-			for (auto stroke : layer->strokes()) {
-				std::visit(overloaded {
-					[&](PenStroke* st) {
-						cr->set_line_width(st->width());
-						Color co = st->color();
-						cr->set_source_rgba(co.r(), co.g(), co.b(), co.a());
-						draw_path(cr, st->points());
-					},
-					[&](EraserStroke* st) {
-						cr->set_line_width(st->width());
-						// TODO This seems to slow down the PDF viewer.
-						cr->set_source(background); // Erase = draw the background again on top of this layer
-						draw_path(cr, st->points());
-					}
-				}, stroke);
-			}
-		}
-		surface->show_page();
-	}
+	QGuiApplication::setOverrideCursor(Qt::WaitCursor);
+	PDFExporter::save(doc.get(), pdf_file_name.toStdString());
+	QGuiApplication::restoreOverrideCursor();
 }

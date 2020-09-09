@@ -3,24 +3,12 @@
 
 #include "document.h"
 
-#include <QtWidgets>
+#include <QObject>
 
 #include <cairomm/context.h>
 #include <cairomm/surface.h>
 
 class PagePicture;
-
-inline void bounding_rect_helper(Cairo::Matrix mat, double x, double y, double &minx, double &maxx, double &miny, double &maxy) {
-	mat.transform_point(x, y);
-	if (minx > x)
-		minx = x;
-	if (maxx < x)
-		maxx = x;
-	if (miny > y)
-		miny = y;
-	if (maxy < y)
-		maxy = y;
-}
 
 class LayerPicture : public QObject {
 	Q_OBJECT
@@ -42,7 +30,6 @@ private:
 	PagePicture *m_page_picture;
 	
 	void setup();
-	void draw_path(const std::vector<Point> &points);
 	void setup_stroke(ptr_Stroke stroke);
 	void draw_stroke(int i);
 public:
@@ -74,6 +61,12 @@ private slots:
 	
 signals:
 	void update(const QRect& rect);
+};
+
+
+class PDFExporter {
+public:
+	static void save(Document *doc, const std::string &file_name);
 };
 
 #endif // RENDERER_H

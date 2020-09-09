@@ -41,6 +41,7 @@ set(sauklaue_SRC
   src/pagewidget.cpp
   src/actions.cpp
   src/renderer.cpp
+  src/tablet.cpp
 )
 
 set(sauklaue_conc_SRC

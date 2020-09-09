@@ -49,7 +49,7 @@ void LayerPicture::setup()
 	cr->clip();
 }
 
-void LayerPicture::draw_path(const std::vector<Point> &points) {
+void draw_path(Cairo::RefPtr<Cairo::Context> cr, const std::vector<Point> &points) {
 	assert(!points.empty());
 	cr->move_to(points[0].x, points[0].y);
 	if (points.size() == 1) {
@@ -58,11 +58,6 @@ void LayerPicture::draw_path(const std::vector<Point> &points) {
 		for (size_t i = 1; i < points.size(); i++)
 			cr->line_to(points[i].x, points[i].y);
 	}
-	// It might be better to compute the union of the extents of the individual segments.
-	double x1, y1, x2, y2;
-	cr->get_stroke_extents(x1, y1, x2, y2);
-	cr->stroke();
-	updatePageRect(x1, y1, x2, y2);
 }
 
 void LayerPicture::setup_stroke(ptr_Stroke stroke) {
@@ -87,7 +82,12 @@ void LayerPicture::draw_stroke(int i)
 	ptr_Stroke stroke = m_layer->strokes()[i];
 	setup_stroke(stroke);
 	PathStroke* path_stroke = convert_variant<PathStroke*>(stroke);
-	draw_path(path_stroke->points());
+	draw_path(cr, path_stroke->points());
+	// It might be better to compute the union of the extents of the individual segments.
+	double x1, y1, x2, y2;
+	cr->get_stroke_extents(x1, y1, x2, y2);
+	cr->stroke();
+	updatePageRect(x1, y1, x2, y2);
 }
 
 void LayerPicture::draw_line(Point a, Point b, ptr_Stroke stroke)
@@ -104,12 +104,8 @@ void LayerPicture::draw_line(Point a, Point b, ptr_Stroke stroke)
 
 void LayerPicture::updatePageRect(double x1, double y1, double x2, double y2)
 {
-	double minx = std::numeric_limits<double>::infinity(), maxx = -std::numeric_limits<double>::infinity(), miny = std::numeric_limits<double>::infinity(), maxy = -std::numeric_limits<double>::infinity();
-	bounding_rect_helper(m_page_picture->page2widget, x1, y1, minx, maxx, miny, maxy);
-	bounding_rect_helper(m_page_picture->page2widget, x1, y2, minx, maxx, miny, maxy);
-	bounding_rect_helper(m_page_picture->page2widget, x2, y1, minx, maxx, miny, maxy);
-	bounding_rect_helper(m_page_picture->page2widget, x2, y2, minx, maxx, miny, maxy);
-	emit update(QRect(minx-1, miny-1, maxx-minx+3, maxy-miny+3));
+	QRectF rect = bounding_rect(m_page_picture->page2widget, QRectF(QPointF(x1,y1), QPointF(x2,y2)));
+	emit update(QRect(QPoint((int)rect.left()-1, (int)rect.top()-1), QPoint((int)rect.right()+2, (int)rect.bottom()+2)));
 }
 
 PagePicture::PagePicture(Page* _page, int _width, int _height) :
@@ -155,3 +151,51 @@ void PagePicture::update_layer(const QRect& rect)
 	emit update(rect);
 }
 
+
+
+void PDFExporter::save(Document* doc, const std::string& file_name)
+{
+	Cairo::RefPtr<Cairo::PdfSurface> surface = Cairo::PdfSurface::create(file_name, 0, 0);
+	Cairo::RefPtr<Cairo::Context> cr = Cairo::Context::create(surface);
+	cr->set_line_cap(Cairo::LINE_CAP_ROUND);
+	cr->set_line_join(Cairo::LINE_JOIN_ROUND);
+	const double SCALE = 0.001;
+	cr->scale(SCALE, SCALE);
+	for (Page *page : doc->pages()) {
+		surface->set_size(SCALE*page->width(), SCALE*page->height());
+		cr->rectangle(0,0,page->width(),page->height());
+		cr->clip();
+		for (auto layer : page->layers())
+			cr->push_group_with_content(Cairo::CONTENT_COLOR_ALPHA);
+		cr->set_source_rgb(1,1,1);
+		cr->paint();
+		for (auto layer : page->layers()) {
+			// Retrieve and draw the previous layers
+			Cairo::RefPtr<Cairo::Pattern> background = cr->pop_group();
+			cr->set_source(background);
+			cr->paint();
+			// TODO Find a better way to support the eraser.
+			// The operator CAIRO_OPERATOR_SOURCE is apparently not supported by PDF files. Therefore Cairo falls back to saving a raster image in the PDF file, which uses a lot of space!
+// 			cairo_set_operator(cr->cobj(), CAIRO_OPERATOR_SOURCE);
+			for (auto stroke : layer->strokes()) {
+				std::visit(overloaded {
+					[&](PenStroke* st) {
+						cr->set_line_width(st->width());
+						Color co = st->color();
+						cr->set_source_rgba(co.r(), co.g(), co.b(), co.a());
+						draw_path(cr, st->points());
+						cr->stroke();
+					},
+					[&](EraserStroke* st) {
+						cr->set_line_width(st->width());
+						// TODO This seems to slow down the PDF viewer.
+						cr->set_source(background); // Erase = draw the background again on top of this layer
+						draw_path(cr, st->points());
+						cr->stroke();
+					}
+				}, stroke);
+			}
+		}
+		surface->show_page();
+	}
+}

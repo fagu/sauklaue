@@ -8,6 +8,7 @@ class QSessionManager;
 class QUndoStack;
 
 #include "pagewidget.h"
+#include "tablet.h"
 
 class MainWindow : public QMainWindow
 {
@@ -83,6 +84,7 @@ protected:
 
 public:
 	QUndoStack *undoStack;
+	std::unique_ptr<Tablet> tablet;
 };
 
 #endif // MAINWINDOW_H
