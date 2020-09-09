@@ -34,6 +34,7 @@ private:
 	
 	void setup();
 	void draw_path(const std::vector<Point> &points);
+	void setup_stroke(ptr_Stroke stroke);
 	void draw_stroke(int i);
 public:
 	void draw_line(Point a, Point b, ptr_Stroke stroke);

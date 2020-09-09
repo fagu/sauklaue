@@ -40,9 +40,6 @@ void LayerPicture::stroke_deleting()
 	emit update(QRect(0,0,m_page_picture->width,m_page_picture->height));
 }
 
-const int DEFAULT_LINE_WIDTH = 1500;
-const int DEFAULT_ERASER_WIDTH = 1500*20;
-
 void LayerPicture::setup()
 {
 	cr->restore();
@@ -75,43 +72,35 @@ void LayerPicture::draw_path(const std::vector<Point> &points) {
 	updatePageRect(x1, y1, x2, y2);
 }
 
-void LayerPicture::draw_stroke(int i)
-{
-	CairoGroup cg(cr);
-	ptr_Stroke stroke = m_layer->strokes()[i];
+void LayerPicture::setup_stroke(ptr_Stroke stroke) {
 	std::visit(overloaded {
 		[&](const PenStroke* st) {
 			cr->set_line_width(st->width());
 			Color co = st->color();
 			cr->set_source_rgba(co.r(), co.g(), co.b(), co.a());
-			draw_path(st->points());
 		},
 		[&](const EraserStroke* st) {
 			cr->set_line_width(st->width());
 			cr->set_source_rgba(0,0,0,0); // Transparent
 			// Replace layer color by transparent instead of making a transparent drawing on top of the layer.
 			cr->set_operator(Cairo::OPERATOR_SOURCE);
-			draw_path(st->points());
 		}
 	}, stroke);
+}
+
+void LayerPicture::draw_stroke(int i)
+{
+	CairoGroup cg(cr);
+	ptr_Stroke stroke = m_layer->strokes()[i];
+	setup_stroke(stroke);
+	PathStroke* path_stroke = convert_variant<PathStroke*>(stroke);
+	draw_path(path_stroke->points());
 }
 
 void LayerPicture::draw_line(Point a, Point b, ptr_Stroke stroke)
 {
 	CairoGroup cg(cr);
-	std::visit(overloaded {
-		[&](const PenStroke* st) {
-			cr->set_line_width(st->width());
-			Color co = st->color();
-			cr->set_source_rgba(co.r(), co.g(), co.b(), co.a());
-		},
-		[&](const EraserStroke* st) {
-			cr->set_line_width(st->width());
-			cr->set_source_rgba(0,0,0,0); // Transparent
-			// Replace layer color by transparent instead of making a transparent drawing on top of the layer.
-			cr->set_operator(Cairo::OPERATOR_SOURCE);
-		}
-	}, stroke);
+	setup_stroke(stroke);
 	cr->move_to(a.x, a.y);
 	cr->line_to(b.x, b.y);
 	double x1, y1, x2, y2;
@@ -188,6 +177,9 @@ void PagePicture::update_layer(const QRect& rect)
 }
 
 
+
+const int DEFAULT_LINE_WIDTH = 1500;
+const int DEFAULT_ERASER_WIDTH = 1500*20;
 
 PageWidget::PageWidget(MainWindow* view) :
 	QWidget(nullptr),
