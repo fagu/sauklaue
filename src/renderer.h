@@ -29,13 +29,12 @@ private:
 	NormalLayer *m_layer;
 	PagePicture *m_page_picture;
 	
-	void setup();
+	void set_transparent();
 	void setup_stroke(ptr_Stroke stroke);
 	void draw_stroke(ptr_Stroke stroke);
+	QRect stroke_extents(); // Bounding rectangle of the current path in output coordinates
 public:
 	void draw_line(Point a, Point b, ptr_Stroke stroke);
-private:
-	void updatePageRect(double x1, double y1, double x2, double y2);
 };
 
 class PagePicture : public QObject {
@@ -50,8 +49,12 @@ public:
 	auto layers() const {
 		return vector_unique_to_pointer(m_layers);
 	}
+	LayerPicture* temporary_layer() const {
+		return m_temporary_layer.get();
+	}
 private:
 	std::vector<std::unique_ptr<LayerPicture> > m_layers;
+	std::unique_ptr<LayerPicture> m_temporary_layer;
 	
 private slots:
 	void register_layer(int index);

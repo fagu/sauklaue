@@ -14,45 +14,22 @@ LayerPicture::LayerPicture(NormalLayer* layer, PagePicture* page_picture) :
 // 	cr->set_antialias(Cairo::ANTIALIAS_GRAY);
 	cr->set_line_cap(Cairo::LINE_CAP_ROUND);
 	cr->set_line_join(Cairo::LINE_JOIN_ROUND);
-	cr->save();
-	setup();
-	for (ptr_Stroke stroke : m_layer->strokes()) // Don't draw the last stroke!
-		draw_stroke(stroke);
-	for (ptr_Stroke stroke : m_layer->temporary_strokes()) // Don't draw the last stroke!
-		draw_stroke(stroke);
-}
-
-void LayerPicture::stroke_added(ptr_Stroke stroke)
-{
-	draw_stroke(stroke);
-}
-
-void LayerPicture::stroke_deleted(ptr_Stroke stroke)
-{
-	// TODO This redraws the entire page!
-	// Since we know the stroke that is about to be deleted, only part of the page would need to be updated.
-	setup();
-	for (ptr_Stroke stroke : m_layer->strokes()) // Don't draw the last stroke!
-		draw_stroke(stroke);
-	for (ptr_Stroke stroke : m_layer->temporary_strokes()) // Don't draw the last stroke!
-		draw_stroke(stroke);
-	emit update(QRect(0,0,m_page_picture->width,m_page_picture->height));
-}
-
-void LayerPicture::setup()
-{
-	cr->restore();
-	cr->save();
-	cr->transform(m_page_picture->page2widget);
-	{
-		CairoGroup cg(cr);
-		cr->set_source_rgba(0,0,0,0);
-		cr->set_operator(Cairo::OPERATOR_SOURCE);
-		cr->paint(); // Reset every pixel to transparent.
-	}
-	
+	cr->set_matrix(m_page_picture->page2widget);
+	set_transparent();
 	cr->rectangle(0,0,m_page_picture->page->width(),m_page_picture->page->height());
 	cr->clip();
+	for (ptr_Stroke stroke : m_layer->strokes()) // Don't draw the last stroke!
+		draw_stroke(stroke);
+	for (ptr_Stroke stroke : m_layer->temporary_strokes()) // Don't draw the last stroke!
+		draw_stroke(stroke);
+}
+
+void LayerPicture::set_transparent()
+{
+	CairoGroup cg(cr);
+	cr->set_source_rgba(0,0,0,0);
+	cr->set_operator(Cairo::OPERATOR_SOURCE);
+	cr->paint(); // Reset every pixel to transparent.
 }
 
 void draw_path(Cairo::RefPtr<Cairo::Context> cr, const std::vector<Point> &points) {
@@ -64,6 +41,36 @@ void draw_path(Cairo::RefPtr<Cairo::Context> cr, const std::vector<Point> &point
 		for (size_t i = 1; i < points.size(); i++)
 			cr->line_to(points[i].x, points[i].y);
 	}
+}
+
+void LayerPicture::stroke_added(ptr_Stroke stroke)
+{
+	draw_stroke(stroke);
+}
+
+void LayerPicture::stroke_deleted(ptr_Stroke stroke)
+{
+// 	qDebug() << "Delete stroke" << m_layer->strokes().size();
+	// TODO This redraws the entire page!
+	// Since we know the stroke that is about to be deleted, only part of the page would need to be updated.
+	{
+		CairoGroup cg(cr);
+		PathStroke* path_stroke = convert_variant<PathStroke*>(stroke);
+		setup_stroke(stroke);
+		draw_path(cr, path_stroke->points()); // Construct the deleted path to find the area that needs to be redrawn.
+		QRect rect = stroke_extents();
+		cr->begin_new_path(); // Forget the deleted path
+		cr->set_matrix(Cairo::identity_matrix()); // Figure out the bounding rectangle in pixel coordinates
+		cr->rectangle(rect.left(), rect.top(), rect.width(), rect.height());
+		cr->clip();
+		cr->set_matrix(m_page_picture->page2widget);
+		set_transparent();
+		for (ptr_Stroke stroke : m_layer->strokes()) // Don't draw the last stroke!
+			draw_stroke(stroke);
+		for (ptr_Stroke stroke : m_layer->temporary_strokes()) // Don't draw the last stroke!
+			draw_stroke(stroke);
+	}
+	emit update(QRect(0,0,m_page_picture->width,m_page_picture->height));
 }
 
 void LayerPicture::setup_stroke(ptr_Stroke stroke) {
@@ -89,10 +96,9 @@ void LayerPicture::draw_stroke(ptr_Stroke stroke)
 	PathStroke* path_stroke = convert_variant<PathStroke*>(stroke);
 	draw_path(cr, path_stroke->points());
 	// It might be better to compute the union of the extents of the individual segments.
-	double x1, y1, x2, y2;
-	cr->get_stroke_extents(x1, y1, x2, y2);
+	QRect rect = stroke_extents();
 	cr->stroke();
-	updatePageRect(x1, y1, x2, y2);
+	emit update(rect);
 }
 
 void LayerPicture::draw_line(Point a, Point b, ptr_Stroke stroke)
@@ -101,16 +107,17 @@ void LayerPicture::draw_line(Point a, Point b, ptr_Stroke stroke)
 	setup_stroke(stroke);
 	cr->move_to(a.x, a.y);
 	cr->line_to(b.x, b.y);
-	double x1, y1, x2, y2;
-	cr->get_stroke_extents(x1, y1, x2, y2);
+	QRect rect = stroke_extents();
 	cr->stroke();
-	updatePageRect(x1, y1, x2, y2);
+	emit update(rect);
 }
 
-void LayerPicture::updatePageRect(double x1, double y1, double x2, double y2)
+QRect LayerPicture::stroke_extents()
 {
+	double x1, y1, x2, y2;
+	cr->get_stroke_extents(x1, y1, x2, y2);
 	QRectF rect = bounding_rect(m_page_picture->page2widget, QRectF(QPointF(x1,y1), QPointF(x2,y2)));
-	emit update(QRect(QPoint((int)rect.left()-1, (int)rect.top()-1), QPoint((int)rect.right()+2, (int)rect.bottom()+2)));
+	return QRect(QPoint((int)rect.left()-1, (int)rect.top()-1), QPoint((int)rect.right()+2, (int)rect.bottom()+2));
 }
 
 PagePicture::PagePicture(Page* _page, int _width, int _height) :
@@ -138,6 +145,9 @@ PagePicture::PagePicture(Page* _page, int _width, int _height) :
 	
 	connect(page, &Page::layer_added, this, &PagePicture::register_layer);
 	connect(page, &Page::layer_deleted, this, &PagePicture::unregister_layer);
+	
+	m_temporary_layer = std::make_unique<LayerPicture>(page->temporary_layer(), this);
+	connect(m_temporary_layer.get(), &LayerPicture::update, this, &PagePicture::update_layer);
 }
 
 void PagePicture::register_layer(int index)

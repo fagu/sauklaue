@@ -97,7 +97,7 @@ MainWindow::MainWindow(QWidget *parent) :
 	{
 		QTimer *timer = new QTimer(this);
 		connect(timer, &QTimer::timeout, this, &MainWindow::autoSave);
-		timer->start(60000);
+		timer->start(180000);
 	}
 	
 #ifndef QT_NO_SESSIONMANAGER

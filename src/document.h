@@ -174,8 +174,8 @@ private:
 class Page : public QObject {
 	Q_OBJECT
 public:
-	Page(int w, int h) : m_width(w), m_height(h) {}
-	explicit Page(const Page& a);
+	Page(int w, int h) : m_width(w), m_height(h), m_temporary_layer(std::make_unique<NormalLayer>()) {}
+	explicit Page(const Page& a); // Note: The copy constructor does not copy the temporary layer!
 	int width() const {
 		return m_width;
 	}
@@ -192,12 +192,16 @@ public:
 	void add_layer(int at) {
 		add_layer(at, std::make_unique<NormalLayer>());
 	}
+	NormalLayer* temporary_layer() const {
+		return m_temporary_layer.get();
+	}
 signals:
 	void layer_added(int index);
 	void layer_deleted(int index);
 private:
 	int m_width, m_height;
 	std::vector<std::unique_ptr<NormalLayer> > m_layers;
+	std::unique_ptr<NormalLayer> m_temporary_layer;
 };
 
 class Document : public QObject

@@ -126,16 +126,21 @@ void PageWidget::paintEvent(QPaintEvent* event)
 	double x1 = 0, y1 = 0, x2 = m_page->width(), y2 = m_page->height();
 	m_page_picture->page2widget.transform_point(x1, y1);
 	m_page_picture->page2widget.transform_point(x2, y2);
-	painter.fillRect(x1, y1, x2-x1, y2-y1, QColorConstants::White);
+	painter.fillRect(x1, y1, x2-x1, y2-y1, QColorConstants::Black);
 	for (auto layer_picture : m_page_picture->layers()) {
 		layer_picture->cairo_surface->flush();
-		if (width() != layer_picture->cairo_surface->get_width() || height() != layer_picture->cairo_surface->get_height()) {
-			qDebug() << "size has recently changed";
-			return;
-		}
 		QImage img((const uchar*)layer_picture->cairo_surface->get_data(), width(), height(), QImage::Format_ARGB32_Premultiplied);
 		painter.drawImage(0, 0, img);
 	}
+	// We draw the temporary layer semi-transparent.
+	painter.setOpacity(0.3);
+	{
+		auto layer_picture = m_page_picture->temporary_layer();
+		layer_picture->cairo_surface->flush();
+		QImage img((const uchar*)layer_picture->cairo_surface->get_data(), width(), height(), QImage::Format_ARGB32_Premultiplied);
+		painter.drawImage(0, 0, img);
+	}
+	painter.setOpacity(1);
 	if (has_focus) {
 		painter.setPen(QPen(QColorConstants::Red, 3));
 		painter.drawRect(x1, y1, x2-x1, y2-y1);
@@ -144,7 +149,7 @@ void PageWidget::paintEvent(QPaintEvent* event)
 
 void PageWidget::resizeEvent(QResizeEvent* event)
 {
-	qDebug() << "resize" << event->size();
+// 	qDebug() << "resize" << event->size();
 	setupPicture();
 }
 
@@ -177,7 +182,7 @@ void PageWidget::mouseReleaseEvent(QMouseEvent* event)
 
 void PageWidget::mouseDoubleClickEvent(QMouseEvent* event)
 {
-	if (page_index != -1)
+	if (page_index != -1 && event->button() == Qt::LeftButton)
 		m_view->gotoPage(page_index);
 }
 
@@ -192,11 +197,11 @@ void PageWidget::tabletEvent(QTabletEvent* event)
 				StrokeType type = StrokeType::Pen;
 				if (event->pointerType() == QTabletEvent::Eraser || (event->buttons() & Qt::RightButton))
 					type = StrokeType::Eraser;
-				if (event->pointerType() == QTabletEvent::Cursor || (event->buttons() & Qt::MiddleButton))
-					type = StrokeType::LaserPointer;
 				start_path(event->posF().x(), event->posF().y(), type);
 			} else if (event->button() == Qt::RightButton) {
 				setCursor(Qt::CrossCursor);
+			} else if (event->button() == Qt::MiddleButton) {
+				start_path(event->posF().x(), event->posF().y(), StrokeType::LaserPointer);
 			}
 			// If we push the right button while hovering, we don't want to generate a mouse event (which would start erasing).
 			// We therefore accept the event no matter which button is pressed.
@@ -236,7 +241,10 @@ void PageWidget::start_path(double x, double y, StrokeType type)
 				PathStroke* pst = convert_variant<PathStroke*>(st);
 				pst->push_back(p);
 				assert(m_page_picture->layers().size() == 1);
-				m_page_picture->layers()[0]->draw_line(p, p, st);
+				if (m_current_stroke->timeout == -1)
+					m_page_picture->layers()[0]->draw_line(p, p, st);
+				else
+					m_page_picture->temporary_layer()->draw_line(p, p, st);
 			}
 		}, get(m_current_stroke->stroke));
 	}
@@ -255,7 +263,13 @@ void PageWidget::continue_path(double x, double y)
 				Point old = pst->points().back();
 				pst->push_back(p);
 				assert(m_page_picture->layers().size() == 1);
-				m_page_picture->layers()[0]->draw_line(old, p, st);
+				// These draw_line commands are not sufficient!
+				// The LayerPicture somehow has to know about the full current stroke in case of a redraw.
+				// Otherwise, if there is a redraw (for example because an old stroke is deleted) while we are drawing, the current stroke disappears. It then reappears when we finish drawing!
+				if (m_current_stroke->timeout == -1)
+					m_page_picture->layers()[0]->draw_line(old, p, st);
+				else
+					m_page_picture->temporary_layer()->draw_line(old, p, st);
 			}
 		}, get(m_current_stroke->stroke));
 	}
@@ -273,13 +287,13 @@ void PageWidget::finish_path()
 			if (timeout == -1)
 				m_view->undoStack->push(new AddPenStrokeCommand(m_view->doc.get(), page_index, 0, std::move(st)));
 			else
-				m_page->layers()[0]->add_temporary_stroke(std::move(st), timeout);
+				m_page->temporary_layer()->add_temporary_stroke(std::move(st), timeout);
 		},
 		[&](std::unique_ptr<EraserStroke> &st) {
 			if (timeout == -1)
 				m_view->undoStack->push(new AddEraserStrokeCommand(m_view->doc.get(), page_index, 0, std::move(st)));
 			else
-				m_page->layers()[0]->add_temporary_stroke(std::move(st), timeout);
+				m_page->temporary_layer()->add_temporary_stroke(std::move(st), timeout);
 		}
 	}, m_current_stroke->stroke);
 	m_current_stroke.reset();
