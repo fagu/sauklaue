@@ -163,11 +163,9 @@ void PageWidget::moveEvent(QMoveEvent* event)
 
 void PageWidget::mousePressEvent(QMouseEvent* event)
 {
-	if (!has_focus)
-		return;
-	if (event->button() == Qt::LeftButton)
+	if (has_focus && event->button() == Qt::LeftButton)
 		start_path(event->pos().x(), event->pos().y(), StrokeType::Pen);
-	else if (event->button() == Qt::RightButton)
+	else if (has_focus && event->button() == Qt::RightButton)
 		start_path(event->pos().x(), event->pos().y(), StrokeType::Eraser);
 	else if (event->button() == Qt::MiddleButton)
 		start_path(event->pos().x(), event->pos().y(), StrokeType::LaserPointer);
