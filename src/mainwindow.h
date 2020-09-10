@@ -16,30 +16,30 @@ class PenColorAction : public QObject {
 	Q_OBJECT
 public:
 	PenColorAction(QColor color, QString name, MainWindow *view);
-	QAction* action(int i) const {
-		return m_action[i];
+	QAction* action() const {
+		return m_action;
 	}
 private slots:
-	void triggered();
+	void triggered(bool on);
 private:
 	QColor m_color;
 	MainWindow *m_view;
-	std::array<QAction*,2> m_action;
+	QAction* m_action;
 };
 
 class PenSizeAction : public QObject {
 	Q_OBJECT
 public:
 	PenSizeAction(int pen_size, int icon_size, QString name, MainWindow *view);
-	QAction* action(int i) const {
-		return m_action[i];
+	QAction* action() const {
+		return m_action;
 	}
 private slots:
-	void triggered();
+	void triggered(bool on);
 private:
 	int m_size;
 	MainWindow *m_view;
-	std::array<QAction*,2> m_action;
+	QAction* m_action;
 };
 
 class MainWindow : public QMainWindow

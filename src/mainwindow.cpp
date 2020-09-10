@@ -40,20 +40,15 @@ PenColorAction::PenColorAction(QColor color, QString name, MainWindow* view) : Q
 	painter.setBrush(color);
 	painter.drawEllipse(QRect(0,0,64,64));
 	QIcon icon(pixmap);
-	for (size_t i = 0; i < 2; i++) {
-		m_action[i] = new QAction(icon, name);
-		m_action[i]->setCheckable(true);
-		connect(m_action[i], &QAction::triggered, this, &PenColorAction::triggered);
-	}
+	m_action = new QAction(icon, name, this);
+	m_action->setCheckable(true);
+	connect(m_action, &QAction::triggered, this, &PenColorAction::triggered);
 }
 
-void PenColorAction::triggered()
+void PenColorAction::triggered(bool on)
 {
-	m_view->setPenColor(m_color);
-	for (size_t i = 0; i < 2; i++) {
-		if (!m_action[i]->isChecked())
-			m_action[i]->setChecked(true);
-	}
+	if (on)
+		m_view->setPenColor(m_color);
 }
 
 PenSizeAction::PenSizeAction(int pen_size, int icon_size, QString name, MainWindow* view) : QObject(view), m_size(pen_size), m_view(view)
@@ -66,21 +61,15 @@ PenSizeAction::PenSizeAction(int pen_size, int icon_size, QString name, MainWind
 	painter.setBrush(QColorConstants::Black);
 	painter.drawEllipse(QPoint(32,32), icon_size, icon_size);
 	QIcon icon(pixmap);
-	for (size_t i = 0; i < 2; i++) {
-		m_action[i] = new QAction(icon, name);
-		m_action[i]->setCheckable(true);
-		connect(m_action[i], &QAction::triggered, this, &PenSizeAction::triggered);
-	}
+	m_action = new QAction(icon, name, this);
+	m_action->setCheckable(true);
+	connect(m_action, &QAction::triggered, this, &PenSizeAction::triggered);
 }
 
-void PenSizeAction::triggered()
+void PenSizeAction::triggered(bool on)
 {
-	m_view->setPenSize(m_size);
-	for (size_t i = 0; i < 2; i++) {
-		if (!m_action[i]->isChecked()) {
-			m_action[i]->setChecked(true);
-		}
-	}
+	if (on)
+		m_view->setPenSize(m_size);
 }
 
 
@@ -392,9 +381,7 @@ void MainWindow::createActions()
 	for (size_t i = 0; i < 2; i++)
 		toolbar[i]->addSeparator();
 	{
-		std::array<QActionGroup*,2> group;
-		for (size_t i = 0; i < 2; i++)
-			group[i] = new QActionGroup(this);
+		QActionGroup* group = new QActionGroup(this);
 		std::vector<std::pair<QColor,QString> > v = {
 			{QColorConstants::White, "White"},
 			{QColorConstants::Yellow, "Yellow"},
@@ -403,26 +390,23 @@ void MainWindow::createActions()
 			{QColorConstants::Green, "Green"},
 			{QColorConstants::Cyan, "Cyan"},
 			{QColorConstants::Gray, "Gray"},
-			{QColorConstants::DarkGreen, "DarkGreen"},
+			{QColorConstants::DarkGreen, "Dark Green"},
 			{QColorConstants::Red, "Red"},
 			{QColorConstants::Blue, "Blue"},
 			{QColorConstants::Black, "Black"}
 		};
 		for (const auto &p : v) {
 			PenColorAction *action = new PenColorAction(p.first, p.second, this);
-			for (size_t i = 0; i < 2; i++) {
-				toolbar[i]->addAction(action->action(i));
-				group[i]->addAction(action->action(i));
-			}
+			for (size_t i = 0; i < 2; i++)
+				toolbar[i]->addAction(action->action());
+			group->addAction(action->action());
 		}
-		group[0]->actions().back()->trigger();
+		group->actions().back()->trigger();
 	}
 	for (size_t i = 0; i < 2; i++)
 		toolbar[i]->addSeparator();
 	{
-		std::array<QActionGroup*,2> group;
-		for (size_t i = 0; i < 2; i++)
-			group[i] = new QActionGroup(this);
+		QActionGroup* group = new QActionGroup(this);
 		std::vector<std::tuple<int,int,QString> > v = {
 			{750,8,"Medium"},
 			{1500,16,"Medium"},
@@ -430,13 +414,14 @@ void MainWindow::createActions()
 		};
 		for (const auto &p : v) {
 			PenSizeAction *action = new PenSizeAction(std::get<0>(p), std::get<1>(p), std::get<2>(p), this);
-			for (size_t i = 0; i < 2; i++) {
-				toolbar[i]->addAction(action->action(i));
-				group[i]->addAction(action->action(i));
-			}
+			for (size_t i = 0; i < 2; i++)
+				toolbar[i]->addAction(action->action());
+			group->addAction(action->action());
 		}
-		group[0]->actions()[1]->trigger();
+		group->actions()[1]->trigger();
 	}
+	for (size_t i = 0; i < 2; i++)
+		toolbar[i]->addSeparator();
 	{
 		QPixmap pixmap(64,64);
 		pixmap.fill(Qt::transparent);
@@ -448,14 +433,12 @@ void MainWindow::createActions()
 		painter.setBrush(QColorConstants::Yellow);
 		painter.drawLine(QPoint(10,32), QPoint(54,32));
 		QIcon icon(pixmap);
-		for (size_t i = 0; i < 2; i++) {
-			QAction *action = new QAction(icon, tr("Blackboard mode"));
-			action->setCheckable(true);
-			action->setStatusTip(tr("Blackboard mode"));
-			connect(action, &QAction::triggered, this, &MainWindow::setBlackboardMode);
-			connect(this, &MainWindow::blackboardModeToggled, action, &QAction::setChecked);
+		QAction *action = new QAction(icon, tr("Blackboard mode"), this);
+		action->setCheckable(true);
+		action->setStatusTip(tr("Blackboard mode"));
+		connect(action, &QAction::triggered, this, &MainWindow::setBlackboardMode);
+		for (size_t i = 0; i < 2; i++)
 			toolbar[i]->addAction(action);
-		}
 	}
 }
 
