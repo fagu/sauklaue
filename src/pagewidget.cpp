@@ -85,7 +85,7 @@ Cairo::Matrix PageWidget::tablet_to_screen()
 	QRectF minrect2 = bounding_rect(pi2t, minrect);
 	double scale = std::max(minrect2.width(), minrect2.height());
 	double dx = (minrect2.left()+minrect2.right()-scale)/2, dy = (minrect2.top()+minrect2.bottom()-scale)/2;
-	QRect scr = screen()->geometry();
+	QSize scr = screen()->virtualSize();
 	return Cairo::scaling_matrix(scale, scale) * Cairo::translation_matrix(dx, dy) * t2pi * Cairo::scaling_matrix(1./scr.width(), 1./scr.height());
 }
 

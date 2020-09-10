@@ -12,7 +12,5 @@ make
 ./sauklaue
 
 
--- Tutorials and resources --
-
-Qt online docs
-https://doc.qt.io/
+-- Tablet tricks --
+For the XP-PEN tablet, load the driver and make sure to set the mapping to "AllScreen". Sauklaue will manipulate the mapping assuming the internal setting is "AllScreen".
