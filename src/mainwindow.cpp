@@ -428,10 +428,12 @@ void MainWindow::createActions()
 		QPainter painter(&pixmap);
 		painter.setRenderHint(QPainter::RenderHint::Antialiasing);
 		painter.setBrush(QColorConstants::Black);
-		painter.drawRect(QRect(0,10,64,54));
-		painter.setPen(Qt::PenStyle::NoPen);
-		painter.setBrush(QColorConstants::Yellow);
-		painter.drawLine(QPoint(10,32), QPoint(54,32));
+		painter.drawRect(QRect(0,10,64,44));
+		painter.setPen(QPen(QColorConstants::Yellow, 5));
+		for (int j = 0; j < 3; j++) {
+			painter.drawLine(QPoint(15,32+(j-1)*10), QPoint(49,32+(j-1)*10));
+			painter.drawLine(QPoint(15,32+(j-1)*10), QPoint(49,32+(j-1)*10));
+		}
 		QIcon icon(pixmap);
 		QAction *action = new QAction(icon, tr("Blackboard mode"), this);
 		action->setCheckable(true);
