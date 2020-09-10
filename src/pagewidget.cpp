@@ -114,7 +114,7 @@ void PageWidget::unfocusPage()
 	update();
 }
 
-void PageWidget::paintEvent(QPaintEvent* event)
+void PageWidget::paintEvent(QPaintEvent* )
 {
 // 	qDebug() << "paint" << event->region();
 	QPainter painter(this);
@@ -150,13 +150,13 @@ void PageWidget::paintEvent(QPaintEvent* event)
 	}
 }
 
-void PageWidget::resizeEvent(QResizeEvent* event)
+void PageWidget::resizeEvent(QResizeEvent* )
 {
 // 	qDebug() << "resize" << event->size();
 	setupPicture();
 }
 
-void PageWidget::moveEvent(QMoveEvent* event)
+void PageWidget::moveEvent(QMoveEvent* )
 {
 	update_tablet_map();
 }
@@ -176,7 +176,7 @@ void PageWidget::mouseMoveEvent(QMouseEvent* event)
 	continue_path(event->pos().x(), event->pos().y());
 }
 
-void PageWidget::mouseReleaseEvent(QMouseEvent* event)
+void PageWidget::mouseReleaseEvent(QMouseEvent* )
 {
 	finish_path();
 }

@@ -159,7 +159,7 @@ void MainWindow::closeEvent(QCloseEvent* event)
 	}
 }
 
-void MainWindow::moveEvent(QMoveEvent* event)
+void MainWindow::moveEvent(QMoveEvent* )
 {
 	for (PageWidget* p : pagewidgets)
 		p->update_tablet_map();
@@ -603,14 +603,14 @@ void MainWindow::gotoPage(int index)
 	} else {
 		if (index < 0) // Page out of bounds => set to something reasonable
 			index = 0;
-		else if (index >= doc->pages().size()) // Page out of bounds => set to something reasonable
+		else if (index >= (int)doc->pages().size()) // Page out of bounds => set to something reasonable
 			index = doc->pages().size() - 1;
 		if (index < first_displayed_page) {
 			new_first_displayed_page = index;
 		} else if (index >= first_displayed_page + (int)pagewidgets.size()) {
 			new_first_displayed_page = index - (int)pagewidgets.size() + 1;
 		}
-		if (new_first_displayed_page + (int)pagewidgets.size() > doc->pages().size())
+		if (new_first_displayed_page + (int)pagewidgets.size() > (int)doc->pages().size())
 			new_first_displayed_page = doc->pages().size() - (int)pagewidgets.size();
 		if (new_first_displayed_page < 0)
 			new_first_displayed_page = 0;
@@ -624,7 +624,7 @@ void MainWindow::gotoPage(int index)
 	first_displayed_page = new_first_displayed_page;
 	for (int i = 0; i < (int)pagewidgets.size(); i++) {
 		int index = first_displayed_page + i;
-		if (index < doc->pages().size())
+		if (index < (int)doc->pages().size())
 			pagewidgets[i]->setPage(doc->pages()[index], index);
 		else
 			pagewidgets[i]->setPage(nullptr, -1);
@@ -671,7 +671,7 @@ void MainWindow::page_deleted(int index)
 
 void MainWindow::updatePageNavigation() {
 	deletePageAction->setEnabled(focused_view != -1);
-	nextPageAction->setEnabled(focused_view != -1 && current_page()+1 < doc->pages().size());
+	nextPageAction->setEnabled(focused_view != -1 && current_page()+1 < (int)doc->pages().size());
 	previousPageAction->setEnabled(focused_view != -1 && current_page() > 0);
 	firstPageAction->setEnabled(doc->pages().size() > 0);
 	lastPageAction->setEnabled(doc->pages().size() > 0);

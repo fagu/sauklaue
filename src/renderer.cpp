@@ -180,7 +180,7 @@ void PDFExporter::save(Document* doc, const std::string& file_name)
 		surface->set_size(SCALE*page->width(), SCALE*page->height());
 		cr->rectangle(0,0,page->width(),page->height());
 		cr->clip();
-		for (auto layer : page->layers())
+		for ([[maybe_unused]] auto layer : page->layers())
 			cr->push_group_with_content(Cairo::CONTENT_COLOR_ALPHA);
 		cr->set_source_rgb(1,1,1);
 		cr->paint();

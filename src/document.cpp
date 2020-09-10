@@ -34,7 +34,7 @@ void TemporaryStroke::timeout()
 
 
 
-NormalLayer::NormalLayer(const NormalLayer& a)
+NormalLayer::NormalLayer(const NormalLayer& a) : QObject()
 {
 	// Copy the strokes.
 	reserve_strokes(a.strokes().size());
@@ -57,7 +57,7 @@ Page::Page(const Page& a) : Page(a.m_width, a.m_height)
 
 
 
-Document::Document(const Document& a)
+Document::Document(const Document& a) : QObject()
 {
 	// Copy the pages.
 	for (Page* p : a.pages())
