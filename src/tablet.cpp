@@ -20,7 +20,7 @@ Tablet::~Tablet()
 void Tablet::set_transformation_matrix(Cairo::Matrix mat)
 {
 	transformation_matrix = mat;
-	transformation_matrix_timer->start();
+	transformation_matrix_timer->start(10);
 }
 
 void Tablet::time_to_set_transformation_matrix()

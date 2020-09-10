@@ -5,10 +5,14 @@
 #include "actions.h"
 #include "tablet.h"
 
-#include <QtWidgets>
+#include <QScreen>
+#include <QDebug>
+#include <QPaintEvent>
+#include <QPainter>
+#include <QPen>
 
 
-const int DEFAULT_LINE_WIDTH = 1500;
+// const int DEFAULT_LINE_WIDTH = 1500;
 const int DEFAULT_ERASER_WIDTH = 1500*20;
 
 PageWidget::PageWidget(MainWindow* view) :
@@ -111,7 +115,7 @@ void PageWidget::unfocusPage()
 
 void PageWidget::paintEvent(QPaintEvent* event)
 {
-	qDebug() << "paint" << event->region();
+// 	qDebug() << "paint" << event->region();
 	QPainter painter(this);
 	painter.setRenderHint(QPainter::Antialiasing, false);
 	painter.fillRect(0,0,width(),height(), QColorConstants::LightGray);
@@ -213,12 +217,16 @@ void PageWidget::start_path(double x, double y, StrokeType type)
 	if (!m_current_stroke) {
 		Point p(x,y);
 		if (type == StrokeType::Pen) {
-			m_current_stroke = std::make_unique<PenStroke>(DEFAULT_LINE_WIDTH, Color::BLACK);
+			m_current_stroke = std::make_unique<PenStroke>(m_view->penSize(), m_view->penColor());
 		} else if (type == StrokeType::Eraser) {
 			m_current_stroke = std::make_unique<EraserStroke>(DEFAULT_ERASER_WIDTH);
+		} else if (type == StrokeType::LaserPointer) {
+			m_current_stroke = std::make_unique<LaserPointerStroke>(m_view->penSize() * 2, QColorConstants::Red);
+		} else {
+			assert(false);
 		}
 		std::visit(overloaded {
-			[&](std::variant<PenStroke*,EraserStroke*> st) {
+			[&](std::variant<PenStroke*,EraserStroke*,LaserPointerStroke*> st) {
 				PathStroke* pst = convert_variant<PathStroke*>(st);
 				pst->push_back(p);
 				assert(m_page_picture->layers().size() == 1);

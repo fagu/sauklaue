@@ -30,10 +30,10 @@ private:
 	PagePicture *m_page_picture;
 	
 	void setup();
-	void setup_stroke(ptr_Stroke stroke);
+	void setup_stroke(ptr_temp_Stroke stroke);
 	void draw_stroke(int i);
 public:
-	void draw_line(Point a, Point b, ptr_Stroke stroke);
+	void draw_line(Point a, Point b, ptr_temp_Stroke stroke);
 private:
 	void updatePageRect(double x1, double y1, double x2, double y2);
 };

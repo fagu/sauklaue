@@ -1,5 +1,7 @@
 #include "renderer.h"
 
+#include <QDebug>
+
 LayerPicture::LayerPicture(NormalLayer* layer, PagePicture* page_picture) :
 	m_layer(layer),
 	m_page_picture(page_picture)
@@ -60,7 +62,7 @@ void draw_path(Cairo::RefPtr<Cairo::Context> cr, const std::vector<Point> &point
 	}
 }
 
-void LayerPicture::setup_stroke(ptr_Stroke stroke) {
+void LayerPicture::setup_stroke(ptr_temp_Stroke stroke) {
 	std::visit(overloaded {
 		[&](const PenStroke* st) {
 			cr->set_line_width(st->width());
@@ -72,6 +74,11 @@ void LayerPicture::setup_stroke(ptr_Stroke stroke) {
 			cr->set_source_rgba(0,0,0,0); // Transparent
 			// Replace layer color by transparent instead of making a transparent drawing on top of the layer.
 			cr->set_operator(Cairo::OPERATOR_SOURCE);
+		},
+		[&](const LaserPointerStroke* st) {
+			cr->set_line_width(st->width());
+			Color co = st->color();
+			cr->set_source_rgba(co.r(), co.g(), co.b(), co.a());
 		}
 	}, stroke);
 }
@@ -80,7 +87,7 @@ void LayerPicture::draw_stroke(int i)
 {
 	CairoGroup cg(cr);
 	ptr_Stroke stroke = m_layer->strokes()[i];
-	setup_stroke(stroke);
+	setup_stroke(convert_variant<ptr_temp_Stroke>(stroke));
 	PathStroke* path_stroke = convert_variant<PathStroke*>(stroke);
 	draw_path(cr, path_stroke->points());
 	// It might be better to compute the union of the extents of the individual segments.
@@ -90,7 +97,7 @@ void LayerPicture::draw_stroke(int i)
 	updatePageRect(x1, y1, x2, y2);
 }
 
-void LayerPicture::draw_line(Point a, Point b, ptr_Stroke stroke)
+void LayerPicture::draw_line(Point a, Point b, ptr_temp_Stroke stroke)
 {
 	CairoGroup cg(cr);
 	setup_stroke(stroke);

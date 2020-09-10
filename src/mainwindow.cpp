@@ -8,10 +8,73 @@
 #include "renderer.h"
 #include "tablet.h"
 
-#include <QtWidgets>
+#include <QHBoxLayout>
+#include <QStatusBar>
+#include <QGuiApplication>
+#include <QFile>
+#include <QMessageBox>
+#include <QDir>
+#include <QCloseEvent>
+#include <QFileDialog>
+#include <QMenuBar>
+#include <QToolBar>
+#include <QAction>
+#include <QDebug>
+#include <QSettings>
+#include <QSaveFile>
+#include <QElapsedTimer>
+#include <QScreen>
+#include <QSessionManager>
+#include <QSpinBox>
+#include <QLabel>
+#include <QPainter>
+#include <QInputDialog>
+
+PenColorAction::PenColorAction(QColor color, QString name, MainWindow* view) : QObject(view), m_color(color), m_view(view)
+{
+	QPixmap pixmap(64,64);
+// 	pixmap.fill(color);
+	pixmap.fill(Qt::transparent);
+	QPainter painter(&pixmap);
+	painter.setRenderHint(QPainter::RenderHint::Antialiasing);
+	painter.setBrush(color);
+	painter.drawEllipse(QRect(0,0,64,64));
+	QIcon icon(pixmap);
+	m_action = new QAction(icon, name);
+	m_action->setCheckable(true);
+	connect(m_action, &QAction::triggered, this, &PenColorAction::triggered);
+}
+
+void PenColorAction::triggered()
+{
+	m_view->setPenColor(m_color);
+}
+
+PenSizeAction::PenSizeAction(int pen_size, int icon_size, QString name, MainWindow* view) : QObject(view), m_size(pen_size), m_view(view)
+{
+	QPixmap pixmap(64,64);
+// 	pixmap.fill(color);
+	pixmap.fill(Qt::transparent);
+	QPainter painter(&pixmap);
+	painter.setRenderHint(QPainter::RenderHint::Antialiasing);
+	painter.setBrush(QColorConstants::Black);
+	painter.drawEllipse(QPoint(32,32), icon_size, icon_size);
+	QIcon icon(pixmap);
+	m_action = new QAction(icon, name);
+	m_action->setCheckable(true);
+	connect(m_action, &QAction::triggered, this, &PenSizeAction::triggered);
+}
+
+void PenSizeAction::triggered()
+{
+	m_view->setPenSize(m_size);
+}
+
+
 
 MainWindow::MainWindow(QWidget *parent) :
-    QMainWindow(parent)
+    QMainWindow(parent),
+    m_pen_color(QColorConstants::Black)
 {
 	undoStack = new QUndoStack(this);
 	tablet = std::make_unique<Tablet>();
@@ -135,6 +198,7 @@ bool MainWindow::saveAs()
 	QFileDialog dialog(this);
 	dialog.setWindowModality(Qt::WindowModal);
 	dialog.setAcceptMode(QFileDialog::AcceptSave);
+	dialog.setDefaultSuffix("sau");
 	if (dialog.exec() != QDialog::Accepted)
 		return false;
 	return saveFile(dialog.selectedFiles().first());
@@ -159,7 +223,8 @@ void MainWindow::documentWasModified()
 void MainWindow::createActions()
 {
 	QMenu *fileMenu = menuBar()->addMenu(tr("&File"));
-// 	QToolBar *fileToolBar = addToolBar(tr("File"));
+	QToolBar *toolbar = addToolBar(tr("File"));
+	toolbar->setMovable(false);
 	{
 		const QIcon newIcon = QIcon::fromTheme("document-new", QIcon(":/images/new.png"));
 		QAction *action = new QAction(newIcon, tr("&New"), this);
@@ -245,20 +310,105 @@ void MainWindow::createActions()
 		deletePageAction = action;
 	}
 	{
-		QAction *action = new QAction(tr("&Next Page"));
-		action->setStatusTip(tr("Move to the next page"));
-		action->setShortcuts(QKeySequence::MoveToNextPage);
-		connect(action, &QAction::triggered, this, &MainWindow::nextPage);
-		pagesMenu->addAction(action);
-		nextPageAction = action;
-	}
-	{
-		QAction *action = new QAction(tr("&Previous Page"));
+		const QIcon icon = QIcon::fromTheme("go-up");
+		QAction *action = new QAction(icon, tr("&Previous Page"));
 		action->setStatusTip(tr("Move to the previous page"));
 		action->setShortcuts(QKeySequence::MoveToPreviousPage);
 		connect(action, &QAction::triggered, this, &MainWindow::previousPage);
 		pagesMenu->addAction(action);
+		toolbar->addAction(action);
 		previousPageAction = action;
+	}
+// 	{
+// 		currentPageBox = new QSpinBox();
+// 		currentPageBox->setButtonSymbols(QAbstractSpinBox::NoButtons);
+// 		currentPageBox->setKeyboardTracking(false);
+// 		currentPageBox->setMaximumWidth(50); // TODO
+// 		connect(currentPageBox, qOverload<int>(&QSpinBox::valueChanged), this, &MainWindow::gotoPageBox);
+// 		toolbar->addWidget(currentPageBox);
+// 	}
+// 	{
+// 		QLabel *of = new QLabel(tr(" of "));
+// 		toolbar->addWidget(of);
+// 	}
+	{
+		pageCountLabel = new QLabel("");
+		toolbar->addWidget(pageCountLabel);
+	}
+	{
+		const QIcon icon = QIcon::fromTheme("go-down");
+		QAction *action = new QAction(icon, tr("&Next Page"));
+		action->setStatusTip(tr("Move to the next page"));
+		action->setShortcuts(QKeySequence::MoveToNextPage);
+		connect(action, &QAction::triggered, this, &MainWindow::nextPage);
+		pagesMenu->addAction(action);
+		toolbar->addAction(action);
+		nextPageAction = action;
+	}
+	{
+		const QIcon icon = QIcon::fromTheme("go-first");
+		QAction *action = new QAction(icon, tr("&First Page"));
+		action->setStatusTip(tr("Move to the first page"));
+		action->setShortcuts(QKeySequence::MoveToStartOfLine);
+		connect(action, &QAction::triggered, this, &MainWindow::firstPage);
+		pagesMenu->addAction(action);
+		firstPageAction = action;
+	}
+	{
+		const QIcon icon = QIcon::fromTheme("go-last");
+		QAction *action = new QAction(icon, tr("&Last Page"));
+		action->setStatusTip(tr("Move to the first page"));
+		action->setShortcuts(QKeySequence::MoveToEndOfLine);
+		connect(action, &QAction::triggered, this, &MainWindow::lastPage);
+		pagesMenu->addAction(action);
+		lastPageAction = action;
+	}
+	{
+		const QIcon icon = QIcon::fromTheme("go-jump");
+		QAction *action = new QAction(icon, tr("&Go to page..."));
+		action->setStatusTip(tr("Move to a specific page"));
+		action->setShortcut(QKeySequence(Qt::CTRL + Qt::Key_G));
+		connect(action, &QAction::triggered, this, &MainWindow::actionGotoPage);
+		pagesMenu->addAction(action);
+		gotoPageAction = action;
+	}
+	toolbar->addSeparator();
+	{
+		QActionGroup *group = new QActionGroup(this);
+		std::vector<std::pair<QColor,QString> > v = {
+			{QColorConstants::White, "White"},
+			{QColorConstants::Yellow, "Yellow"},
+			{QColorConstants::Svg::orange, "Orange"},
+			{QColorConstants::Magenta, "Magenta"},
+			{QColorConstants::Green, "Green"},
+			{QColorConstants::Cyan, "Cyan"},
+			{QColorConstants::Gray, "Gray"},
+			{QColorConstants::DarkGreen, "DarkGreen"},
+			{QColorConstants::Red, "Red"},
+			{QColorConstants::Blue, "Blue"},
+			{QColorConstants::Black, "Black"}
+		};
+		for (const auto &p : v) {
+			PenColorAction *action = new PenColorAction(p.first, p.second, this);
+			toolbar->addAction(action->action());
+			group->addAction(action->action());
+		}
+		group->actions().back()->trigger();
+	}
+	toolbar->addSeparator();
+	{
+		QActionGroup *group = new QActionGroup(this);
+		std::vector<std::tuple<int,int,QString> > v = {
+			{750,8,"Medium"},
+			{1500,16,"Medium"},
+			{3000,32,"Large"}
+		};
+		for (const auto &p : v) {
+			PenSizeAction *action = new PenSizeAction(std::get<0>(p), std::get<1>(p), std::get<2>(p), this);
+			toolbar->addAction(action->action());
+			group->addAction(action->action());
+		}
+		group->actions()[1]->trigger();
 	}
 }
 
@@ -393,6 +543,24 @@ void MainWindow::previousPage()
 	gotoPage(current_page()-1);
 }
 
+void MainWindow::firstPage()
+{
+	gotoPage(0);
+}
+
+void MainWindow::lastPage()
+{
+	gotoPage(doc->pages().size()-1);
+}
+
+void MainWindow::actionGotoPage()
+{
+	bool ok;
+	int page = QInputDialog::getInt(this, tr("Go to Page"), tr("Page:"), current_page()+1, 1, doc->pages().size(), 1, &ok);
+	if (ok)
+		gotoPage(page - 1);
+}
+
 void MainWindow::gotoPage(int index)
 {
 	int new_first_displayed_page = first_displayed_page;
@@ -437,6 +605,12 @@ void MainWindow::gotoPage(int index)
 	updatePageNavigation();
 }
 
+void MainWindow::gotoPageBox(int index)
+{
+	gotoPage(index-1);
+}
+
+
 
 #ifndef QT_NO_SESSIONMANAGER
 void MainWindow::commitData(QSessionManager &manager)
@@ -467,14 +641,40 @@ void MainWindow::updatePageNavigation() {
 	deletePageAction->setEnabled(focused_view != -1);
 	nextPageAction->setEnabled(focused_view != -1 && current_page()+1 < doc->pages().size());
 	previousPageAction->setEnabled(focused_view != -1 && current_page() > 0);
-	statusBar()->showMessage(QString("Page ")+QString::number(current_page()+1)+QString(" of ")+QString::number(doc->pages().size()));
+	firstPageAction->setEnabled(doc->pages().size() > 0);
+	lastPageAction->setEnabled(doc->pages().size() > 0);
+	gotoPageAction->setEnabled(doc->pages().size() > 0);
+	if (doc->pages().size() > 0) {
+// 		currentPageBox->setMinimum(1);
+// 		currentPageBox->setMaximum(doc->pages().size());
+		pageCountLabel->setText(QString::number(current_page()+1) + " of " + QString::number(doc->pages().size()));
+	} else {
+// 		currentPageBox->setMinimum(0);
+// 		currentPageBox->setMaximum(0);
+		pageCountLabel->setText("Empty");
+	}
+// 	currentPageBox->setValue(current_page()+1);
+// 	qDebug() << currentPageBox->minimum() << " - " << currentPageBox->maximum() << " at " << currentPageBox->value();
+// 	pageCountLabel->setText(QString::number(doc->pages().size()));
 }
+
+void MainWindow::setPenColor(QColor pen_color)
+{
+	m_pen_color = pen_color;
+}
+
+void MainWindow::setPenSize(int pen_size)
+{
+	m_pen_size = pen_size;
+}
+
 
 void MainWindow::exportPDF()
 {
 	if (!maybeSave())
 		return;
-	assert(!curFile.isEmpty());
+	if (curFile.isEmpty())
+		return;
 	QString pdf_file_name = curFile + ".pdf";
 	QGuiApplication::setOverrideCursor(Qt::WaitCursor);
 	PDFExporter::save(doc.get(), pdf_file_name.toStdString());

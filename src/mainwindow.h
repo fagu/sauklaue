@@ -4,11 +4,43 @@
 #include <memory>
 
 #include <QMainWindow>
+class QSpinBox;
+class QLabel;
 class QSessionManager;
 class QUndoStack;
 
 #include "pagewidget.h"
 #include "tablet.h"
+
+class PenColorAction : public QObject {
+	Q_OBJECT
+public:
+	PenColorAction(QColor color, QString name, MainWindow *view);
+	QAction* action() {
+		return m_action;
+	}
+private slots:
+	void triggered();
+private:
+	QColor m_color;
+	MainWindow *m_view;
+	QAction *m_action;
+};
+
+class PenSizeAction : public QObject {
+	Q_OBJECT
+public:
+	PenSizeAction(int pen_size, int icon_size, QString name, MainWindow *view);
+	QAction* action() {
+		return m_action;
+	}
+private slots:
+	void triggered();
+private:
+	int m_size;
+	MainWindow *m_view;
+	QAction *m_action;
+};
 
 class MainWindow : public QMainWindow
 {
@@ -53,8 +85,13 @@ private slots:
 	/* Pages */
 private:
 	QAction *deletePageAction;
-	QAction *nextPageAction;
 	QAction *previousPageAction;
+	QAction *nextPageAction;
+	QAction *firstPageAction;
+	QAction *lastPageAction;
+	QAction *gotoPageAction;
+// 	QSpinBox *currentPageBox;
+	QLabel *pageCountLabel;
 	void updatePageNavigation();
 public:
 	void gotoPage(int index);
@@ -62,8 +99,12 @@ private slots:
 	void newPageBefore();
 	void newPageAfter();
 	void deletePage();
-	void nextPage();
 	void previousPage();
+	void nextPage();
+	void firstPage();
+	void lastPage();
+	void actionGotoPage();
+	void gotoPageBox(int index); // 1-based index!
 	
 #ifndef QT_NO_SESSIONMANAGER
 	void commitData(QSessionManager &);
@@ -71,7 +112,22 @@ private slots:
 	
 	void page_added(int index);
 	void page_deleted(int index);
-
+	
+public:
+	void setPenColor(QColor pen_color);
+	QColor penColor() {
+		return m_pen_color;
+	}
+private:
+	QColor m_pen_color;
+public:
+	void setPenSize(int pen_size);
+	int penSize() {
+		return m_pen_size;
+	}
+private:
+	int m_pen_size;
+	
 private:
 	void createActions();
 	

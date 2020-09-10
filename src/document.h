@@ -7,36 +7,38 @@
 #include <variant>
 #include <vector>
 
+#include <QColor>
 #include <QString>
 #include <QDataStream>
 
 class Color {
 public:
 	constexpr Color(uint32_t _x) : x(_x) {}
+	Color(QColor c) : Color(color(c.red(),c.green(),c.blue(),255)) {}
 	
 	uint32_t x;
 	
 	static constexpr uint32_t MASK = 255;
 	
 	double r() const {
-		return (double)((x>>24)&MASK)/(1<<8);
+		return (double)((x>>24)&MASK)/MASK;
 	}
 	double g() const {
-		return (double)((x>>16)&MASK)/(1<<8);
+		return (double)((x>>16)&MASK)/MASK;
 	}
 	double b() const {
-		return (double)((x>>8)&MASK)/(1<<8);
+		return (double)((x>>8)&MASK)/MASK;
 	}
 	double a() const {
-		return (double)(x&MASK)/(1<<8);
+		return (double)(x&MASK)/MASK;
 	}
 	static constexpr Color color(int r, int g, int b, int a) {
 		uint32_t res = r;
-		res >>= 8;
+		res <<= 8;
 		res |= g;
-		res >>= 8;
+		res <<= 8;
 		res |= b;
-		res >>= 8;
+		res <<= 8;
 		res |= a;
 		return res;
 	}
@@ -82,12 +84,22 @@ private:
 	int m_width;
 };
 
+// This is just a temporary stroke that isn't saved or exported.
+class LaserPointerStroke : public PathStroke {
+public:
+	LaserPointerStroke(int w, Color color) : m_width(w), m_color(color) {}
+	int width() const {return m_width;}
+	Color color() const {return m_color;}
+private:
+	int m_width;
+	Color m_color;
+};
+
 typedef std::variant<PenStroke*, EraserStroke*> ptr_Stroke;
-typedef std::variant<std::unique_ptr<PenStroke>, std::unique_ptr<EraserStroke> > unique_ptr_Stroke;
-// Convert unique_ptr_Stroke into ptr_Stroke.
-inline ptr_Stroke get(const unique_ptr_Stroke& s) {
-	return std::visit([](const auto& p) -> ptr_Stroke {return p.get();}, s);
-}
+typedef variant_unique<PenStroke, EraserStroke> unique_ptr_Stroke;
+typedef std::variant<PenStroke*, EraserStroke*, LaserPointerStroke*> ptr_temp_Stroke;
+typedef variant_unique<PenStroke, EraserStroke, LaserPointerStroke> unique_ptr_temp_Stroke;
+
 struct stroke_unique_to_ptr_helper {
 	typedef unique_ptr_Stroke in_type;
 	typedef ptr_Stroke out_type;
@@ -95,11 +107,6 @@ struct stroke_unique_to_ptr_helper {
 		return get(p);
 	}
 };
-// Converts variant<U1,U2,...> to T by using the default conversion Ui -> T for each alternative Ui.
-template <class T, class ... U>
-T convert_variant(const std::variant<U...> &s) {
-	return std::visit([](const auto &s) -> T {return s;}, s);
-}
 
 class NormalLayer : public QObject {
 	Q_OBJECT

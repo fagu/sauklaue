@@ -2,7 +2,7 @@
 
 #include "mainwindow.h"
 
-#include <QtWidgets>
+
 
 NewPageCommand::NewPageCommand(Document* _doc, int _index, std::unique_ptr<Page> _page, QUndoCommand *parent) :
 	QUndoCommand(parent),

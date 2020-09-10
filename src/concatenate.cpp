@@ -4,7 +4,7 @@
 
 #include "file.pb.h"
 
-#include <QtWidgets>
+
 
 // sauklaue-conc FILE1 ... FILEn OUTFILE
 int main(int argc, char *argv[])

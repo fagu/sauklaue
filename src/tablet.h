@@ -12,7 +12,7 @@ class Tablet : public QObject
 public:
 	Tablet();
 	~Tablet();
-	// Ask to set the tablet coordinate transformation matrix. This will be done at the earliest convenience using a QTimer with timeout 0.
+	// Ask to set the tablet coordinate transformation matrix. This will be done at the earliest convenience using a QTimer with timeout 10ms.
 	void set_transformation_matrix(Cairo::Matrix mat);
 private slots:
 	void time_to_set_transformation_matrix();

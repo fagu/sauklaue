@@ -4,6 +4,7 @@
 // Helpers for std::variant copied from https://en.cppreference.com/w/cpp/utility/variant/visit
 
 #include <memory>
+#include <variant>
 #include <vector>
 
 #include <QRectF>
@@ -54,6 +55,20 @@ public:
 private:
 	const std::vector<T> &v;
 };
+
+template <class ... T>
+using variant_unique = std::variant<std::unique_ptr<T>...>;
+
+// Converts variant<U1,U2,...> to T by using the default conversion Ui -> T for each alternative Ui.
+template <class T, class ... U>
+T convert_variant(const std::variant<U...> &s) {
+	return std::visit([](const auto &s) -> T {return s;}, s);
+}
+// Converts variant<unique_ptr<T1>,...,unique_ptr<Tn> > into variant<T1*,...,Tn*>.
+template<class ... T>
+inline std::variant<T*...> get(const variant_unique<T...>& s) {
+	return std::visit([](const auto& p) -> std::variant<T*...> {return p.get();}, s);
+}
 
 template<class T>
 struct unique_to_ptr_helper {
