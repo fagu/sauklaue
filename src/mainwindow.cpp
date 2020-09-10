@@ -40,14 +40,20 @@ PenColorAction::PenColorAction(QColor color, QString name, MainWindow* view) : Q
 	painter.setBrush(color);
 	painter.drawEllipse(QRect(0,0,64,64));
 	QIcon icon(pixmap);
-	m_action = new QAction(icon, name);
-	m_action->setCheckable(true);
-	connect(m_action, &QAction::triggered, this, &PenColorAction::triggered);
+	for (size_t i = 0; i < 2; i++) {
+		m_action[i] = new QAction(icon, name);
+		m_action[i]->setCheckable(true);
+		connect(m_action[i], &QAction::triggered, this, &PenColorAction::triggered);
+	}
 }
 
 void PenColorAction::triggered()
 {
 	m_view->setPenColor(m_color);
+	for (size_t i = 0; i < 2; i++) {
+		if (!m_action[i]->isChecked())
+			m_action[i]->setChecked(true);
+	}
 }
 
 PenSizeAction::PenSizeAction(int pen_size, int icon_size, QString name, MainWindow* view) : QObject(view), m_size(pen_size), m_view(view)
@@ -60,14 +66,21 @@ PenSizeAction::PenSizeAction(int pen_size, int icon_size, QString name, MainWind
 	painter.setBrush(QColorConstants::Black);
 	painter.drawEllipse(QPoint(32,32), icon_size, icon_size);
 	QIcon icon(pixmap);
-	m_action = new QAction(icon, name);
-	m_action->setCheckable(true);
-	connect(m_action, &QAction::triggered, this, &PenSizeAction::triggered);
+	for (size_t i = 0; i < 2; i++) {
+		m_action[i] = new QAction(icon, name);
+		m_action[i]->setCheckable(true);
+		connect(m_action[i], &QAction::triggered, this, &PenSizeAction::triggered);
+	}
 }
 
 void PenSizeAction::triggered()
 {
 	m_view->setPenSize(m_size);
+	for (size_t i = 0; i < 2; i++) {
+		if (!m_action[i]->isChecked()) {
+			m_action[i]->setChecked(true);
+		}
+	}
 }
 
 
@@ -223,8 +236,13 @@ void MainWindow::documentWasModified()
 void MainWindow::createActions()
 {
 	QMenu *fileMenu = menuBar()->addMenu(tr("&File"));
-	QToolBar *toolbar = addToolBar(tr("File"));
-	toolbar->setMovable(false);
+	std::array<QToolBar*,2> toolbar;
+	for (size_t i = 0; i < 2; i++) {
+		toolbar[i] = new QToolBar();
+		toolbar[i]->setMovable(false);
+	}
+	addToolBar(Qt::ToolBarArea::LeftToolBarArea, toolbar[0]);
+	addToolBar(Qt::ToolBarArea::RightToolBarArea, toolbar[1]);
 	{
 		const QIcon newIcon = QIcon::fromTheme("document-new", QIcon(":/images/new.png"));
 		QAction *action = new QAction(newIcon, tr("&New"), this);
@@ -316,24 +334,22 @@ void MainWindow::createActions()
 		action->setShortcuts(QKeySequence::MoveToPreviousPage);
 		connect(action, &QAction::triggered, this, &MainWindow::previousPage);
 		pagesMenu->addAction(action);
-		toolbar->addAction(action);
+		for (size_t i = 0; i < 2; i++)
+			toolbar[i]->addAction(action);
 		previousPageAction = action;
 	}
-// 	{
-// 		currentPageBox = new QSpinBox();
-// 		currentPageBox->setButtonSymbols(QAbstractSpinBox::NoButtons);
-// 		currentPageBox->setKeyboardTracking(false);
-// 		currentPageBox->setMaximumWidth(50); // TODO
-// 		connect(currentPageBox, qOverload<int>(&QSpinBox::valueChanged), this, &MainWindow::gotoPageBox);
-// 		toolbar->addWidget(currentPageBox);
-// 	}
-// 	{
-// 		QLabel *of = new QLabel(tr(" of "));
-// 		toolbar->addWidget(of);
-// 	}
 	{
-		pageCountLabel = new QLabel("");
-		toolbar->addWidget(pageCountLabel);
+		for (size_t i = 0; i < 2; i++) {
+			currentPageLabel[i] = new QLabel("");
+			currentPageLabel[i]->setAlignment(Qt::AlignCenter);
+			QLabel *ofLabel = new QLabel("of");
+			ofLabel->setAlignment(Qt::AlignCenter);
+			pageCountLabel[i] = new QLabel("");
+			pageCountLabel[i]->setAlignment(Qt::AlignCenter);
+			toolbar[i]->addWidget(currentPageLabel[i]);
+			toolbar[i]->addWidget(ofLabel);
+			toolbar[i]->addWidget(pageCountLabel[i]);
+		}
 	}
 	{
 		const QIcon icon = QIcon::fromTheme("go-down");
@@ -342,7 +358,8 @@ void MainWindow::createActions()
 		action->setShortcuts(QKeySequence::MoveToNextPage);
 		connect(action, &QAction::triggered, this, &MainWindow::nextPage);
 		pagesMenu->addAction(action);
-		toolbar->addAction(action);
+		for (size_t i = 0; i < 2; i++)
+			toolbar[i]->addAction(action);
 		nextPageAction = action;
 	}
 	{
@@ -372,9 +389,12 @@ void MainWindow::createActions()
 		pagesMenu->addAction(action);
 		gotoPageAction = action;
 	}
-	toolbar->addSeparator();
+	for (size_t i = 0; i < 2; i++)
+		toolbar[i]->addSeparator();
 	{
-		QActionGroup *group = new QActionGroup(this);
+		std::array<QActionGroup*,2> group;
+		for (size_t i = 0; i < 2; i++)
+			group[i] = new QActionGroup(this);
 		std::vector<std::pair<QColor,QString> > v = {
 			{QColorConstants::White, "White"},
 			{QColorConstants::Yellow, "Yellow"},
@@ -390,14 +410,19 @@ void MainWindow::createActions()
 		};
 		for (const auto &p : v) {
 			PenColorAction *action = new PenColorAction(p.first, p.second, this);
-			toolbar->addAction(action->action());
-			group->addAction(action->action());
+			for (size_t i = 0; i < 2; i++) {
+				toolbar[i]->addAction(action->action(i));
+				group[i]->addAction(action->action(i));
+			}
 		}
-		group->actions().back()->trigger();
+		group[0]->actions().back()->trigger();
 	}
-	toolbar->addSeparator();
+	for (size_t i = 0; i < 2; i++)
+		toolbar[i]->addSeparator();
 	{
-		QActionGroup *group = new QActionGroup(this);
+		std::array<QActionGroup*,2> group;
+		for (size_t i = 0; i < 2; i++)
+			group[i] = new QActionGroup(this);
 		std::vector<std::tuple<int,int,QString> > v = {
 			{750,8,"Medium"},
 			{1500,16,"Medium"},
@@ -405,10 +430,32 @@ void MainWindow::createActions()
 		};
 		for (const auto &p : v) {
 			PenSizeAction *action = new PenSizeAction(std::get<0>(p), std::get<1>(p), std::get<2>(p), this);
-			toolbar->addAction(action->action());
-			group->addAction(action->action());
+			for (size_t i = 0; i < 2; i++) {
+				toolbar[i]->addAction(action->action(i));
+				group[i]->addAction(action->action(i));
+			}
 		}
-		group->actions()[1]->trigger();
+		group[0]->actions()[1]->trigger();
+	}
+	{
+		QPixmap pixmap(64,64);
+		pixmap.fill(Qt::transparent);
+		QPainter painter(&pixmap);
+		painter.setRenderHint(QPainter::RenderHint::Antialiasing);
+		painter.setBrush(QColorConstants::Black);
+		painter.drawRect(QRect(0,10,64,54));
+		painter.setPen(Qt::PenStyle::NoPen);
+		painter.setBrush(QColorConstants::Yellow);
+		painter.drawLine(QPoint(10,32), QPoint(54,32));
+		QIcon icon(pixmap);
+		for (size_t i = 0; i < 2; i++) {
+			QAction *action = new QAction(icon, tr("Blackboard mode"));
+			action->setCheckable(true);
+			action->setStatusTip(tr("Blackboard mode"));
+			connect(action, &QAction::triggered, this, &MainWindow::setBlackboardMode);
+			connect(this, &MainWindow::blackboardModeToggled, action, &QAction::setChecked);
+			toolbar[i]->addAction(action);
+		}
 	}
 }
 
@@ -644,18 +691,13 @@ void MainWindow::updatePageNavigation() {
 	firstPageAction->setEnabled(doc->pages().size() > 0);
 	lastPageAction->setEnabled(doc->pages().size() > 0);
 	gotoPageAction->setEnabled(doc->pages().size() > 0);
-	if (doc->pages().size() > 0) {
-// 		currentPageBox->setMinimum(1);
-// 		currentPageBox->setMaximum(doc->pages().size());
-		pageCountLabel->setText(QString::number(current_page()+1) + " of " + QString::number(doc->pages().size()));
-	} else {
-// 		currentPageBox->setMinimum(0);
-// 		currentPageBox->setMaximum(0);
-		pageCountLabel->setText("Empty");
+	for (size_t i = 0; i < 2; i++) {
+		if (current_page() != -1)
+			currentPageLabel[i]->setText(QString::number(current_page()+1));
+		else
+			currentPageLabel[i]->setText("-");
+		pageCountLabel[i]->setText(QString::number(doc->pages().size()));
 	}
-// 	currentPageBox->setValue(current_page()+1);
-// 	qDebug() << currentPageBox->minimum() << " - " << currentPageBox->maximum() << " at " << currentPageBox->value();
-// 	pageCountLabel->setText(QString::number(doc->pages().size()));
 }
 
 void MainWindow::setPenColor(QColor pen_color)
@@ -666,6 +708,14 @@ void MainWindow::setPenColor(QColor pen_color)
 void MainWindow::setPenSize(int pen_size)
 {
 	m_pen_size = pen_size;
+}
+
+void MainWindow::setBlackboardMode(bool on)
+{
+	if (m_blackboard != on) {
+		m_blackboard = on;
+		emit blackboardModeToggled(on);
+	}
 }
 
 

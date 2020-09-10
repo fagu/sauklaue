@@ -20,6 +20,7 @@ PageWidget::PageWidget(MainWindow* view) :
 	m_view(view)
 {
 	setMinimumSize(20,20);
+	connect(view, &MainWindow::blackboardModeToggled, this, qOverload<>(&QWidget::update));
 }
 
 void PageWidget::setPage(Page* page, int index)
@@ -118,6 +119,7 @@ void PageWidget::paintEvent(QPaintEvent* event)
 // 	qDebug() << "paint" << event->region();
 	QPainter painter(this);
 	painter.setRenderHint(QPainter::Antialiasing, false);
+	// Background around the pages
 	painter.fillRect(0,0,width(),height(), QColorConstants::LightGray);
 	if (!m_page_picture) {
 		// TODO?
@@ -126,7 +128,8 @@ void PageWidget::paintEvent(QPaintEvent* event)
 	double x1 = 0, y1 = 0, x2 = m_page->width(), y2 = m_page->height();
 	m_page_picture->page2widget.transform_point(x1, y1);
 	m_page_picture->page2widget.transform_point(x2, y2);
-	painter.fillRect(x1, y1, x2-x1, y2-y1, QColorConstants::Black);
+	// Page background color
+	painter.fillRect(x1, y1, x2-x1, y2-y1, m_view->blackboardMode() ? QColorConstants::Black : QColorConstants::White);
 	for (auto layer_picture : m_page_picture->layers()) {
 		layer_picture->cairo_surface->flush();
 		QImage img((const uchar*)layer_picture->cairo_surface->get_data(), width(), height(), QImage::Format_ARGB32_Premultiplied);
@@ -188,24 +191,23 @@ void PageWidget::mouseDoubleClickEvent(QMouseEvent* event)
 
 void PageWidget::tabletEvent(QTabletEvent* event)
 {
-	if (!has_focus)
-		return;
 	if (event->pointerType() == QTabletEvent::Pen || event->pointerType() == QTabletEvent::Eraser) {
 		if (event->type() == QEvent::TabletPress) {
 			// If we push the right button while touching the surface, the left button is automatically pushed as well.
-			if (event->button() == Qt::LeftButton) { // Do not draw if we only press the right button while hovering.
+			if (has_focus && event->button() == Qt::LeftButton) { // Do not draw if we only press the right button while hovering.
 				StrokeType type = StrokeType::Pen;
 				if (event->pointerType() == QTabletEvent::Eraser || (event->buttons() & Qt::RightButton))
 					type = StrokeType::Eraser;
 				start_path(event->posF().x(), event->posF().y(), type);
+				event->accept();
 			} else if (event->button() == Qt::RightButton) {
-				setCursor(Qt::CrossCursor);
+				if (has_focus)
+					setCursor(Qt::CrossCursor);
+				event->accept();
 			} else if (event->button() == Qt::MiddleButton) {
 				start_path(event->posF().x(), event->posF().y(), StrokeType::LaserPointer);
+				event->accept();
 			}
-			// If we push the right button while hovering, we don't want to generate a mouse event (which would start erasing).
-			// We therefore accept the event no matter which button is pressed.
-			event->accept();
 		} else if (event->type() == QEvent::TabletMove) {
 			continue_path(event->posF().x(), event->posF().y());
 			event->accept();

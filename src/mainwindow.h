@@ -16,30 +16,30 @@ class PenColorAction : public QObject {
 	Q_OBJECT
 public:
 	PenColorAction(QColor color, QString name, MainWindow *view);
-	QAction* action() {
-		return m_action;
+	QAction* action(int i) const {
+		return m_action[i];
 	}
 private slots:
 	void triggered();
 private:
 	QColor m_color;
 	MainWindow *m_view;
-	QAction *m_action;
+	std::array<QAction*,2> m_action;
 };
 
 class PenSizeAction : public QObject {
 	Q_OBJECT
 public:
 	PenSizeAction(int pen_size, int icon_size, QString name, MainWindow *view);
-	QAction* action() {
-		return m_action;
+	QAction* action(int i) const {
+		return m_action[i];
 	}
 private slots:
 	void triggered();
 private:
 	int m_size;
 	MainWindow *m_view;
-	QAction *m_action;
+	std::array<QAction*,2> m_action;
 };
 
 class MainWindow : public QMainWindow
@@ -91,7 +91,8 @@ private:
 	QAction *lastPageAction;
 	QAction *gotoPageAction;
 // 	QSpinBox *currentPageBox;
-	QLabel *pageCountLabel;
+	std::array<QLabel*,2> currentPageLabel;
+	std::array<QLabel*,2> pageCountLabel;
 	void updatePageNavigation();
 public:
 	void gotoPage(int index);
@@ -127,6 +128,16 @@ public:
 	}
 private:
 	int m_pen_size;
+private:
+	bool m_blackboard;
+private slots:
+	void setBlackboardMode(bool on);
+signals:
+	void blackboardModeToggled(bool on);
+public:
+	bool blackboardMode() {
+		return m_blackboard;
+	}
 	
 private:
 	void createActions();
