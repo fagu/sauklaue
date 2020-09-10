@@ -220,13 +220,11 @@ void PageWidget::start_path(double x, double y, StrokeType type)
 			m_current_stroke = std::make_unique<PenStroke>(m_view->penSize(), m_view->penColor());
 		} else if (type == StrokeType::Eraser) {
 			m_current_stroke = std::make_unique<EraserStroke>(DEFAULT_ERASER_WIDTH);
-		} else if (type == StrokeType::LaserPointer) {
-			m_current_stroke = std::make_unique<LaserPointerStroke>(m_view->penSize() * 2, QColorConstants::Red);
 		} else {
 			assert(false);
 		}
 		std::visit(overloaded {
-			[&](std::variant<PenStroke*,EraserStroke*,LaserPointerStroke*> st) {
+			[&](std::variant<PenStroke*,EraserStroke*> st) {
 				PathStroke* pst = convert_variant<PathStroke*>(st);
 				pst->push_back(p);
 				assert(m_page_picture->layers().size() == 1);

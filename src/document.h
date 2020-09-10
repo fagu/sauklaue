@@ -84,21 +84,8 @@ private:
 	int m_width;
 };
 
-// This is just a temporary stroke that isn't saved or exported.
-class LaserPointerStroke : public PathStroke {
-public:
-	LaserPointerStroke(int w, Color color) : m_width(w), m_color(color) {}
-	int width() const {return m_width;}
-	Color color() const {return m_color;}
-private:
-	int m_width;
-	Color m_color;
-};
-
 typedef std::variant<PenStroke*, EraserStroke*> ptr_Stroke;
 typedef variant_unique<PenStroke, EraserStroke> unique_ptr_Stroke;
-typedef std::variant<PenStroke*, EraserStroke*, LaserPointerStroke*> ptr_temp_Stroke;
-typedef variant_unique<PenStroke, EraserStroke, LaserPointerStroke> unique_ptr_temp_Stroke;
 
 struct stroke_unique_to_ptr_helper {
 	typedef unique_ptr_Stroke in_type;
