@@ -161,6 +161,8 @@ void PageWidget::mousePressEvent(QMouseEvent* event)
 		start_path(event->pos().x(), event->pos().y(), StrokeType::Pen);
 	else if (event->button() == Qt::RightButton)
 		start_path(event->pos().x(), event->pos().y(), StrokeType::Eraser);
+	else if (event->button() == Qt::MiddleButton)
+		start_path(event->pos().x(), event->pos().y(), StrokeType::LaserPointer);
 }
 
 void PageWidget::mouseMoveEvent(QMouseEvent* event)
@@ -190,6 +192,8 @@ void PageWidget::tabletEvent(QTabletEvent* event)
 				StrokeType type = StrokeType::Pen;
 				if (event->pointerType() == QTabletEvent::Eraser || (event->buttons() & Qt::RightButton))
 					type = StrokeType::Eraser;
+				if (event->pointerType() == QTabletEvent::Cursor || (event->buttons() & Qt::MiddleButton))
+					type = StrokeType::LaserPointer;
 				start_path(event->posF().x(), event->posF().y(), type);
 			} else if (event->button() == Qt::RightButton) {
 				setCursor(Qt::CrossCursor);
@@ -217,9 +221,13 @@ void PageWidget::start_path(double x, double y, StrokeType type)
 	if (!m_current_stroke) {
 		Point p(x,y);
 		if (type == StrokeType::Pen) {
-			m_current_stroke = std::make_unique<PenStroke>(m_view->penSize(), m_view->penColor());
+			m_current_stroke = {std::make_unique<PenStroke>(m_view->penSize(), m_view->penColor()), -1};
 		} else if (type == StrokeType::Eraser) {
-			m_current_stroke = std::make_unique<EraserStroke>(DEFAULT_ERASER_WIDTH);
+			m_current_stroke = {std::make_unique<EraserStroke>(DEFAULT_ERASER_WIDTH), -1};
+		} else if (type == StrokeType::LaserPointer) {
+			QColor color = QColorConstants::Red;
+// 			color.setAlphaF(0.3);
+			m_current_stroke = {std::make_unique<PenStroke>(m_view->penSize() * 4, color), 3000}; // 3 second timeout
 		} else {
 			assert(false);
 		}
@@ -230,7 +238,7 @@ void PageWidget::start_path(double x, double y, StrokeType type)
 				assert(m_page_picture->layers().size() == 1);
 				m_page_picture->layers()[0]->draw_line(p, p, st);
 			}
-		}, get(m_current_stroke.value()));
+		}, get(m_current_stroke->stroke));
 	}
 }
 
@@ -249,7 +257,7 @@ void PageWidget::continue_path(double x, double y)
 				assert(m_page_picture->layers().size() == 1);
 				m_page_picture->layers()[0]->draw_line(old, p, st);
 			}
-		}, get(m_current_stroke.value()));
+		}, get(m_current_stroke->stroke));
 	}
 }
 
@@ -257,14 +265,22 @@ void PageWidget::finish_path()
 {
 	if (!m_current_stroke)
 		return;
+	int timeout = m_current_stroke->timeout;
 	// TODO This unnecessarily redraws the stroke!
+	// If using transparency, this also makes the stroke more opaque.
 	std::visit(overloaded {
 		[&](std::unique_ptr<PenStroke> &st) {
-			m_view->undoStack->push(new AddPenStrokeCommand(m_view->doc.get(), page_index, 0, std::move(st)));
+			if (timeout == -1)
+				m_view->undoStack->push(new AddPenStrokeCommand(m_view->doc.get(), page_index, 0, std::move(st)));
+			else
+				m_page->layers()[0]->add_temporary_stroke(std::move(st), timeout);
 		},
 		[&](std::unique_ptr<EraserStroke> &st) {
-			m_view->undoStack->push(new AddEraserStrokeCommand(m_view->doc.get(), page_index, 0, std::move(st)));
+			if (timeout == -1)
+				m_view->undoStack->push(new AddEraserStrokeCommand(m_view->doc.get(), page_index, 0, std::move(st)));
+			else
+				m_page->layers()[0]->add_temporary_stroke(std::move(st), timeout);
 		}
-	}, m_current_stroke.value());
+	}, m_current_stroke->stroke);
 	m_current_stroke.reset();
 }

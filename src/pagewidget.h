@@ -13,6 +13,11 @@
 
 class MainWindow;
 
+struct StrokeCreator {
+	unique_ptr_Stroke stroke;
+	int timeout; // -1 for permanent strokes, > 0 for temporary strokes.
+};
+
 class PageWidget : public QWidget
 {
 	Q_OBJECT
@@ -49,7 +54,8 @@ private:
 	
 	enum struct StrokeType {
 		Pen,
-		Eraser
+		Eraser,
+		LaserPointer
 	};
 	void start_path(double x, double y, StrokeType type);
 	void continue_path(double x, double y);
@@ -61,7 +67,7 @@ private:
 	MainWindow *m_view;
 	Page *m_page = nullptr;
 	std::unique_ptr<PagePicture> m_page_picture;
-	std::optional<unique_ptr_Stroke> m_current_stroke;
+	std::optional<StrokeCreator> m_current_stroke;
 };
 
 #endif // PAGEWIDGET_H

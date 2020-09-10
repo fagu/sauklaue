@@ -3,6 +3,7 @@
 
 // Helpers for std::variant copied from https://en.cppreference.com/w/cpp/utility/variant/visit
 
+#include <list>
 #include <memory>
 #include <variant>
 #include <vector>
@@ -17,13 +18,13 @@ template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
 template<class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
 // Filters the elements of a vector<F::in_type> on-demand through a function object F() to obtain something a little like vector<F::out_type>.
-template<class F>
-class VectorView {
+template<class F,class Container>
+class AbstractView {
 	typedef typename F::in_type T;
 public:
 	class iterator {
 	public:
-		explicit iterator(typename std::vector<T>::const_iterator _it) : it(_it) {}
+		explicit iterator(typename Container::const_iterator _it) : it(_it) {}
 		typename F::out_type operator*() const {
 			return F()(*it);
 		}
@@ -35,10 +36,10 @@ public:
 			return a.it != b.it;
 		}
 	private:
-		typename std::vector<T>::const_iterator it;
+		typename Container::const_iterator it;
 	};
 	
-	explicit VectorView(const std::vector<T> &_v) : v(_v) {}
+	explicit AbstractView(const Container &_v) : v(_v) {}
 	size_t size() const {
 		return v.size();
 	}
@@ -53,8 +54,14 @@ public:
 	}
 	
 private:
-	const std::vector<T> &v;
+	const Container &v;
 };
+
+// Filters the elements of a vector<F::in_type> on-demand through a function object F() to obtain something a little like vector<F::out_type>.
+template<class F>
+using VectorView = AbstractView<F,std::vector<typename F::in_type> >;
+template<class F>
+using ListView = AbstractView<F,std::list<typename F::in_type> >;
 
 template <class ... T>
 using variant_unique = std::variant<std::unique_ptr<T>...>;

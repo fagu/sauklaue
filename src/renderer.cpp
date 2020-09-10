@@ -7,7 +7,7 @@ LayerPicture::LayerPicture(NormalLayer* layer, PagePicture* page_picture) :
 	m_page_picture(page_picture)
 {
 	connect(layer, &NormalLayer::stroke_added, this, &LayerPicture::stroke_added);
-	connect(layer, &NormalLayer::stroke_deleting, this, &LayerPicture::stroke_deleting);
+	connect(layer, &NormalLayer::stroke_deleted, this, &LayerPicture::stroke_deleted);
 	
 	cairo_surface = Cairo::ImageSurface::create(Cairo::FORMAT_ARGB32, m_page_picture->width, m_page_picture->height);
 	cr = Cairo::Context::create(cairo_surface);
@@ -16,22 +16,26 @@ LayerPicture::LayerPicture(NormalLayer* layer, PagePicture* page_picture) :
 	cr->set_line_join(Cairo::LINE_JOIN_ROUND);
 	cr->save();
 	setup();
-	for (int i = 0; i < (int)m_layer->strokes().size(); i++)
-		draw_stroke(i);
+	for (ptr_Stroke stroke : m_layer->strokes()) // Don't draw the last stroke!
+		draw_stroke(stroke);
+	for (ptr_Stroke stroke : m_layer->temporary_strokes()) // Don't draw the last stroke!
+		draw_stroke(stroke);
 }
 
-void LayerPicture::stroke_added()
+void LayerPicture::stroke_added(ptr_Stroke stroke)
 {
-	draw_stroke((int)m_layer->strokes().size()-1);
+	draw_stroke(stroke);
 }
 
-void LayerPicture::stroke_deleting()
+void LayerPicture::stroke_deleted(ptr_Stroke stroke)
 {
 	// TODO This redraws the entire page!
 	// Since we know the stroke that is about to be deleted, only part of the page would need to be updated.
 	setup();
-	for (int i = 0; i < (int)m_layer->strokes().size()-1; i++) // Don't draw the last stroke!
-		draw_stroke(i);
+	for (ptr_Stroke stroke : m_layer->strokes()) // Don't draw the last stroke!
+		draw_stroke(stroke);
+	for (ptr_Stroke stroke : m_layer->temporary_strokes()) // Don't draw the last stroke!
+		draw_stroke(stroke);
 	emit update(QRect(0,0,m_page_picture->width,m_page_picture->height));
 }
 
@@ -78,10 +82,9 @@ void LayerPicture::setup_stroke(ptr_Stroke stroke) {
 	}, stroke);
 }
 
-void LayerPicture::draw_stroke(int i)
+void LayerPicture::draw_stroke(ptr_Stroke stroke)
 {
 	CairoGroup cg(cr);
-	ptr_Stroke stroke = m_layer->strokes()[i];
 	setup_stroke(stroke);
 	PathStroke* path_stroke = convert_variant<PathStroke*>(stroke);
 	draw_path(cr, path_stroke->points());

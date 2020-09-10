@@ -3,6 +3,7 @@
 
 #include "util.h"
 
+#include <list>
 #include <memory>
 #include <variant>
 #include <vector>
@@ -10,11 +11,12 @@
 #include <QColor>
 #include <QString>
 #include <QDataStream>
+#include <QTimer>
 
 class Color {
 public:
 	constexpr Color(uint32_t _x) : x(_x) {}
-	Color(QColor c) : Color(color(c.red(),c.green(),c.blue(),255)) {}
+	Color(QColor c) : Color(color(c.red(),c.green(),c.blue(),c.alpha())) {}
 	
 	uint32_t x;
 	
@@ -95,6 +97,35 @@ struct stroke_unique_to_ptr_helper {
 	}
 };
 
+class NormalLayer;
+class TemporaryStroke : public QObject {
+	Q_OBJECT
+public:
+	TemporaryStroke(NormalLayer* layer, unique_ptr_Stroke stroke);
+	// Call this method exactly once!
+	// This sets the iterator (which doesn't exist at the time we construct the TemporaryStroke object).
+	// It then starts the timer.
+	void start(std::list<TemporaryStroke>::iterator it, int timeout);
+	ptr_Stroke stroke() const {
+		return get(m_stroke);
+	}
+private:
+	NormalLayer *m_layer;
+	unique_ptr_Stroke m_stroke;
+	QTimer *m_timer;
+	std::list<TemporaryStroke>::iterator m_it;
+private slots:
+	void timeout();
+};
+
+struct temporary_stroke_to_ptr {
+	typedef TemporaryStroke in_type;
+	typedef ptr_Stroke out_type;
+	out_type operator()(const in_type &p) {
+		return p.stroke();
+	}
+};
+
 class NormalLayer : public QObject {
 	Q_OBJECT
 public:
@@ -105,22 +136,39 @@ public:
 	}
 	void add_stroke(unique_ptr_Stroke stroke) {
 		m_strokes.emplace_back(std::move(stroke));
-		emit stroke_added();
+		emit stroke_added(get(m_strokes.back()));
 	}
 	unique_ptr_Stroke delete_stroke() {
-		emit stroke_deleting();
 		unique_ptr_Stroke stroke = std::move(m_strokes.back());
 		m_strokes.pop_back();
+		emit stroke_deleted(get(stroke));
 		return stroke;
 	}
 	void reserve_strokes(size_t n) {
 		m_strokes.reserve(n);
 	}
+	auto temporary_strokes() const {
+		return ListView<temporary_stroke_to_ptr>(m_temporary_strokes);
+	}
+	void add_temporary_stroke(unique_ptr_Stroke stroke, int timeout) {
+		std::list<TemporaryStroke>::iterator it = m_temporary_strokes.emplace(m_temporary_strokes.end(), this, std::move(stroke));
+		it->start(it, timeout);
+		emit stroke_added(it->stroke()); // We can't call get(stroke) here, because stroke has been moved.
+	}
+	void delete_temporary_stroke(std::list<TemporaryStroke>::iterator it, unique_ptr_Stroke stroke) {
+		m_temporary_strokes.erase(it);
+		emit stroke_deleted(get(stroke));
+		// At this point, the stroke is destructed.
+	}
 signals:
-	void stroke_added(); // Emitted after adding a stroke in the end.
-	void stroke_deleting(); // Emitted before deleting the last stroke.
+	void stroke_added(ptr_Stroke stroke); // Emitted after adding a stroke (permanent or temporary).
+	void stroke_deleted(ptr_Stroke stroke); // Emitted after deleting a stroke (permanent or temporary). Of course, the stroke is not destructed before emitting this signal.
 private:
 	std::vector<unique_ptr_Stroke> m_strokes;
+	// Any temporary stroke comes with a timer that deletes the stroke after a certain amount of time.
+	// Temporary strokes are not saved or exported to PDF files. They do not participate in the undo mechanism.
+	std::list<TemporaryStroke> m_temporary_strokes;
+	// TODO The order in which permanent and temporary strokes are drawn is not well-defined. (???)
 };
 
 class Page : public QObject {

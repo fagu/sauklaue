@@ -19,8 +19,8 @@ public:
 	Cairo::RefPtr<Cairo::Context> cr;
 	
 private slots:
-	void stroke_added();
-	void stroke_deleting();
+	void stroke_added(ptr_Stroke stroke);
+	void stroke_deleted(ptr_Stroke stroke);
 	
 signals:
 	void update(const QRect& rect);
@@ -31,7 +31,7 @@ private:
 	
 	void setup();
 	void setup_stroke(ptr_Stroke stroke);
-	void draw_stroke(int i);
+	void draw_stroke(ptr_Stroke stroke);
 public:
 	void draw_line(Point a, Point b, ptr_Stroke stroke);
 private:
