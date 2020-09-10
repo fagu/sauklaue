@@ -708,7 +708,9 @@ void MainWindow::exportPDF()
 		return;
 	if (curFile.isEmpty())
 		return;
-	QString pdf_file_name = curFile + ".pdf";
+	QFileInfo info(curFile);
+	QString pdf_file_name = info.path() + "/" + info.baseName() + ".pdf";
+	qDebug() << "Exporting to" << pdf_file_name;
 	QGuiApplication::setOverrideCursor(Qt::WaitCursor);
 	PDFExporter::save(doc.get(), pdf_file_name.toStdString());
 	QGuiApplication::restoreOverrideCursor();
