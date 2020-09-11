@@ -166,9 +166,7 @@ void PagePicture::update_layer(const QRect& rect)
 	emit update(rect);
 }
 
-
-
-void PDFExporter::save(Document* doc, const std::string& file_name, bool simplistic)
+void PDFExporter::save(Document* doc, const std::string& file_name)
 {
 	Cairo::RefPtr<Cairo::PdfSurface> surface = Cairo::PdfSurface::create(file_name, 0, 0);
 	Cairo::RefPtr<Cairo::Context> cr = Cairo::Context::create(surface);
@@ -177,6 +175,21 @@ void PDFExporter::save(Document* doc, const std::string& file_name, bool simplis
 	const double SCALE = 0.001;
 	cr->scale(SCALE, SCALE);
 	for (Page *page : doc->pages()) {
+		// Decide automatically whether to use simplistic mode:
+		// It's safe to use whenever the background is white and there are no eraser strokes on any layer except layer 0.
+		bool simplistic = true;
+		bool first_layer = true;
+		for (auto layer : page->layers()) {
+			if (first_layer) {
+				first_layer = false;
+			} else {
+				for (auto stroke : layer->strokes()) {
+					if (std::holds_alternative<EraserStroke*>(stroke))
+						simplistic = false;
+				}
+			}
+		}
+		qDebug() << "Drawing mode:" << (simplistic ? "simplistic" : "general");
 		surface->set_size(SCALE*page->width(), SCALE*page->height());
 		cr->rectangle(0,0,page->width(),page->height());
 		cr->clip();

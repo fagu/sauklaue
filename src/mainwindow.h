@@ -81,7 +81,6 @@ private:
 	bool saveFile(const QString& fileName);
 private slots:
 	void exportPDF();
-	void exportPDFsimplistic(); // Export a PDF file where the eraser is replaced by a white pen. This makes it easier for the PDF viewer.
 	
 	/* Pages */
 private:
