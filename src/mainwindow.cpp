@@ -268,12 +268,22 @@ void MainWindow::createActions()
 		fileMenu->addAction(action);
 	// 	fileToolBar->addAction(action);
 	}
+    fileMenu->addSeparator();
 	{
 		const QIcon saveAsIcon = QIcon::fromTheme("document-export", QIcon(":/images/export.png"));
 		QAction *action = new QAction(saveAsIcon, tr("&Export PDF"), this);
 		action->setShortcut(QKeySequence(Qt::CTRL + Qt::Key_E));
 		action->setStatusTip(tr("Export PDF file"));
 		connect(action, &QAction::triggered, this, &MainWindow::exportPDF);
+		fileMenu->addAction(action);
+	// 	fileToolBar->addAction(action);
+	}
+	{
+		const QIcon saveAsIcon = QIcon::fromTheme("document-export", QIcon(":/images/export.png"));
+		QAction *action = new QAction(saveAsIcon, tr("&Export simplistic PDF"), this);
+		action->setShortcut(QKeySequence(Qt::CTRL + Qt::SHIFT + Qt::Key_E));
+		action->setStatusTip(tr("Export PDF file with the eraser replaced by a white pen"));
+		connect(action, &QAction::triggered, this, &MainWindow::exportPDFsimplistic);
 		fileMenu->addAction(action);
 	// 	fileToolBar->addAction(action);
 	}
@@ -714,6 +724,20 @@ void MainWindow::exportPDF()
 	QString pdf_file_name = info.path() + "/" + info.baseName() + ".pdf";
 	qDebug() << "Exporting to" << pdf_file_name;
 	QGuiApplication::setOverrideCursor(Qt::WaitCursor);
-	PDFExporter::save(doc.get(), pdf_file_name.toStdString());
+	PDFExporter::save(doc.get(), pdf_file_name.toStdString(), false);
+	QGuiApplication::restoreOverrideCursor();
+}
+
+void MainWindow::exportPDFsimplistic()
+{
+	if (!maybeSave())
+		return;
+	if (curFile.isEmpty())
+		return;
+	QFileInfo info(curFile);
+	QString pdf_file_name = info.path() + "/" + info.baseName() + ".pdf";
+	qDebug() << "Exporting to" << pdf_file_name;
+	QGuiApplication::setOverrideCursor(Qt::WaitCursor);
+	PDFExporter::save(doc.get(), pdf_file_name.toStdString(), true);
 	QGuiApplication::restoreOverrideCursor();
 }

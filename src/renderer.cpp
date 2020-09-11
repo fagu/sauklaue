@@ -168,7 +168,7 @@ void PagePicture::update_layer(const QRect& rect)
 
 
 
-void PDFExporter::save(Document* doc, const std::string& file_name)
+void PDFExporter::save(Document* doc, const std::string& file_name, bool simplistic)
 {
 	Cairo::RefPtr<Cairo::PdfSurface> surface = Cairo::PdfSurface::create(file_name, 0, 0);
 	Cairo::RefPtr<Cairo::Context> cr = Cairo::Context::create(surface);
@@ -180,15 +180,20 @@ void PDFExporter::save(Document* doc, const std::string& file_name)
 		surface->set_size(SCALE*page->width(), SCALE*page->height());
 		cr->rectangle(0,0,page->width(),page->height());
 		cr->clip();
-		for ([[maybe_unused]] auto layer : page->layers())
-			cr->push_group_with_content(Cairo::CONTENT_COLOR_ALPHA);
-		cr->set_source_rgb(1,1,1);
-		cr->paint();
+		if (!simplistic) {
+			for ([[maybe_unused]] auto layer : page->layers())
+				cr->push_group_with_content(Cairo::CONTENT_COLOR_ALPHA);
+			cr->set_source_rgb(1,1,1);
+			cr->paint();
+		}
 		for (auto layer : page->layers()) {
 			// Retrieve and draw the previous layers
-			Cairo::RefPtr<Cairo::Pattern> background = cr->pop_group();
-			cr->set_source(background);
-			cr->paint();
+			Cairo::RefPtr<Cairo::Pattern> background;
+			if (!simplistic) {
+				background = cr->pop_group();
+				cr->set_source(background);
+				cr->paint();
+			}
 			// TODO Find a better way to support the eraser.
 			// The operator CAIRO_OPERATOR_SOURCE is apparently not supported by PDF files. Therefore Cairo falls back to saving a raster image in the PDF file, which uses a lot of space!
 // 			cairo_set_operator(cr->cobj(), CAIRO_OPERATOR_SOURCE);
@@ -203,8 +208,12 @@ void PDFExporter::save(Document* doc, const std::string& file_name)
 					},
 					[&](EraserStroke* st) {
 						cr->set_line_width(st->width());
-						// TODO This seems to slow down the PDF viewer.
-						cr->set_source(background); // Erase = draw the background again on top of this layer
+						if (!simplistic) {
+							// TODO This seems to slow down the PDF viewer.
+							cr->set_source(background); // Erase = draw the background again on top of this layer
+						} else {
+							cr->set_source_rgb(1,1,1);
+						}
 						draw_path(cr, st->points());
 						cr->stroke();
 					}

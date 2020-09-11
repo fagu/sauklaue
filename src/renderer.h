@@ -69,7 +69,7 @@ signals:
 
 class PDFExporter {
 public:
-	static void save(Document *doc, const std::string &file_name);
+	static void save(Document *doc, const std::string &file_name, bool simplistic);
 };
 
 #endif // RENDERER_H
