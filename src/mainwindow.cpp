@@ -197,7 +197,7 @@ bool MainWindow::save()
 
 bool MainWindow::saveAs()
 {
-	QFileDialog dialog(this);
+	QFileDialog dialog(this, "Save File");
 	dialog.setWindowModality(Qt::WindowModal);
 	dialog.setAcceptMode(QFileDialog::AcceptSave);
 	dialog.setDefaultSuffix("sau");
