@@ -661,7 +661,8 @@ void MainWindow::insertPDF()
 		QByteArray contents = file.readAll();
 		std::unique_ptr<EmbeddedPDF> pdf = std::make_unique<EmbeddedPDF>(info.fileName(), contents);
 		EmbeddedPDF* p_pdf = pdf.get();
-		undoStack->push(new AddEmbeddedPDFCommand(doc.get(), std::move(pdf)));
+		QUndoCommand *cmd = new QUndoCommand(tr("Insert PDF"));
+		new AddEmbeddedPDFCommand(doc.get(), std::move(pdf), cmd);
 		qDebug() << "Number of pages:" << p_pdf->document()->numPages();
 		for (int page_number = 0; page_number < p_pdf->document()->numPages(); page_number++) {
 			std::unique_ptr<Poppler::Page> p_page(p_pdf->document()->page(page_number));
@@ -670,8 +671,9 @@ void MainWindow::insertPDF()
 			std::unique_ptr<PDFLayer> pdf_layer = std::make_unique<PDFLayer>(p_pdf, page_number);
 			page->add_layer(0, std::move(pdf_layer));
 			page->add_layer(1); // NormalLayer
-			undoStack->push(new NewPageCommand(doc.get(), current_page()+1, std::move(page)));
+			new NewPageCommand(doc.get(), current_page()+1, std::move(page), cmd);
 		}
+		undoStack->push(cmd);
 	}
 }
 
