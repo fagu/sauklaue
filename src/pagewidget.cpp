@@ -129,24 +129,14 @@ void PageWidget::paintEvent(QPaintEvent* event)
 	// Page background color
 	painter.fillRect(x1, y1, x2-x1, y2-y1, m_view->blackboardMode() ? QColorConstants::Black : QColorConstants::White);
 	for (auto layer_picture : m_page_picture->layers()) {
-		std::visit(overloaded {
-			[&](NormalLayerPicture* layer_picture) {
-				layer_picture->cairo_surface->flush();
-				QImage img((const uchar*)layer_picture->cairo_surface->get_data(), layer_picture->cairo_surface->get_width(), layer_picture->cairo_surface->get_height(), QImage::Format_ARGB32_Premultiplied);
-				painter.drawImage(m_page_picture->dx, m_page_picture->dy, img);
-			},
-			[&](PDFLayerPicture* layer_picture) {
-				painter.drawImage(m_page_picture->dx, m_page_picture->dy, layer_picture->img());
-			}
-		}, layer_picture);
+		LayerPicture* base_layer_picture = convert_variant<LayerPicture*>(layer_picture);
+		painter.drawImage(m_page_picture->dx, m_page_picture->dy, base_layer_picture->img());
 	}
 	// We draw the temporary layer semi-transparent.
 	painter.setOpacity(0.3);
 	{
 		auto layer_picture = m_page_picture->temporary_layer();
-		layer_picture->cairo_surface->flush();
-		QImage img((const uchar*)layer_picture->cairo_surface->get_data(), layer_picture->cairo_surface->get_width(), layer_picture->cairo_surface->get_height(), QImage::Format_ARGB32_Premultiplied);
-		painter.drawImage(m_page_picture->dx, m_page_picture->dy, img);
+		painter.drawImage(m_page_picture->dx, m_page_picture->dy, layer_picture->img());
 	}
 	painter.setOpacity(1);
 	if (has_focus) {

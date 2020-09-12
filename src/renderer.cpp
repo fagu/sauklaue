@@ -171,18 +171,17 @@ PagePicture::PagePicture(SPage* _page, int _width, int _height) :
 void PagePicture::register_layer(int index)
 {
 	ptr_Layer layer = page->layers()[index];
-	std::visit(overloaded {
-		[&](NormalLayer* layer) {
-			std::unique_ptr<NormalLayerPicture> pic = std::make_unique<NormalLayerPicture>(layer, this);
-			NormalLayerPicture* p_pic = pic.get();
-			m_layers.emplace(m_layers.begin() + index, std::move(pic));
-			connect(p_pic, &NormalLayerPicture::update, this, &PagePicture::update_layer);
+	unique_ptr_LayerPicture pic = std::visit(overloaded {
+		[&](NormalLayer* layer) -> unique_ptr_LayerPicture {
+			return std::make_unique<NormalLayerPicture>(layer, this);
 		},
-		[&](PDFLayer* layer) {
-			std::unique_ptr<PDFLayerPicture> pic = std::make_unique<PDFLayerPicture>(layer, this);
-			m_layers.emplace(m_layers.begin() + index, std::move(pic));
+		[&](PDFLayer* layer) -> unique_ptr_LayerPicture {
+			return std::make_unique<PDFLayerPicture>(layer, this);
 		}
 	}, layer);
+	ptr_LayerPicture p_pic = get(pic);
+	m_layers.emplace(m_layers.begin() + index, std::move(pic));
+	connect(convert_variant<LayerPicture*>(p_pic), &LayerPicture::update, this, &PagePicture::update_layer);
 }
 
 void PagePicture::unregister_layer(int index)

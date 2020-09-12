@@ -11,7 +11,15 @@
 
 class PagePicture;
 
-class NormalLayerPicture : public QObject {
+class LayerPicture : public QObject {
+	Q_OBJECT
+public:
+	virtual QImage img() const = 0;
+signals:
+	void update(const QRect& rect);
+};
+
+class NormalLayerPicture : public LayerPicture {
 	Q_OBJECT
 public:
 	NormalLayerPicture(NormalLayer *layer, PagePicture *page_picture);
@@ -19,12 +27,14 @@ public:
 	Cairo::RefPtr<Cairo::ImageSurface> cairo_surface;
 	Cairo::RefPtr<Cairo::Context> cr;
 	
+	QImage img() const override {
+		cairo_surface->flush();
+		return QImage((const uchar*)cairo_surface->get_data(), cairo_surface->get_width(), cairo_surface->get_height(), QImage::Format_ARGB32_Premultiplied);
+	}
+	
 private slots:
 	void stroke_added(ptr_Stroke stroke);
 	void stroke_deleted(ptr_Stroke stroke);
-	
-signals:
-	void update(const QRect& rect);
 	
 private:
 	NormalLayer *m_layer;
@@ -38,11 +48,11 @@ public:
 	void draw_line(Point a, Point b, ptr_Stroke stroke);
 };
 
-class PDFLayerPicture : public QObject {
+class PDFLayerPicture : public LayerPicture {
 	Q_OBJECT
 public:
 	PDFLayerPicture(PDFLayer *layer, PagePicture *page_picture);
-	QImage img() const {
+	QImage img() const override {
 		return m_img;
 	}
 private:
