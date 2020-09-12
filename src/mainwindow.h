@@ -106,6 +106,7 @@ private slots:
 	void lastPage();
 	void actionGotoPage();
 	void gotoPageBox(int index); // 1-based index!
+	void insertPDF();
 	
 #ifndef QT_NO_SESSIONMANAGER
 	void commitData(QSessionManager &);
@@ -129,7 +130,7 @@ public:
 private:
 	int m_pen_size;
 private:
-	bool m_blackboard;
+	bool m_blackboard = false;
 private slots:
 	void setBlackboardMode(bool on);
 signals:

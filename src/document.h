@@ -12,6 +12,9 @@
 #include <QString>
 #include <QDataStream>
 #include <QTimer>
+#include <QDebug>
+
+#include <poppler-qt5.h>
 
 class Color {
 public:
@@ -171,11 +174,65 @@ private:
 	// TODO The order in which permanent and temporary strokes are drawn is not well-defined. (???)
 };
 
-class Page : public QObject {
+class EmbeddedPDF {
+public:
+	EmbeddedPDF(const QString &name, const QByteArray &contents);
+	QString name() const {
+		return m_name;
+	}
+	QByteArray contents() const {
+		return m_contents;
+	}
+	Poppler::Document* document() const {
+		return m_document.get();
+	}
+	auto pages() const {
+		return vector_unique_to_pointer(m_pages);
+	}
+private:
+	QString m_name;
+	QByteArray m_contents;
+	std::unique_ptr<Poppler::Document> m_document;
+	std::vector<std::unique_ptr<Poppler::Page> > m_pages; // Destructed before m_document
+};
+
+class PDFLayer : public QObject {
 	Q_OBJECT
 public:
-	Page(int w, int h) : m_width(w), m_height(h), m_temporary_layer(std::make_unique<NormalLayer>()) {}
-	explicit Page(const Page& a); // Note: The copy constructor does not copy the temporary layer!
+	PDFLayer(EmbeddedPDF *pdf, int page_number) : m_pdf(pdf), m_page_number(page_number) {
+		assert(0 <= page_number && page_number < (int)m_pdf->pages().size());
+	}
+	EmbeddedPDF* pdf() const {
+		return m_pdf;
+	}
+	int page_number() const {
+		return m_page_number;
+	}
+	Poppler::Page* page() const {
+		return m_pdf->pages()[m_page_number];
+	}
+private:
+	EmbeddedPDF *m_pdf;
+	int m_page_number;
+};
+
+typedef std::variant<NormalLayer*, PDFLayer*> ptr_Layer;
+typedef variant_unique<NormalLayer, PDFLayer> unique_ptr_Layer;
+
+struct layer_unique_to_ptr_helper {
+	typedef unique_ptr_Layer in_type;
+	typedef ptr_Layer out_type;
+	out_type operator()(const in_type &p) {
+		return get(p);
+	}
+};
+
+// We call this class SPage instead of Page to avoid a collision with the class Page in the poppler library. Ridiculously, this name clash causes the destructor of our Page to be called instead of the destructor of poppler's Page, so the program crashes.^^
+class SPage : public QObject {
+	Q_OBJECT
+public:
+	SPage(int w, int h) : m_width(w), m_height(h), m_temporary_layer(std::make_unique<NormalLayer>()) {}
+// 	explicit Page(const Page& a); // Note: The copy constructor does not copy the temporary layer!
 	int width() const {
 		return m_width;
 	}
@@ -183,9 +240,9 @@ public:
 		return m_height;
 	}
 	auto layers() const {
-		return vector_unique_to_pointer(m_layers);
+		return VectorView<layer_unique_to_ptr_helper>(m_layers);
 	}
-	void add_layer(int at, std::unique_ptr<NormalLayer> layer) {
+	void add_layer(int at, unique_ptr_Layer layer) {
 		m_layers.insert(m_layers.begin() + at, std::move(layer));
 		emit layer_added(at);
 	}
@@ -200,7 +257,7 @@ signals:
 	void layer_deleted(int index);
 private:
 	int m_width, m_height;
-	std::vector<std::unique_ptr<NormalLayer> > m_layers;
+	std::vector<unique_ptr_Layer> m_layers;
 	std::unique_ptr<NormalLayer> m_temporary_layer;
 };
 
@@ -209,30 +266,42 @@ class Document : public QObject
 	Q_OBJECT
 public:
 	Document() {}
-	explicit Document(const Document& a);
+// 	explicit Document(const Document& a);
 	auto pages() const {
 		return vector_unique_to_pointer(m_pages);
 	}
-	void add_page(int at, std::unique_ptr<Page> page) {
+	void add_page(int at, std::unique_ptr<SPage> page) {
 		assert(0 <= at && at <= (int)m_pages.size());
 		m_pages.insert(m_pages.begin() + at, std::move(page));
 		emit page_added(at);
 	}
 	// Delete and return a page. This returns the page's ownership to the caller. (So if the caller doesn't use the result, the page will be deleted from memory.) We return the deleted page so that we can undo deletion.
-	std::unique_ptr<Page> delete_page(int index) {
+	std::unique_ptr<SPage> delete_page(int index) {
 		assert(0 <= index && index < (int)m_pages.size());
-		std::unique_ptr<Page> page = std::move(m_pages[index]);
+		std::unique_ptr<SPage> page = std::move(m_pages[index]);
 		m_pages.erase(m_pages.begin() + index);
 		emit page_deleted(index);
 		return page;
+	}
+	auto embedded_pdfs() const {
+		return list_unique_to_pointer(m_embedded_pdfs);
+	}
+	std::list<std::unique_ptr<EmbeddedPDF> >::iterator add_embedded_pdf(std::unique_ptr<EmbeddedPDF> pdf) {
+		return m_embedded_pdfs.insert(m_embedded_pdfs.end(), std::move(pdf));
+	}
+	std::unique_ptr<EmbeddedPDF> delete_embedded_pdf(std::list<std::unique_ptr<EmbeddedPDF> >::iterator it) {
+		std::unique_ptr<EmbeddedPDF> pdf = std::move(*it);
+		m_embedded_pdfs.erase(it);
+		return pdf;
 	}
 signals:
 	void page_added(int index);
 	void page_deleted(int index);
 private:
-	std::vector<std::unique_ptr<Page> > m_pages;
-public:
-	static std::unique_ptr<Document> concatenate(const std::vector<std::unique_ptr<Document> > &in_docs);
+	std::vector<std::unique_ptr<SPage> > m_pages;
+	std::list<std::unique_ptr<EmbeddedPDF> > m_embedded_pdfs;
+// public:
+// 	static std::unique_ptr<Document> concatenate(const std::vector<std::unique_ptr<Document> > &in_docs);
 };
 
 #endif // DOCUMENT_H

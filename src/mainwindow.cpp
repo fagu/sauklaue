@@ -197,7 +197,7 @@ bool MainWindow::save()
 
 bool MainWindow::saveAs()
 {
-	QFileDialog dialog(this, "Save File");
+	QFileDialog dialog(this, tr("Save File"));
 	dialog.setWindowModality(Qt::WindowModal);
 	dialog.setAcceptMode(QFileDialog::AcceptSave);
 	dialog.setDefaultSuffix("sau");
@@ -379,6 +379,13 @@ void MainWindow::createActions()
 		pagesMenu->addAction(action);
 		gotoPageAction = action;
 	}
+	pagesMenu->addSeparator();
+	{
+		QAction *action = new QAction(tr("&Insert PDF file"));
+		action->setStatusTip(tr("Insert a PDF file after the current page"));
+		connect(action, &QAction::triggered, this, &MainWindow::insertPDF);
+		pagesMenu->addAction(action);
+	}
 	for (size_t i = 0; i < 2; i++)
 		toolbar[i]->addSeparator();
 	{
@@ -541,7 +548,7 @@ void MainWindow::newPageBefore()
 	double m2unit = 72000/0.0254; // 1 unit = 1pt/1000 = 1in/72000 = 25.4mm/72000 = 0.0254m/72000
 	int width = pow(2, -0.25 - 2) * m2unit;
 	int height = pow(2, 0.25 - 2) * m2unit;
-	auto page = std::make_unique<Page>(width, height);
+	auto page = std::make_unique<SPage>(width, height);
 	page->add_layer(0);
 	undoStack->push(new NewPageCommand(doc.get(), current_page(), std::move(page)));
 }
@@ -552,7 +559,7 @@ void MainWindow::newPageAfter()
 	double m2unit = 72000/0.0254; // 1 unit = 1pt/1000 = 1in/72000 = 25.4mm/72000 = 0.0254m/72000
 	int width = pow(2, -0.25 - 2) * m2unit;
 	int height = pow(2, 0.25 - 2) * m2unit;
-	auto page = std::make_unique<Page>(width, height);
+	auto page = std::make_unique<SPage>(width, height);
 	page->add_layer(0);
 	undoStack->push(new NewPageCommand(doc.get(), current_page()+1, std::move(page)));
 }
@@ -641,6 +648,32 @@ void MainWindow::gotoPage(int index)
 void MainWindow::gotoPageBox(int index)
 {
 	gotoPage(index-1);
+}
+
+void MainWindow::insertPDF()
+{
+	QString fileName = QFileDialog::getOpenFileName(this, tr("Insert PDF"));
+	if (!fileName.isEmpty()) {
+		QFileInfo info(fileName);
+		QFile file(fileName);
+		if (!file.open(QIODevice::ReadOnly))
+			return;
+		QByteArray contents = file.readAll();
+		std::unique_ptr<EmbeddedPDF> pdf = std::make_unique<EmbeddedPDF>(info.fileName(), contents);
+		EmbeddedPDF* p_pdf = pdf.get();
+		undoStack->push(new AddEmbeddedPDFCommand(doc.get(), std::move(pdf)));
+		qDebug() << "Number of pages:" << p_pdf->document()->numPages();
+		for (int page_number = 0; page_number < p_pdf->document()->numPages(); page_number++) {
+			// 1 unit = 1pt/1000
+			std::unique_ptr<Poppler::Page> p_page(p_pdf->document()->page(page_number));
+			int width = 1000*p_page->pageSizeF().width(), height = 1000*p_page->pageSizeF().height();
+			auto page = std::make_unique<SPage>(width, height);
+			std::unique_ptr<PDFLayer> pdf_layer = std::make_unique<PDFLayer>(p_pdf, page_number);
+			page->add_layer(0, std::move(pdf_layer));
+			page->add_layer(1); // NormalLayer
+			undoStack->push(new NewPageCommand(doc.get(), current_page()+1, std::move(page)));
+		}
+	}
 }
 
 

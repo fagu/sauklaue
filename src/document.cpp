@@ -48,31 +48,44 @@ NormalLayer::NormalLayer(const NormalLayer& a) : QObject()
 
 
 
-Page::Page(const Page& a) : Page(a.m_width, a.m_height)
+// Page::Page(const Page& a) : Page(a.m_width, a.m_height)
+// {
+// 	// Copy the layers.
+// 	for (NormalLayer* l : a.layers())
+// 		m_layers.emplace_back(std::make_unique<NormalLayer>(*l));
+// }
+
+
+
+EmbeddedPDF::EmbeddedPDF(const QString& name, const QByteArray& contents) :
+	m_name(name), m_contents(contents), m_document(Poppler::Document::loadFromData(contents))
 {
-	// Copy the layers.
-	for (NormalLayer* l : a.layers())
-		m_layers.emplace_back(std::make_unique<NormalLayer>(*l));
-}
-
-
-
-Document::Document(const Document& a) : QObject()
-{
-	// Copy the pages.
-	for (Page* p : a.pages())
-		m_pages.emplace_back(std::make_unique<Page>(*p));
-}
-
-
-std::unique_ptr<Document> Document::concatenate(const std::vector<std::unique_ptr<Document> >& in_docs)
-{
-	std::unique_ptr<Document> res = std::make_unique<Document>();
-	// Copy the pages.
-	for (const std::unique_ptr<Document> &a : in_docs) {
-		for (Page* p : a->pages()) {
-			res->m_pages.emplace_back(std::make_unique<Page>(*p));
-		}
+	assert(m_document && !m_document->isLocked()); // TODO
+	for (int page_number = 0; page_number < m_document->numPages(); page_number++) {
+		m_pages.emplace_back(m_document->page(page_number));
+		assert(m_pages[page_number]); // TODO
 	}
-	return res;
 }
+
+
+
+
+// Document::Document(const Document& a) : QObject()
+// {
+// 	// Copy the pages.
+// 	for (Page* p : a.pages())
+// 		m_pages.emplace_back(std::make_unique<Page>(*p));
+// }
+
+
+// std::unique_ptr<Document> Document::concatenate(const std::vector<std::unique_ptr<Document> >& in_docs)
+// {
+// 	std::unique_ptr<Document> res = std::make_unique<Document>();
+// 	// Copy the pages.
+// 	for (const std::unique_ptr<Document> &a : in_docs) {
+// 		for (Page* p : a->pages()) {
+// 			res->m_pages.emplace_back(std::make_unique<Page>(*p));
+// 		}
+// 	}
+// 	return res;
+// }

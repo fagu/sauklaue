@@ -7,14 +7,14 @@
 
 class NewPageCommand : public QUndoCommand {
 public:
-	NewPageCommand(Document* _doc, int _index, std::unique_ptr<Page> _page, QUndoCommand *parent=nullptr);
+	NewPageCommand(Document* _doc, int _index, std::unique_ptr<SPage> _page, QUndoCommand *parent=nullptr);
 	void redo() override;
 	void undo() override;
 	
 private:
 	Document *doc;
 	int index;
-	std::unique_ptr<Page> page;
+	std::unique_ptr<SPage> page;
 };
 
 class DeletePageCommand : public QUndoCommand {
@@ -26,31 +26,41 @@ public:
 private:
 	Document *doc;
 	int index;
-	std::unique_ptr<Page> page;
+	std::unique_ptr<SPage> page;
 };
 
 template <class StrokeType>
 class AddStrokeCommand : public QUndoCommand {
 public:
-	AddStrokeCommand(Document* _doc, int _page, int _layer, std::unique_ptr<StrokeType> _stroke, QUndoCommand *parent=nullptr);
+	AddStrokeCommand(NormalLayer* _layer, std::unique_ptr<StrokeType> _stroke, QUndoCommand *parent=nullptr);
 	void redo() override;
 	void undo() override;
 	
 private:
-	Document *doc;
-	int page;
-	int layer;
+	NormalLayer* layer;
 	std::unique_ptr<StrokeType> stroke;
 };
 
 class AddPenStrokeCommand : public AddStrokeCommand<PenStroke> {
 public:
-	AddPenStrokeCommand(Document* _doc, int _page, int _layer, std::unique_ptr<PenStroke> _stroke, QUndoCommand *parent=nullptr);
+	AddPenStrokeCommand(NormalLayer* _layer, std::unique_ptr<PenStroke> _stroke, QUndoCommand *parent=nullptr);
 };
 
 class AddEraserStrokeCommand : public AddStrokeCommand<EraserStroke> {
 public:
-	AddEraserStrokeCommand(Document* _doc, int _page, int _layer, std::unique_ptr<EraserStroke> _stroke, QUndoCommand *parent=nullptr);
+	AddEraserStrokeCommand(NormalLayer* _layer, std::unique_ptr<EraserStroke> _stroke, QUndoCommand *parent=nullptr);
+};
+
+class AddEmbeddedPDFCommand : public QUndoCommand {
+public:
+	AddEmbeddedPDFCommand(Document *doc, std::unique_ptr<EmbeddedPDF> pdf, QUndoCommand *parent=nullptr);
+	void redo() override;
+	void undo() override;
+	
+private:
+	Document *m_doc;
+	std::unique_ptr<EmbeddedPDF> m_pdf;
+	std::list<std::unique_ptr<EmbeddedPDF> >::iterator m_it;
 };
 
 #endif // ACTIONS_H

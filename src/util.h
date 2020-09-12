@@ -91,6 +91,11 @@ template<class T>
 VectorView<unique_to_ptr_helper<T> > vector_unique_to_pointer(const std::vector<std::unique_ptr<T> > &v) {
 	return VectorView<unique_to_ptr_helper<T> >(v);
 }
+// Turns a list<unique_ptr<T> > into something a little like list<T*>.
+template<class T>
+ListView<unique_to_ptr_helper<T> > list_unique_to_pointer(const std::list<std::unique_ptr<T> > &v) {
+	return ListView<unique_to_ptr_helper<T> >(v);
+}
 
 // RAII for the cairo context: Saves the current state on construction and restores it on deletion.
 class CairoGroup {

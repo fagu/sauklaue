@@ -23,7 +23,7 @@ PageWidget::PageWidget(MainWindow* view) :
 	connect(view, &MainWindow::blackboardModeToggled, this, qOverload<>(&QWidget::update));
 }
 
-void PageWidget::setPage(Page* page, int index)
+void PageWidget::setPage(SPage* page, int index)
 {
 	if (m_page == page)
 		return;
@@ -47,7 +47,7 @@ void PageWidget::setupPicture()
 
 void PageWidget::update_page(const QRect& rect)
 {
-	update(rect);
+	update(rect.translated(m_page_picture->dx, m_page_picture->dy));
 }
 
 // Map tablet coordinates in [0,1] x [0,1] to coordinates in real life.
@@ -114,9 +114,9 @@ void PageWidget::unfocusPage()
 	update();
 }
 
-void PageWidget::paintEvent(QPaintEvent* )
+void PageWidget::paintEvent(QPaintEvent* event)
 {
-// 	qDebug() << "paint" << event->region();
+	qDebug() << "paint" << event->region();
 	QPainter painter(this);
 	painter.setRenderHint(QPainter::Antialiasing, false);
 	// Background around the pages
@@ -125,23 +125,28 @@ void PageWidget::paintEvent(QPaintEvent* )
 		// TODO?
 		return;
 	}
-	double x1 = 0, y1 = 0, x2 = m_page->width(), y2 = m_page->height();
-	m_page_picture->page2widget.transform_point(x1, y1);
-	m_page_picture->page2widget.transform_point(x2, y2);
+	int x1 = m_page_picture->dx, y1 = m_page_picture->dy, x2 = m_page_picture->dx+m_page_picture->page_width, y2 = m_page_picture->dx+m_page_picture->page_height;
 	// Page background color
 	painter.fillRect(x1, y1, x2-x1, y2-y1, m_view->blackboardMode() ? QColorConstants::Black : QColorConstants::White);
 	for (auto layer_picture : m_page_picture->layers()) {
-		layer_picture->cairo_surface->flush();
-		QImage img((const uchar*)layer_picture->cairo_surface->get_data(), width(), height(), QImage::Format_ARGB32_Premultiplied);
-		painter.drawImage(0, 0, img);
+		std::visit(overloaded {
+			[&](NormalLayerPicture* layer_picture) {
+				layer_picture->cairo_surface->flush();
+				QImage img((const uchar*)layer_picture->cairo_surface->get_data(), layer_picture->cairo_surface->get_width(), layer_picture->cairo_surface->get_height(), QImage::Format_ARGB32_Premultiplied);
+				painter.drawImage(m_page_picture->dx, m_page_picture->dy, img);
+			},
+			[&](PDFLayerPicture* layer_picture) {
+				painter.drawImage(m_page_picture->dx, m_page_picture->dy, layer_picture->img());
+			}
+		}, layer_picture);
 	}
 	// We draw the temporary layer semi-transparent.
 	painter.setOpacity(0.3);
 	{
 		auto layer_picture = m_page_picture->temporary_layer();
 		layer_picture->cairo_surface->flush();
-		QImage img((const uchar*)layer_picture->cairo_surface->get_data(), width(), height(), QImage::Format_ARGB32_Premultiplied);
-		painter.drawImage(0, 0, img);
+		QImage img((const uchar*)layer_picture->cairo_surface->get_data(), layer_picture->cairo_surface->get_width(), layer_picture->cairo_surface->get_height(), QImage::Format_ARGB32_Premultiplied);
+		painter.drawImage(m_page_picture->dx, m_page_picture->dy, img);
 	}
 	painter.setOpacity(1);
 	if (has_focus) {
@@ -218,6 +223,14 @@ void PageWidget::tabletEvent(QTabletEvent* event)
 	}
 }
 
+int first_normal_layer_index(SPage* page) {
+	for (size_t i = 0; i < page->layers().size(); i++) {
+		if (std::holds_alternative<NormalLayer*>(page->layers()[i]))
+			return i;
+	}
+	assert(false); // No NormalLayer present => Don't know what to draw on.
+}
+
 void PageWidget::start_path(double x, double y, StrokeType type)
 {
 	if (!m_page_picture)
@@ -240,9 +253,8 @@ void PageWidget::start_path(double x, double y, StrokeType type)
 			[&](std::variant<PenStroke*,EraserStroke*> st) {
 				PathStroke* pst = convert_variant<PathStroke*>(st);
 				pst->push_back(p);
-				assert(m_page_picture->layers().size() == 1);
 				if (m_current_stroke->timeout == -1)
-					m_page_picture->layers()[0]->draw_line(p, p, st);
+					std::get<NormalLayerPicture*>(m_page_picture->layers()[first_normal_layer_index(m_page)])->draw_line(p, p, st);
 				else
 					m_page_picture->temporary_layer()->draw_line(p, p, st);
 			}
@@ -262,12 +274,11 @@ void PageWidget::continue_path(double x, double y)
 				PathStroke* pst = convert_variant<PathStroke*>(st);
 				Point old = pst->points().back();
 				pst->push_back(p);
-				assert(m_page_picture->layers().size() == 1);
 				// These draw_line commands are not sufficient!
 				// The LayerPicture somehow has to know about the full current stroke in case of a redraw.
 				// Otherwise, if there is a redraw (for example because an old stroke is deleted) while we are drawing, the current stroke disappears. It then reappears when we finish drawing!
 				if (m_current_stroke->timeout == -1)
-					m_page_picture->layers()[0]->draw_line(old, p, st);
+					std::get<NormalLayerPicture*>(m_page_picture->layers()[first_normal_layer_index(m_page)])->draw_line(old, p, st);
 				else
 					m_page_picture->temporary_layer()->draw_line(old, p, st);
 			}
@@ -285,13 +296,13 @@ void PageWidget::finish_path()
 	std::visit(overloaded {
 		[&](std::unique_ptr<PenStroke> &st) {
 			if (timeout == -1)
-				m_view->undoStack->push(new AddPenStrokeCommand(m_view->doc.get(), page_index, 0, std::move(st)));
+				m_view->undoStack->push(new AddPenStrokeCommand(std::get<NormalLayer*>(m_page->layers()[first_normal_layer_index(m_page)]), std::move(st)));
 			else
 				m_page->temporary_layer()->add_temporary_stroke(std::move(st), timeout);
 		},
 		[&](std::unique_ptr<EraserStroke> &st) {
 			if (timeout == -1)
-				m_view->undoStack->push(new AddEraserStrokeCommand(m_view->doc.get(), page_index, 0, std::move(st)));
+				m_view->undoStack->push(new AddEraserStrokeCommand(std::get<NormalLayer*>(m_page->layers()[first_normal_layer_index(m_page)]), std::move(st)));
 			else
 				m_page->temporary_layer()->add_temporary_stroke(std::move(st), timeout);
 		}

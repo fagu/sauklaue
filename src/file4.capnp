@@ -34,10 +34,21 @@ struct NormalLayer {
 	strokes @0 :List(Stroke);
 }
 
+struct EmbeddedPDF {
+	name @0 :Text;
+	contents @1 :Data;
+}
+
+struct PDFLayer {
+	index @0 :Int32;
+	page @1 :Int32;
+}
+
 struct Layer {
-	#union {
+	union {
 		normal @0 :NormalLayer;
-	#}
+		pdf @1 :PDFLayer;
+	}
 }
 
 struct Page {
@@ -48,4 +59,5 @@ struct Page {
 
 struct File {
 	pages @0 :List(Page);
+	embeddedPDFs @1 :List(EmbeddedPDF);
 }

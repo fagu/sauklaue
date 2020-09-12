@@ -37,6 +37,15 @@ capnp_generate_cpp(CAPNP_SRCS CAPNP_HDRS src/file4.capnp)
 # include_directories(${CMAKE_CURRENT_BINARY_DIR})
 link_libraries(CapnProto::capnp)
 
+
+
+find_package(ECM 5.19.0 REQUIRED NO_MODULE)
+set(CMAKE_MODULE_PATH ${ECM_MODULE_PATH})
+
+find_package(Poppler REQUIRED Qt5)
+include_directories(${Poppler_INCLUDE_DIRS})
+link_libraries(Poppler::Qt5)
+
 set(sauklaue_core_SRC
   src/document.cpp
   src/serializer.cpp

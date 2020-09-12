@@ -4,16 +4,17 @@
 #include "document.h"
 
 #include <QObject>
+#include <QImage>
 
 #include <cairomm/context.h>
 #include <cairomm/surface.h>
 
 class PagePicture;
 
-class LayerPicture : public QObject {
+class NormalLayerPicture : public QObject {
 	Q_OBJECT
 public:
-	LayerPicture(NormalLayer *layer, PagePicture *page_picture);
+	NormalLayerPicture(NormalLayer *layer, PagePicture *page_picture);
 	
 	Cairo::RefPtr<Cairo::ImageSurface> cairo_surface;
 	Cairo::RefPtr<Cairo::Context> cr;
@@ -37,24 +38,50 @@ public:
 	void draw_line(Point a, Point b, ptr_Stroke stroke);
 };
 
+class PDFLayerPicture : public QObject {
+	Q_OBJECT
+public:
+	PDFLayerPicture(PDFLayer *layer, PagePicture *page_picture);
+	QImage img() const {
+		return m_img;
+	}
+private:
+	PDFLayer *m_layer;
+	PagePicture *m_page_picture;
+	QImage m_img;
+};
+
+typedef std::variant<NormalLayerPicture*, PDFLayerPicture*> ptr_LayerPicture;
+typedef variant_unique<NormalLayerPicture, PDFLayerPicture> unique_ptr_LayerPicture;
+
+struct layer_picture_unique_to_ptr_helper {
+	typedef unique_ptr_LayerPicture in_type;
+	typedef ptr_LayerPicture out_type;
+	out_type operator()(const in_type &p) {
+		return get(p);
+	}
+};
+
 class PagePicture : public QObject {
 	Q_OBJECT
 public:
-	explicit PagePicture(Page *_page, int _width, int _height);
+	explicit PagePicture(SPage *_page, int _width, int _height);
 	
 	Cairo::Matrix page2widget, widget2page;
-	Page *page;
-	int width;
-	int height;
+	Cairo::Matrix page2image, image2page;
+	SPage *page;
+	int width, height;
+	int page_width, page_height;
+	int dx, dy;
 	auto layers() const {
-		return vector_unique_to_pointer(m_layers);
+		return VectorView<layer_picture_unique_to_ptr_helper>(m_layers);
 	}
-	LayerPicture* temporary_layer() const {
+	NormalLayerPicture* temporary_layer() const {
 		return m_temporary_layer.get();
 	}
 private:
-	std::vector<std::unique_ptr<LayerPicture> > m_layers;
-	std::unique_ptr<LayerPicture> m_temporary_layer;
+	std::vector<unique_ptr_LayerPicture> m_layers;
+	std::unique_ptr<NormalLayerPicture> m_temporary_layer;
 	
 private slots:
 	void register_layer(int index);

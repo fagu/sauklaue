@@ -25,7 +25,7 @@ class PageWidget : public QWidget
 public:
 	explicit PageWidget(MainWindow *view);
 	
-	void setPage(Page *page, int index);
+	void setPage(SPage *page, int index);
 	
 	Cairo::Matrix tablet_to_reality();
 	Cairo::Matrix page_to_pixels();
@@ -65,7 +65,7 @@ private:
 	bool has_focus = false;
 	int page_index;
 	MainWindow *m_view;
-	Page *m_page = nullptr;
+	SPage *m_page = nullptr;
 	std::unique_ptr<PagePicture> m_page_picture;
 	std::optional<StrokeCreator> m_current_stroke;
 };
