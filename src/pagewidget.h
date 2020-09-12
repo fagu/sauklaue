@@ -57,8 +57,8 @@ private:
 		Eraser,
 		LaserPointer
 	};
-	void start_path(double x, double y, StrokeType type);
-	void continue_path(double x, double y);
+	void start_path(QPointF p, StrokeType type);
+	void continue_path(QPointF p);
 	void finish_path();
 	
 private:

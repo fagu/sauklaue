@@ -2,22 +2,42 @@
 
 #include <QDebug>
 
-NormalLayerPicture::NormalLayerPicture(NormalLayer* layer, PagePicture* page_picture) :
-	m_layer(layer),
-	m_page_picture(page_picture)
+PictureTransformation::PictureTransformation(SPage* page, int widget_width, int widget_height)
+{
+	assert(page);
+	assert(widget_width >= 20 && widget_width >= 20);
+	int margin = 5;
+	int rem_width = widget_width - 2*margin;
+	int rem_height = widget_height - 2*margin;
+	unit2pixel = std::min((double)rem_width/page->width(), (double)rem_height/page->height());
+	image_size = QSize(unit2pixel*page->width(), unit2pixel*page->height());
+	topLeft = QPoint((widget_width-image_size.width())/2, (widget_height-image_size.height())/2);
+	image_rect = QRect(topLeft, image_size);
+	page2image = Cairo::scaling_matrix(unit2pixel, unit2pixel);
+	image2page = page2image;
+	image2page.invert();
+	page2widget = page2image * Cairo::translation_matrix(topLeft.x(), topLeft.y());
+	qDebug() << "image_rect" << image_rect;
+	qDebug() << "widget size" << QSize(widget_width, widget_height);
+}
+
+
+NormalLayerPicture::NormalLayerPicture(NormalLayer* layer, const PictureTransformation& transformation) :
+	LayerPicture(transformation),
+	m_layer(layer)
 {
 	connect(layer, &NormalLayer::stroke_added, this, &NormalLayerPicture::stroke_added);
 	connect(layer, &NormalLayer::stroke_deleted, this, &NormalLayerPicture::stroke_deleted);
 	
-	cairo_surface = Cairo::ImageSurface::create(Cairo::FORMAT_ARGB32, m_page_picture->page_width, m_page_picture->page_height);
+	cairo_surface = Cairo::ImageSurface::create(Cairo::FORMAT_ARGB32, transformation.image_size.width(), transformation.image_size.height());
 	cr = Cairo::Context::create(cairo_surface);
 // 	cr->set_antialias(Cairo::ANTIALIAS_GRAY);
 	cr->set_line_cap(Cairo::LINE_CAP_ROUND);
 	cr->set_line_join(Cairo::LINE_JOIN_ROUND);
-	cr->set_matrix(m_page_picture->page2image);
+	cr->set_matrix(transformation.page2image);
 	set_transparent();
-	cr->rectangle(0,0,m_page_picture->page->width(),m_page_picture->page->height());
-	cr->clip();
+// 	cr->rectangle(0,0,transformation.image_size.width(),transformation.image_size.height());
+// 	cr->clip();
 	for (ptr_Stroke stroke : m_layer->strokes()) // Don't draw the last stroke!
 		draw_stroke(stroke);
 	for (ptr_Stroke stroke : m_layer->temporary_strokes()) // Don't draw the last stroke!
@@ -63,14 +83,14 @@ void NormalLayerPicture::stroke_deleted(ptr_Stroke stroke)
 		cr->set_matrix(Cairo::identity_matrix()); // Figure out the bounding rectangle in pixel coordinates
 		cr->rectangle(rect.left(), rect.top(), rect.width(), rect.height());
 		cr->clip();
-		cr->set_matrix(m_page_picture->page2image);
+		cr->set_matrix(transformation().page2image);
 		set_transparent();
 		for (ptr_Stroke stroke : m_layer->strokes()) // Don't draw the last stroke!
 			draw_stroke(stroke);
 		for (ptr_Stroke stroke : m_layer->temporary_strokes()) // Don't draw the last stroke!
 			draw_stroke(stroke);
 	}
-	emit update(QRect(0,0,m_page_picture->page_width,m_page_picture->page_height));
+	emit update(QRect(0,0,transformation().image_size.width(),transformation().image_size.height()));
 }
 
 void NormalLayerPicture::setup_stroke(ptr_Stroke stroke) {
@@ -116,21 +136,22 @@ QRect NormalLayerPicture::stroke_extents()
 {
 	double x1, y1, x2, y2;
 	cr->get_stroke_extents(x1, y1, x2, y2);
-	QRectF rect = bounding_rect(m_page_picture->page2image, QRectF(QPointF(x1,y1), QPointF(x2,y2)));
+	QRectF rect = bounding_rect(transformation().page2image, QRectF(QPointF(x1,y1), QPointF(x2,y2)));
 	return QRect(QPoint((int)rect.left()-1, (int)rect.top()-1), QPoint((int)rect.right()+2, (int)rect.bottom()+2));
 }
 
 
 
-PDFLayerPicture::PDFLayerPicture(PDFLayer* layer, PagePicture* page_picture)
+PDFLayerPicture::PDFLayerPicture(PDFLayer* layer, const PictureTransformation& transformation) :
+	LayerPicture(transformation)
 {
 	m_layer = layer;
-	m_page_picture = page_picture;
 	m_layer->pdf()->document()->setRenderHint(Poppler::Document::RenderHint::Antialiasing);
 	m_layer->pdf()->document()->setRenderHint(Poppler::Document::RenderHint::TextAntialiasing);
 	Poppler::Page* pdf_page = m_layer->page();
-	double res = std::min(72.0*m_page_picture->page_width/(pdf_page->pageSizeF().width()), 72.0*m_page_picture->page_height/(pdf_page->pageSizeF().height()));
-	m_img = pdf_page->renderToImage(res, res, 0, 0, m_page_picture->page_width, m_page_picture->page_height);
+// 	double res = std::min(72.0*transformation.image_size.width()/(pdf_page->pageSizeF().width()), 72.0*transformation.page_height/(pdf_page->pageSizeF().height()));
+	double res = INCH_TO_UNIT * transformation.unit2pixel;
+	m_img = pdf_page->renderToImage(res, res, 0, 0, transformation.image_size.width(), transformation.image_size.height());
 	assert(!m_img.isNull());
 }
 
@@ -138,33 +159,15 @@ PDFLayerPicture::PDFLayerPicture(PDFLayer* layer, PagePicture* page_picture)
 
 PagePicture::PagePicture(SPage* _page, int _width, int _height) :
 	page(_page),
-	width(_width),
-	height(_height)
+	m_transformation(_page, _width, _height)
 {
-	assert(page);
-	assert(width >= 20 && height >= 20);
-	int margin = 5;
-	int rem_width = width - 2*margin;
-	int rem_height = height - 2*margin;
-	double scale = std::min((double)rem_width/page->width(), (double)rem_height/page->height());
-	page_width = scale*page->width();
-	page_height = scale*page->height();
-	dx = (width-page_width)/2;
-	dy = (height-page_height)/2;
-	page2image = Cairo::scaling_matrix(scale, scale);
-	image2page = page2image;
-	image2page.invert();
-	page2widget = page2image * Cairo::translation_matrix(dx, dy);
-	widget2page = page2widget;
-	widget2page.invert();
-	
 	for (size_t i = 0; i < page->layers().size(); i++)
 		register_layer(i);
 	
 	connect(page, &SPage::layer_added, this, &PagePicture::register_layer);
 	connect(page, &SPage::layer_deleted, this, &PagePicture::unregister_layer);
 	
-	m_temporary_layer = std::make_unique<NormalLayerPicture>(page->temporary_layer(), this);
+	m_temporary_layer = std::make_unique<NormalLayerPicture>(page->temporary_layer(), transformation());
 	connect(m_temporary_layer.get(), &NormalLayerPicture::update, this, &PagePicture::update_layer);
 }
 
@@ -173,10 +176,10 @@ void PagePicture::register_layer(int index)
 	ptr_Layer layer = page->layers()[index];
 	unique_ptr_LayerPicture pic = std::visit(overloaded {
 		[&](NormalLayer* layer) -> unique_ptr_LayerPicture {
-			return std::make_unique<NormalLayerPicture>(layer, this);
+			return std::make_unique<NormalLayerPicture>(layer, transformation());
 		},
 		[&](PDFLayer* layer) -> unique_ptr_LayerPicture {
-			return std::make_unique<PDFLayerPicture>(layer, this);
+			return std::make_unique<PDFLayerPicture>(layer, transformation());
 		}
 	}, layer);
 	ptr_LayerPicture p_pic = get(pic);
@@ -200,8 +203,7 @@ void PDFExporter::save(Document* doc, const std::string& file_name)
 	Cairo::RefPtr<Cairo::Context> cr = Cairo::Context::create(surface);
 	cr->set_line_cap(Cairo::LINE_CAP_ROUND);
 	cr->set_line_join(Cairo::LINE_JOIN_ROUND);
-	const double SCALE = 0.001;
-	cr->scale(SCALE, SCALE);
+	cr->scale(UNIT_TO_POINT, UNIT_TO_POINT);
 	for (SPage *page : doc->pages()) {
 		// Decide automatically whether to use simplistic mode:
 		// It's safe to use whenever the background is white and there are no eraser strokes on any layer except layer 0.
@@ -224,7 +226,7 @@ void PDFExporter::save(Document* doc, const std::string& file_name)
 			}
 		}
 		qDebug() << "Drawing mode:" << (simplistic ? "simplistic" : "general");
-		surface->set_size(SCALE*page->width(), SCALE*page->height());
+		surface->set_size(UNIT_TO_POINT*page->width(), UNIT_TO_POINT*page->height());
 		cr->rectangle(0,0,page->width(),page->height());
 		cr->clip();
 		if (!simplistic) {

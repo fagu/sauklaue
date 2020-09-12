@@ -50,6 +50,11 @@ public:
 	static const Color BLACK;
 };
 
+const double POINT_TO_UNIT = 1000;
+const double UNIT_TO_POINT = 1/POINT_TO_UNIT;
+const double INCH_TO_UNIT = 72*POINT_TO_UNIT;
+const double UNIT_TO_INCH = 1/INCH_TO_UNIT;
+
 struct Point {
 	int x, y;
 	Point(int _x, int _y) : x(_x), y(_y) {}
@@ -231,7 +236,9 @@ struct layer_unique_to_ptr_helper {
 class SPage : public QObject {
 	Q_OBJECT
 public:
-	SPage(int w, int h) : m_width(w), m_height(h), m_temporary_layer(std::make_unique<NormalLayer>()) {}
+	SPage(int w, int h) : m_width(w), m_height(h), m_temporary_layer(std::make_unique<NormalLayer>()) {
+		assert(m_width >= 1 && m_height >= 1);
+	}
 // 	explicit Page(const Page& a); // Note: The copy constructor does not copy the temporary layer!
 	int width() const {
 		return m_width;

@@ -664,9 +664,8 @@ void MainWindow::insertPDF()
 		undoStack->push(new AddEmbeddedPDFCommand(doc.get(), std::move(pdf)));
 		qDebug() << "Number of pages:" << p_pdf->document()->numPages();
 		for (int page_number = 0; page_number < p_pdf->document()->numPages(); page_number++) {
-			// 1 unit = 1pt/1000
 			std::unique_ptr<Poppler::Page> p_page(p_pdf->document()->page(page_number));
-			int width = 1000*p_page->pageSizeF().width(), height = 1000*p_page->pageSizeF().height();
+			int width = POINT_TO_UNIT*p_page->pageSizeF().width(), height = POINT_TO_UNIT*p_page->pageSizeF().height();
 			auto page = std::make_unique<SPage>(width, height);
 			std::unique_ptr<PDFLayer> pdf_layer = std::make_unique<PDFLayer>(p_pdf, page_number);
 			page->add_layer(0, std::move(pdf_layer));

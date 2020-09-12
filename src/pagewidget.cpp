@@ -47,7 +47,7 @@ void PageWidget::setupPicture()
 
 void PageWidget::update_page(const QRect& rect)
 {
-	update(rect.translated(m_page_picture->dx, m_page_picture->dy));
+	update(rect.translated(m_page_picture->transformation().topLeft));
 }
 
 // Map tablet coordinates in [0,1] x [0,1] to coordinates in real life.
@@ -64,7 +64,7 @@ Cairo::Matrix PageWidget::page_to_pixels()
 	// We assume here that mapToGlobal is always a translation.
 	// TODO Find out if that assumption is correct.
 	QPoint translation = mapToGlobal(QPoint(0,0));
-	return m_page_picture->page2widget * Cairo::translation_matrix(translation.x(), translation.y());
+	return m_page_picture->transformation().page2widget * Cairo::translation_matrix(translation.x(), translation.y());
 }
 
 QRectF PageWidget::minimum_rect_in_pixels()
@@ -125,23 +125,23 @@ void PageWidget::paintEvent(QPaintEvent* event)
 		// TODO?
 		return;
 	}
-	int x1 = m_page_picture->dx, y1 = m_page_picture->dy, x2 = m_page_picture->dx+m_page_picture->page_width, y2 = m_page_picture->dx+m_page_picture->page_height;
+// 	int x1 = m_page_picture->dx, y1 = m_page_picture->dy, x2 = m_page_picture->dx+m_page_picture->page_width, y2 = m_page_picture->dx+m_page_picture->page_height;
 	// Page background color
-	painter.fillRect(x1, y1, x2-x1, y2-y1, m_view->blackboardMode() ? QColorConstants::Black : QColorConstants::White);
+	painter.fillRect(m_page_picture->transformation().image_rect, m_view->blackboardMode() ? QColorConstants::Black : QColorConstants::White);
 	for (auto layer_picture : m_page_picture->layers()) {
 		LayerPicture* base_layer_picture = convert_variant<LayerPicture*>(layer_picture);
-		painter.drawImage(m_page_picture->dx, m_page_picture->dy, base_layer_picture->img());
+		painter.drawImage(m_page_picture->transformation().topLeft, base_layer_picture->img());
 	}
 	// We draw the temporary layer semi-transparent.
 	painter.setOpacity(0.3);
 	{
 		auto layer_picture = m_page_picture->temporary_layer();
-		painter.drawImage(m_page_picture->dx, m_page_picture->dy, layer_picture->img());
+		painter.drawImage(m_page_picture->transformation().topLeft, layer_picture->img());
 	}
 	painter.setOpacity(1);
 	if (has_focus) {
 		painter.setPen(QPen(QColorConstants::Red, 3));
-		painter.drawRect(x1, y1, x2-x1, y2-y1);
+		painter.drawRect(m_page_picture->transformation().image_rect);
 	}
 }
 
@@ -159,16 +159,16 @@ void PageWidget::moveEvent(QMoveEvent* )
 void PageWidget::mousePressEvent(QMouseEvent* event)
 {
 	if (has_focus && event->button() == Qt::LeftButton)
-		start_path(event->pos().x(), event->pos().y(), StrokeType::Pen);
+		start_path(event->pos(), StrokeType::Pen);
 	else if (has_focus && event->button() == Qt::RightButton)
-		start_path(event->pos().x(), event->pos().y(), StrokeType::Eraser);
+		start_path(event->pos(), StrokeType::Eraser);
 	else if (event->button() == Qt::MiddleButton)
-		start_path(event->pos().x(), event->pos().y(), StrokeType::LaserPointer);
+		start_path(event->pos(), StrokeType::LaserPointer);
 }
 
 void PageWidget::mouseMoveEvent(QMouseEvent* event)
 {
-	continue_path(event->pos().x(), event->pos().y());
+	continue_path(event->pos());
 }
 
 void PageWidget::mouseReleaseEvent(QMouseEvent* )
@@ -191,18 +191,18 @@ void PageWidget::tabletEvent(QTabletEvent* event)
 				StrokeType type = StrokeType::Pen;
 				if (event->pointerType() == QTabletEvent::Eraser || (event->buttons() & Qt::RightButton))
 					type = StrokeType::Eraser;
-				start_path(event->posF().x(), event->posF().y(), type);
+				start_path(event->posF(), type);
 				event->accept();
 			} else if (event->button() == Qt::RightButton) {
 				if (has_focus)
 					setCursor(Qt::CrossCursor);
 				event->accept();
 			} else if (event->button() == Qt::MiddleButton) {
-				start_path(event->posF().x(), event->posF().y(), StrokeType::LaserPointer);
+				start_path(event->posF(), StrokeType::LaserPointer);
 				event->accept();
 			}
 		} else if (event->type() == QEvent::TabletMove) {
-			continue_path(event->posF().x(), event->posF().y());
+			continue_path(event->posF());
 			event->accept();
 		} else if (event->type() == QEvent::TabletRelease) {
 			finish_path();
@@ -221,13 +221,13 @@ int first_normal_layer_index(SPage* page) {
 	assert(false); // No NormalLayer present => Don't know what to draw on.
 }
 
-void PageWidget::start_path(double x, double y, StrokeType type)
+void PageWidget::start_path(QPointF pp, StrokeType type)
 {
 	if (!m_page_picture)
 		return;
-	m_page_picture->widget2page.transform_point(x, y);
 	if (!m_current_stroke) {
-		Point p(x,y);
+		Point p = m_page_picture->transformation().widget2page(pp);
+		qDebug() << "Roughly at" << (double)p.x / m_page->width() << (double)p.y / m_page->height();
 		if (type == StrokeType::Pen) {
 			m_current_stroke = {std::make_unique<PenStroke>(m_view->penSize(), m_view->penColor()), -1};
 		} else if (type == StrokeType::Eraser) {
@@ -252,13 +252,14 @@ void PageWidget::start_path(double x, double y, StrokeType type)
 	}
 }
 
-void PageWidget::continue_path(double x, double y)
+void PageWidget::continue_path(QPointF pp)
 {
 	if (!m_current_stroke)
 		return;
-	m_page_picture->widget2page.transform_point(x, y);
 	if (m_current_stroke) {
-		Point p(x,y);
+		Point p = m_page_picture->transformation().widget2page(pp);
+		qDebug() << pp;
+		qDebug() << "Roughly at" << (double)p.x / m_page->width() << (double)p.y / m_page->height();
 		std::visit(overloaded {
 			[&](std::variant<PenStroke*,EraserStroke*> st) {
 				PathStroke* pst = convert_variant<PathStroke*>(st);
