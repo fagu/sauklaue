@@ -109,14 +109,14 @@ struct stroke_unique_to_ptr_helper {
 
 class TemporaryLayer;
 
-class TemporaryStroke : public QObject {
+class FadingStroke : public QObject {
 	Q_OBJECT
 public:
-	TemporaryStroke(TemporaryLayer* layer, unique_ptr_Stroke stroke);
+	FadingStroke(TemporaryLayer* layer, unique_ptr_Stroke stroke);
 	// Call this method exactly once!
 	// This sets the iterator (which doesn't exist at the time we construct the TemporaryStroke object).
 	// It then starts the timer.
-	void start(std::list<TemporaryStroke>::iterator it, int timeout);
+	void start(std::list<FadingStroke>::iterator it, int timeout);
 	ptr_Stroke stroke() const {
 		return get(m_stroke);
 	}
@@ -124,13 +124,13 @@ private:
 	TemporaryLayer *m_layer;
 	unique_ptr_Stroke m_stroke;
 	QTimer *m_timer;
-	std::list<TemporaryStroke>::iterator m_it;
+	std::list<FadingStroke>::iterator m_it;
 private slots:
 	void timeout();
 };
 
 struct temporary_stroke_to_ptr {
-	typedef TemporaryStroke in_type;
+	typedef FadingStroke in_type;
 	typedef ptr_Stroke out_type;
 	out_type operator()(const in_type &p) {
 		return p.stroke();
@@ -176,11 +176,11 @@ public:
 		return ListView<temporary_stroke_to_ptr>(m_strokes);
 	}
 	void add_stroke(unique_ptr_Stroke stroke, int timeout) {
-		std::list<TemporaryStroke>::iterator it = m_strokes.emplace(m_strokes.end(), this, std::move(stroke));
+		std::list<FadingStroke>::iterator it = m_strokes.emplace(m_strokes.end(), this, std::move(stroke));
 		it->start(it, timeout);
 		emit stroke_added(it->stroke()); // We can't call get(stroke) here, because stroke has been moved.
 	}
-	void delete_stroke(std::list<TemporaryStroke>::iterator it, unique_ptr_Stroke stroke) {
+	void delete_stroke(std::list<FadingStroke>::iterator it, unique_ptr_Stroke stroke) {
 		m_strokes.erase(it);
 		emit stroke_deleted(get(stroke));
 		// At this point, the stroke is destructed.
@@ -188,7 +188,7 @@ public:
 private:
 	// Any temporary stroke comes with a timer that deletes the stroke after a certain amount of time.
 	// Temporary strokes are not saved or exported to PDF files. They do not participate in the undo mechanism.
-	std::list<TemporaryStroke> m_strokes;
+	std::list<FadingStroke> m_strokes;
 };
 
 class EmbeddedPDF {

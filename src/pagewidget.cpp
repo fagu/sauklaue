@@ -37,6 +37,9 @@ void StrokeCreator::add_point(Point p)
 	PathStroke* pst = convert_variant<PathStroke*>(get(m_stroke));
 	Point old = pst->points().empty() ? p : pst->points().back();
 	pst->push_back(p);
+	// TODO This doesn't work properly with transparency because the old stroke is partially covered by the new line, making some parts more opaque than they should be.
+	// Really, when using transparency, I guess we should clip to the region of the new line segment and then redraw the entire layer on that clipping region.
+	// Even when the line is completely opaque, this is probably technically wrong because of antialiasing (which makes the line somewhat transparent near the boundary).
 	m_pic->draw_line(old, p, get(m_stroke));
 }
 
@@ -160,7 +163,6 @@ void PageWidget::paintEvent(QPaintEvent* event)
 	// Background around the pages
 	painter.fillRect(0,0,width(),height(), QColorConstants::LightGray);
 	if (!m_page_picture) {
-		// TODO?
 		return;
 	}
 // 	int x1 = m_page_picture->dx, y1 = m_page_picture->dy, x2 = m_page_picture->dx+m_page_picture->page_width, y2 = m_page_picture->dx+m_page_picture->page_height;
