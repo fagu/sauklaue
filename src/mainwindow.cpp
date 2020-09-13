@@ -3,7 +3,7 @@
 #include "mainwindow.h"
 
 #include "util.h"
-#include "actions.h"
+#include "commands.h"
 #include "serializer.h"
 #include "renderer.h"
 #include "tablet.h"

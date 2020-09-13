@@ -55,7 +55,7 @@ set(sauklaue_SRC
   src/main.cpp
   src/mainwindow.cpp
   src/pagewidget.cpp
-  src/actions.cpp
+  src/commands.cpp
   src/renderer.cpp
   src/tablet.cpp
 )

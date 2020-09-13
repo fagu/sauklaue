@@ -2,7 +2,7 @@
 
 #include "util.h"
 #include "mainwindow.h"
-#include "actions.h"
+#include "commands.h"
 #include "tablet.h"
 
 #include <QScreen>

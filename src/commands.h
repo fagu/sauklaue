@@ -1,5 +1,5 @@
-#ifndef ACTIONS_H
-#define ACTIONS_H
+#ifndef COMMANDS_H
+#define COMMANDS_H
 
 #include "document.h"
 
@@ -54,4 +54,4 @@ private:
 	std::list<std::unique_ptr<EmbeddedPDF> >::iterator m_it;
 };
 
-#endif // ACTIONS_H
+#endif // COMMANDS_H
