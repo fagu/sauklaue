@@ -277,18 +277,22 @@ public:
 	auto pages() const {
 		return vector_unique_to_pointer(m_pages);
 	}
-	void add_page(int at, std::unique_ptr<SPage> page) {
+	void add_pages(int at, std::vector<std::unique_ptr<SPage> > pages) {
 		assert(0 <= at && at <= (int)m_pages.size());
-		m_pages.insert(m_pages.begin() + at, std::move(page));
-		emit page_added(at);
+		assert(pages.size() > 0);
+		m_pages.insert(m_pages.begin() + at, std::make_move_iterator(pages.begin()), std::make_move_iterator(pages.end()));
+		emit pages_added(at, pages.size());
+	}
+	void add_page(int at, std::unique_ptr<SPage> page) {
+		add_pages(at, move_into_vector(std::move(page)));
 	}
 	// Delete and return a page. This returns the page's ownership to the caller. (So if the caller doesn't use the result, the page will be deleted from memory.) We return the deleted page so that we can undo deletion.
-	std::unique_ptr<SPage> delete_page(int index) {
-		assert(0 <= index && index < (int)m_pages.size());
-		std::unique_ptr<SPage> page = std::move(m_pages[index]);
-		m_pages.erase(m_pages.begin() + index);
-		emit page_deleted(index);
-		return page;
+	std::vector<std::unique_ptr<SPage> > delete_pages(int first_page, int number_of_pages) {
+		assert(0 <= first_page && 0 <= number_of_pages && first_page + number_of_pages <= (int)m_pages.size());
+		std::vector<std::unique_ptr<SPage> > pages(std::make_move_iterator(m_pages.begin() + first_page), std::make_move_iterator(m_pages.begin() + first_page + number_of_pages));
+		m_pages.erase(m_pages.begin() + first_page, m_pages.begin() + first_page + number_of_pages);
+		emit pages_deleted(first_page, number_of_pages);
+		return pages;
 	}
 	auto embedded_pdfs() const {
 		return list_unique_to_pointer(m_embedded_pdfs);
@@ -302,10 +306,10 @@ public:
 		return pdf;
 	}
 signals:
-	void page_added(int index);
-	void page_deleted(int index);
+	void pages_added(int first_page, int number_of_pages);
+	void pages_deleted(int first_page, int number_of_pages);
 private:
-	std::vector<std::unique_ptr<SPage> > m_pages;
+	std::vector<std::unique_ptr<SPage> > m_pages; // TODO Use a data structure that is better suited for insertion?
 	std::list<std::unique_ptr<EmbeddedPDF> > m_embedded_pdfs;
 // public:
 // 	static std::unique_ptr<Document> concatenate(const std::vector<std::unique_ptr<Document> > &in_docs);

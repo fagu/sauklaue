@@ -119,8 +119,8 @@ void MainWindow::setDocument(std::unique_ptr<Document> _doc)
 		disconnect(doc.get(), 0, this, 0);
 	doc = std::move(_doc);
 	assert(doc);
-	connect(doc.get(), &Document::page_added, this, &MainWindow::page_added);
-	connect(doc.get(), &Document::page_deleted, this, &MainWindow::page_deleted);
+	connect(doc.get(), &Document::pages_added, this, &MainWindow::pages_added);
+	connect(doc.get(), &Document::pages_deleted, this, &MainWindow::pages_deleted);
 	gotoPage(doc->pages().size()-1);
 }
 
@@ -550,7 +550,7 @@ void MainWindow::newPageBefore()
 	int height = pow(2, 0.25 - 2) * m2unit;
 	auto page = std::make_unique<SPage>(width, height);
 	page->add_layer(0);
-	undoStack->push(new NewPageCommand(doc.get(), current_page(), std::move(page)));
+	undoStack->push(new AddPagesCommand(doc.get(), current_page(), move_into_vector(std::move(page))));
 }
 
 void MainWindow::newPageAfter()
@@ -561,14 +561,14 @@ void MainWindow::newPageAfter()
 	int height = pow(2, 0.25 - 2) * m2unit;
 	auto page = std::make_unique<SPage>(width, height);
 	page->add_layer(0);
-	undoStack->push(new NewPageCommand(doc.get(), current_page()+1, std::move(page)));
+	undoStack->push(new AddPagesCommand(doc.get(), current_page()+1, move_into_vector(std::move(page))));
 }
 
 void MainWindow::deletePage()
 {
 	if (current_page() == -1)
 		return;
-	undoStack->push(new DeletePageCommand(doc.get(), current_page()));
+	undoStack->push(new DeletePagesCommand(doc.get(), current_page(), 1));
 }
 
 void MainWindow::nextPage()
@@ -663,16 +663,22 @@ void MainWindow::insertPDF()
 		EmbeddedPDF* p_pdf = pdf.get();
 		QUndoCommand *cmd = new QUndoCommand(tr("Insert PDF"));
 		new AddEmbeddedPDFCommand(doc.get(), std::move(pdf), cmd);
+		if (p_pdf->pages().empty()) {
+			qDebug() << "Zero pages => skipping";
+			return;
+		}
 		qDebug() << "Number of pages:" << p_pdf->document()->numPages();
-		for (int page_number = 0; page_number < p_pdf->document()->numPages(); page_number++) {
-			std::unique_ptr<Poppler::Page> p_page(p_pdf->document()->page(page_number));
+		std::vector<std::unique_ptr<SPage> > pages;
+		for (int page_number = 0; page_number < (int)p_pdf->pages().size(); page_number++) {
+			Poppler::Page* p_page = p_pdf->pages()[page_number];
 			int width = POINT_TO_UNIT*p_page->pageSizeF().width(), height = POINT_TO_UNIT*p_page->pageSizeF().height();
 			auto page = std::make_unique<SPage>(width, height);
 			std::unique_ptr<PDFLayer> pdf_layer = std::make_unique<PDFLayer>(p_pdf, page_number);
 			page->add_layer(0, std::move(pdf_layer));
 			page->add_layer(1); // NormalLayer
-			new NewPageCommand(doc.get(), current_page()+1, std::move(page), cmd);
+			pages.push_back(std::move(page));
 		}
+		new AddPagesCommand(doc.get(), current_page()+1, std::move(pages), cmd);
 		undoStack->push(cmd);
 	}
 }
@@ -693,14 +699,14 @@ void MainWindow::commitData(QSessionManager &manager)
 }
 #endif
 
-void MainWindow::page_added(int index)
+void MainWindow::pages_added(int first_page, int number_of_pages)
 {
-	gotoPage(index);
+	gotoPage(first_page + number_of_pages - 1);
 }
 
-void MainWindow::page_deleted(int index)
+void MainWindow::pages_deleted(int first_page, [[maybe_unused]] int number_of_pages)
 {
-	gotoPage(index);
+	gotoPage(first_page);
 }
 
 

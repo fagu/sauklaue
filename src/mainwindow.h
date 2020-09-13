@@ -112,8 +112,8 @@ private slots:
 	void commitData(QSessionManager &);
 #endif
 	
-	void page_added(int index);
-	void page_deleted(int index);
+	void pages_added(int first_page, int number_of_pages);
+	void pages_deleted(int first_page, int number_of_pages);
 	
 public:
 	void setPenColor(QColor pen_color);

@@ -5,28 +5,30 @@
 
 #include <QUndoCommand>
 
-class NewPageCommand : public QUndoCommand {
+class AddPagesCommand : public QUndoCommand {
 public:
-	NewPageCommand(Document* _doc, int _index, std::unique_ptr<SPage> _page, QUndoCommand *parent=nullptr);
+	AddPagesCommand(Document* _doc, int _first_page, std::vector<std::unique_ptr<SPage> > _pages, QUndoCommand *parent=nullptr);
 	void redo() override;
 	void undo() override;
 	
 private:
 	Document *doc;
-	int index;
-	std::unique_ptr<SPage> page;
+	int first_page;
+	int number_of_pages;
+	std::vector<std::unique_ptr<SPage> > pages;
 };
 
-class DeletePageCommand : public QUndoCommand {
+class DeletePagesCommand : public QUndoCommand {
 public:
-	DeletePageCommand(Document* _doc, int _index, QUndoCommand *parent=nullptr);
+	DeletePagesCommand(Document* _doc, int _first_page, int _number_of_pages, QUndoCommand *parent=nullptr);
 	void redo() override;
 	void undo() override;
 	
 private:
 	Document *doc;
-	int index;
-	std::unique_ptr<SPage> page;
+	int first_page;
+	int number_of_pages;
+	std::vector<std::unique_ptr<SPage> > pages;
 };
 
 template <class StrokeType>

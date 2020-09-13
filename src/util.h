@@ -17,6 +17,14 @@ template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
 // explicit deduction guide (not needed as of C++20)
 template<class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
+// Moves the given object into a one-element vector.
+template<class T>
+std::vector<T> move_into_vector(T&& x) {
+	std::vector<T> v;
+	v.push_back(std::move(x));
+	return v;
+}
+
 // Filters the elements of a vector<F::in_type> on-demand through a function object F() to obtain something a little like vector<F::out_type>.
 template<class F,class Container>
 class AbstractView {
@@ -42,6 +50,9 @@ public:
 	explicit AbstractView(const Container &_v) : v(_v) {}
 	size_t size() const {
 		return v.size();
+	}
+	bool empty() const {
+		return v.empty();
 	}
 	auto operator[](size_t i) const {
 		return F()(v[i]);

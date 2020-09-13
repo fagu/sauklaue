@@ -4,46 +4,48 @@
 
 
 
-NewPageCommand::NewPageCommand(Document* _doc, int _index, std::unique_ptr<SPage> _page, QUndoCommand *parent) :
+AddPagesCommand::AddPagesCommand(Document* _doc, int _first_page, std::vector<std::unique_ptr<SPage> > _pages, QUndoCommand *parent) :
 	QUndoCommand(parent),
 	doc(_doc),
-	index(_index),
-	page(std::move(_page))
+	first_page(_first_page),
+	number_of_pages(_pages.size()),
+	pages(std::move(_pages))
 {
-	setText(QObject::tr("New page"));
+	setText(number_of_pages == 1 ? QObject::tr("Add page") : QObject::tr("Add pages"));
 }
 
-void NewPageCommand::redo()
+void AddPagesCommand::redo()
 {
-	assert(page);
-	doc->add_page(index, std::move(page));
+// 	assert(pages);
+	doc->add_pages(first_page, std::move(pages));
 }
 
-void NewPageCommand::undo()
+void AddPagesCommand::undo()
 {
-	assert(!page);
-	page = doc->delete_page(index);
+// 	assert(!pages);
+	pages = doc->delete_pages(first_page, number_of_pages);
 }
 
 
-DeletePageCommand::DeletePageCommand(Document* _doc, int _index, QUndoCommand *parent) :
+DeletePagesCommand::DeletePagesCommand(Document* _doc, int _first_page, int _number_of_pages, QUndoCommand *parent) :
 	QUndoCommand(parent),
 	doc(_doc),
-	index(_index)
+	first_page(_first_page),
+	number_of_pages(_number_of_pages)
 {
-	setText(QObject::tr("Delete page"));
+	setText(number_of_pages == 1 ? QObject::tr("Delete page") : QObject::tr("Delete pages"));
 }
 
-void DeletePageCommand::redo()
+void DeletePagesCommand::redo()
 {
-	assert(!page);
-	page = doc->delete_page(index);
+// 	assert(!pages);
+	pages = doc->delete_pages(first_page, number_of_pages);
 }
 
-void DeletePageCommand::undo()
+void DeletePagesCommand::undo()
 {
-	assert(page);
-	doc->add_page(index, std::move(page));
+// 	assert(pages);
+	doc->add_pages(first_page, std::move(pages));
 }
 
 template <class StrokeType>
