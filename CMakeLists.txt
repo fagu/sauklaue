@@ -26,12 +26,6 @@ include (FindPkgConfig)
 pkg_check_modules(cairomm REQUIRED "cairomm-1.0")
 include_directories("${cairomm_INCLUDE_DIRS}")
 
-find_package(Protobuf REQUIRED)
-include_directories(${Protobuf_INCLUDE_DIRS})
-include_directories(${CMAKE_CURRENT_BINARY_DIR})
-protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS src/file1.proto src/file3.proto)
-# protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS EXPORT_MACRO DLL_EXPORT src.proto)
-
 find_package(CapnProto)
 capnp_generate_cpp(CAPNP_SRCS CAPNP_HDRS src/file4.capnp)
 # include_directories(${CMAKE_CURRENT_BINARY_DIR})
