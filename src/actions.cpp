@@ -48,36 +48,27 @@ void DeletePagesCommand::undo()
 	doc->add_pages(first_page, std::move(pages));
 }
 
-template <class StrokeType>
-AddStrokeCommand<StrokeType>::AddStrokeCommand(NormalLayer* _layer, std::unique_ptr<StrokeType> _stroke, QUndoCommand *parent) :
+AddStrokeCommand::AddStrokeCommand(NormalLayer* _layer, unique_ptr_Stroke _stroke, QUndoCommand *parent) :
 	QUndoCommand(parent),
 	layer(_layer),
 	stroke(std::move(_stroke))
 {
+	setText(std::visit(overloaded {
+		[](PenStroke*) {return QObject::tr("Draw stroke");},
+		[](EraserStroke*) {return QObject::tr("Erase");}
+	}, get(stroke)));
 }
 
-template <class StrokeType>
-void AddStrokeCommand<StrokeType>::redo()
+void AddStrokeCommand::redo()
 {
-	assert(stroke);
+	assert(convert_variant<bool>(get(stroke)));
 	layer->add_stroke(std::move(stroke));
 }
 
-template <class StrokeType>
-void AddStrokeCommand<StrokeType>::undo()
+void AddStrokeCommand::undo()
 {
-	assert(!stroke);
-	stroke = std::get<std::unique_ptr<StrokeType> >(layer->delete_stroke());
-}
-
-AddPenStrokeCommand::AddPenStrokeCommand(NormalLayer* _layer, std::unique_ptr<PenStroke> _stroke, QUndoCommand* parent) : AddStrokeCommand<PenStroke>(_layer, std::move(_stroke), parent)
-{
-	setText(QObject::tr("Draw stroke"));
-}
-
-AddEraserStrokeCommand::AddEraserStrokeCommand(NormalLayer* _layer, std::unique_ptr<EraserStroke> _stroke, QUndoCommand* parent) : AddStrokeCommand<EraserStroke>(_layer, std::move(_stroke), parent)
-{
-	setText(QObject::tr("Erase"));
+	assert(!convert_variant<bool>(get(stroke)));
+	stroke = layer->delete_stroke();
 }
 
 AddEmbeddedPDFCommand::AddEmbeddedPDFCommand(Document* doc, std::unique_ptr<EmbeddedPDF> pdf, QUndoCommand* parent) :

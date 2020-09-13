@@ -10,7 +10,7 @@
 const Color Color::BLACK = Color::color(0,0,0,255);
 
 
-TemporaryStroke::TemporaryStroke(NormalLayer* layer, unique_ptr_Stroke stroke) :
+TemporaryStroke::TemporaryStroke(TemporaryLayer* layer, unique_ptr_Stroke stroke) :
 	m_layer(layer),
 	m_stroke(std::move(stroke))
 {
@@ -29,12 +29,12 @@ void TemporaryStroke::timeout()
 {
 	// Delete the stroke, handing back ownership over the stroke object to the layer.
 	// This also deletes the calling TemporaryStroke object, which is fine!
-	m_layer->delete_temporary_stroke(m_it, std::move(m_stroke));
+	m_layer->delete_stroke(m_it, std::move(m_stroke));
 }
 
 
 
-NormalLayer::NormalLayer(const NormalLayer& a) : QObject()
+NormalLayer::NormalLayer(const NormalLayer& a)
 {
 	// Copy the strokes.
 	reserve_strokes(a.strokes().size());

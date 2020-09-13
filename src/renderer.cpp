@@ -22,12 +22,12 @@ PictureTransformation::PictureTransformation(SPage* page, int widget_width, int 
 }
 
 
-NormalLayerPicture::NormalLayerPicture(NormalLayer* layer, const PictureTransformation& transformation) :
+DrawingLayerPicture::DrawingLayerPicture(std::variant<NormalLayer*,TemporaryLayer*> layer, const PictureTransformation& transformation) :
 	LayerPicture(transformation),
 	m_layer(layer)
 {
-	connect(layer, &NormalLayer::stroke_added, this, &NormalLayerPicture::stroke_added);
-	connect(layer, &NormalLayer::stroke_deleted, this, &NormalLayerPicture::stroke_deleted);
+	connect(convert_variant<DrawingLayer*>(layer), &DrawingLayer::stroke_added, this, &DrawingLayerPicture::stroke_added);
+	connect(convert_variant<DrawingLayer*>(layer), &DrawingLayer::stroke_deleted, this, &DrawingLayerPicture::stroke_deleted);
 	
 	cairo_surface = Cairo::ImageSurface::create(Cairo::FORMAT_ARGB32, transformation.image_size.width(), transformation.image_size.height());
 	cr = Cairo::Context::create(cairo_surface);
@@ -38,13 +38,10 @@ NormalLayerPicture::NormalLayerPicture(NormalLayer* layer, const PictureTransfor
 	set_transparent();
 // 	cr->rectangle(0,0,transformation.image_size.width(),transformation.image_size.height());
 // 	cr->clip();
-	for (ptr_Stroke stroke : m_layer->strokes()) // Don't draw the last stroke!
-		draw_stroke(stroke);
-	for (ptr_Stroke stroke : m_layer->temporary_strokes()) // Don't draw the last stroke!
-		draw_stroke(stroke);
+	draw_strokes();
 }
 
-void NormalLayerPicture::set_transparent()
+void DrawingLayerPicture::set_transparent()
 {
 	CairoGroup cg(cr);
 	cr->set_source_rgba(0,0,0,0);
@@ -52,7 +49,17 @@ void NormalLayerPicture::set_transparent()
 	cr->paint(); // Reset every pixel to transparent.
 }
 
-void draw_path(Cairo::RefPtr<Cairo::Context> cr, const std::vector<Point> &points) {
+void DrawingLayerPicture::draw_strokes()
+{
+	std::visit([&](auto layer) {
+		for (ptr_Stroke stroke : layer->strokes())
+			draw_stroke(stroke);
+	}, m_layer);
+	if (m_current_stroke)
+		draw_stroke(m_current_stroke.value());
+}
+
+void construct_path(Cairo::RefPtr<Cairo::Context> cr, const std::vector<Point> &points) {
 	assert(!points.empty());
 	cr->move_to(points[0].x, points[0].y);
 	if (points.size() == 1) {
@@ -63,12 +70,15 @@ void draw_path(Cairo::RefPtr<Cairo::Context> cr, const std::vector<Point> &point
 	}
 }
 
-void NormalLayerPicture::stroke_added(ptr_Stroke stroke)
+void DrawingLayerPicture::stroke_added(ptr_Stroke stroke)
 {
-	draw_stroke(stroke);
+	if (m_current_stroke && m_current_stroke.value() == stroke)
+		reset_current_stroke();
+	else
+		draw_stroke(stroke);
 }
 
-void NormalLayerPicture::stroke_deleted(ptr_Stroke stroke)
+void DrawingLayerPicture::stroke_deleted(ptr_Stroke stroke)
 {
 // 	qDebug() << "Delete stroke" << m_layer->strokes().size();
 	// TODO This redraws the entire page!
@@ -77,7 +87,7 @@ void NormalLayerPicture::stroke_deleted(ptr_Stroke stroke)
 		CairoGroup cg(cr);
 		PathStroke* path_stroke = convert_variant<PathStroke*>(stroke);
 		setup_stroke(stroke);
-		draw_path(cr, path_stroke->points()); // Construct the deleted path to find the area that needs to be redrawn.
+		construct_path(cr, path_stroke->points()); // Construct the deleted path to find the area that needs to be redrawn.
 		QRect rect = stroke_extents();
 		cr->begin_new_path(); // Forget the deleted path
 		cr->set_matrix(Cairo::identity_matrix()); // Figure out the bounding rectangle in pixel coordinates
@@ -85,15 +95,12 @@ void NormalLayerPicture::stroke_deleted(ptr_Stroke stroke)
 		cr->clip();
 		cr->set_matrix(transformation().page2image);
 		set_transparent();
-		for (ptr_Stroke stroke : m_layer->strokes()) // Don't draw the last stroke!
-			draw_stroke(stroke);
-		for (ptr_Stroke stroke : m_layer->temporary_strokes()) // Don't draw the last stroke!
-			draw_stroke(stroke);
+		draw_strokes();
 	}
 	emit update(QRect(0,0,transformation().image_size.width(),transformation().image_size.height()));
 }
 
-void NormalLayerPicture::setup_stroke(ptr_Stroke stroke) {
+void DrawingLayerPicture::setup_stroke(ptr_Stroke stroke) {
 	std::visit(overloaded {
 		[&](const PenStroke* st) {
 			cr->set_line_width(st->width());
@@ -109,19 +116,19 @@ void NormalLayerPicture::setup_stroke(ptr_Stroke stroke) {
 	}, stroke);
 }
 
-void NormalLayerPicture::draw_stroke(ptr_Stroke stroke)
+void DrawingLayerPicture::draw_stroke(ptr_Stroke stroke)
 {
 	CairoGroup cg(cr);
 	setup_stroke(stroke);
 	PathStroke* path_stroke = convert_variant<PathStroke*>(stroke);
-	draw_path(cr, path_stroke->points());
+	construct_path(cr, path_stroke->points());
 	// It might be better to compute the union of the extents of the individual segments.
 	QRect rect = stroke_extents();
 	cr->stroke();
 	emit update(rect);
 }
 
-void NormalLayerPicture::draw_line(Point a, Point b, ptr_Stroke stroke)
+void DrawingLayerPicture::draw_line(Point a, Point b, ptr_Stroke stroke)
 {
 	CairoGroup cg(cr);
 	setup_stroke(stroke);
@@ -132,7 +139,7 @@ void NormalLayerPicture::draw_line(Point a, Point b, ptr_Stroke stroke)
 	emit update(rect);
 }
 
-QRect NormalLayerPicture::stroke_extents()
+QRect DrawingLayerPicture::stroke_extents()
 {
 	double x1, y1, x2, y2;
 	cr->get_stroke_extents(x1, y1, x2, y2);
@@ -167,8 +174,8 @@ PagePicture::PagePicture(SPage* _page, int _width, int _height) :
 	connect(page, &SPage::layer_added, this, &PagePicture::register_layer);
 	connect(page, &SPage::layer_deleted, this, &PagePicture::unregister_layer);
 	
-	m_temporary_layer = std::make_unique<NormalLayerPicture>(page->temporary_layer(), transformation());
-	connect(m_temporary_layer.get(), &NormalLayerPicture::update, this, &PagePicture::update_layer);
+	m_temporary_layer = std::make_unique<DrawingLayerPicture>(page->temporary_layer(), transformation());
+	connect(m_temporary_layer.get(), &DrawingLayerPicture::update, this, &PagePicture::update_layer);
 }
 
 void PagePicture::register_layer(int index)
@@ -176,7 +183,7 @@ void PagePicture::register_layer(int index)
 	ptr_Layer layer = page->layers()[index];
 	unique_ptr_LayerPicture pic = std::visit(overloaded {
 		[&](NormalLayer* layer) -> unique_ptr_LayerPicture {
-			return std::make_unique<NormalLayerPicture>(layer, transformation());
+			return std::make_unique<DrawingLayerPicture>(layer, transformation());
 		},
 		[&](PDFLayer* layer) -> unique_ptr_LayerPicture {
 			return std::make_unique<PDFLayerPicture>(layer, transformation());
@@ -189,6 +196,7 @@ void PagePicture::register_layer(int index)
 
 void PagePicture::unregister_layer(int index)
 {
+	emit removing_layer(get(m_layers[index]));
 	m_layers.erase(m_layers.begin() + index);
 }
 
@@ -254,7 +262,7 @@ void PDFExporter::save(Document* doc, const std::string& file_name)
 								cr->set_line_width(st->width());
 								Color co = st->color();
 								cr->set_source_rgba(co.r(), co.g(), co.b(), co.a());
-								draw_path(cr, st->points());
+								construct_path(cr, st->points());
 								cr->stroke();
 							},
 							[&](EraserStroke* st) {
@@ -265,7 +273,7 @@ void PDFExporter::save(Document* doc, const std::string& file_name)
 								} else {
 									cr->set_source_rgb(1,1,1);
 								}
-								draw_path(cr, st->points());
+								construct_path(cr, st->points());
 								cr->stroke();
 							}
 						}, stroke);

@@ -107,11 +107,12 @@ struct stroke_unique_to_ptr_helper {
 	}
 };
 
-class NormalLayer;
+class TemporaryLayer;
+
 class TemporaryStroke : public QObject {
 	Q_OBJECT
 public:
-	TemporaryStroke(NormalLayer* layer, unique_ptr_Stroke stroke);
+	TemporaryStroke(TemporaryLayer* layer, unique_ptr_Stroke stroke);
 	// Call this method exactly once!
 	// This sets the iterator (which doesn't exist at the time we construct the TemporaryStroke object).
 	// It then starts the timer.
@@ -120,7 +121,7 @@ public:
 		return get(m_stroke);
 	}
 private:
-	NormalLayer *m_layer;
+	TemporaryLayer *m_layer;
 	unique_ptr_Stroke m_stroke;
 	QTimer *m_timer;
 	std::list<TemporaryStroke>::iterator m_it;
@@ -136,7 +137,14 @@ struct temporary_stroke_to_ptr {
 	}
 };
 
-class NormalLayer : public QObject {
+class DrawingLayer : public QObject {
+	Q_OBJECT
+signals:
+	void stroke_added(ptr_Stroke stroke); // Emitted after adding a stroke (permanent or temporary).
+	void stroke_deleted(ptr_Stroke stroke); // Emitted after deleting a stroke (permanent or temporary). Of course, the stroke is not destructed before emitting this signal.
+};
+
+class NormalLayer : public DrawingLayer {
 	Q_OBJECT
 public:
 	NormalLayer() {}
@@ -157,28 +165,30 @@ public:
 	void reserve_strokes(size_t n) {
 		m_strokes.reserve(n);
 	}
-	auto temporary_strokes() const {
-		return ListView<temporary_stroke_to_ptr>(m_temporary_strokes);
+private:
+	std::vector<unique_ptr_Stroke> m_strokes;
+};
+
+class TemporaryLayer : public DrawingLayer {
+	Q_OBJECT
+public:
+	auto strokes() const {
+		return ListView<temporary_stroke_to_ptr>(m_strokes);
 	}
-	void add_temporary_stroke(unique_ptr_Stroke stroke, int timeout) {
-		std::list<TemporaryStroke>::iterator it = m_temporary_strokes.emplace(m_temporary_strokes.end(), this, std::move(stroke));
+	void add_stroke(unique_ptr_Stroke stroke, int timeout) {
+		std::list<TemporaryStroke>::iterator it = m_strokes.emplace(m_strokes.end(), this, std::move(stroke));
 		it->start(it, timeout);
 		emit stroke_added(it->stroke()); // We can't call get(stroke) here, because stroke has been moved.
 	}
-	void delete_temporary_stroke(std::list<TemporaryStroke>::iterator it, unique_ptr_Stroke stroke) {
-		m_temporary_strokes.erase(it);
+	void delete_stroke(std::list<TemporaryStroke>::iterator it, unique_ptr_Stroke stroke) {
+		m_strokes.erase(it);
 		emit stroke_deleted(get(stroke));
 		// At this point, the stroke is destructed.
 	}
-signals:
-	void stroke_added(ptr_Stroke stroke); // Emitted after adding a stroke (permanent or temporary).
-	void stroke_deleted(ptr_Stroke stroke); // Emitted after deleting a stroke (permanent or temporary). Of course, the stroke is not destructed before emitting this signal.
 private:
-	std::vector<unique_ptr_Stroke> m_strokes;
 	// Any temporary stroke comes with a timer that deletes the stroke after a certain amount of time.
 	// Temporary strokes are not saved or exported to PDF files. They do not participate in the undo mechanism.
-	std::list<TemporaryStroke> m_temporary_strokes;
-	// TODO The order in which permanent and temporary strokes are drawn is not well-defined. (???)
+	std::list<TemporaryStroke> m_strokes;
 };
 
 class EmbeddedPDF {
@@ -238,7 +248,7 @@ struct layer_unique_to_ptr_helper {
 class SPage : public QObject {
 	Q_OBJECT
 public:
-	SPage(int w, int h) : m_width(w), m_height(h), m_temporary_layer(std::make_unique<NormalLayer>()) {
+	SPage(int w, int h) : m_width(w), m_height(h), m_temporary_layer(std::make_unique<TemporaryLayer>()) {
 		assert(m_width >= 1 && m_height >= 1);
 	}
 // 	explicit Page(const Page& a); // Note: The copy constructor does not copy the temporary layer!
@@ -258,7 +268,7 @@ public:
 	void add_layer(int at) {
 		add_layer(at, std::make_unique<NormalLayer>());
 	}
-	NormalLayer* temporary_layer() const {
+	TemporaryLayer* temporary_layer() const {
 		return m_temporary_layer.get();
 	}
 signals:
@@ -267,7 +277,7 @@ signals:
 private:
 	int m_width, m_height;
 	std::vector<unique_ptr_Layer> m_layers;
-	std::unique_ptr<NormalLayer> m_temporary_layer;
+	std::unique_ptr<TemporaryLayer> m_temporary_layer;
 };
 
 class Document : public QObject

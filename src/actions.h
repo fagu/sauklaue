@@ -31,26 +31,15 @@ private:
 	std::vector<std::unique_ptr<SPage> > pages;
 };
 
-template <class StrokeType>
 class AddStrokeCommand : public QUndoCommand {
 public:
-	AddStrokeCommand(NormalLayer* _layer, std::unique_ptr<StrokeType> _stroke, QUndoCommand *parent=nullptr);
+	AddStrokeCommand(NormalLayer* _layer, unique_ptr_Stroke _stroke, QUndoCommand *parent=nullptr);
 	void redo() override;
 	void undo() override;
 	
 private:
 	NormalLayer* layer;
-	std::unique_ptr<StrokeType> stroke;
-};
-
-class AddPenStrokeCommand : public AddStrokeCommand<PenStroke> {
-public:
-	AddPenStrokeCommand(NormalLayer* _layer, std::unique_ptr<PenStroke> _stroke, QUndoCommand *parent=nullptr);
-};
-
-class AddEraserStrokeCommand : public AddStrokeCommand<EraserStroke> {
-public:
-	AddEraserStrokeCommand(NormalLayer* _layer, std::unique_ptr<EraserStroke> _stroke, QUndoCommand *parent=nullptr);
+	unique_ptr_Stroke stroke;
 };
 
 class AddEmbeddedPDFCommand : public QUndoCommand {

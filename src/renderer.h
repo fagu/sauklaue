@@ -47,10 +47,10 @@ private:
 	const PictureTransformation &m_transformation;
 };
 
-class NormalLayerPicture : public LayerPicture {
+class DrawingLayerPicture : public LayerPicture {
 	Q_OBJECT
 public:
-	NormalLayerPicture(NormalLayer *layer, const PictureTransformation &transformation);
+	DrawingLayerPicture(std::variant<NormalLayer*,TemporaryLayer*> layer, const PictureTransformation &transformation);
 	
 	Cairo::RefPtr<Cairo::ImageSurface> cairo_surface;
 	Cairo::RefPtr<Cairo::Context> cr;
@@ -60,14 +60,24 @@ public:
 		return QImage((const uchar*)cairo_surface->get_data(), cairo_surface->get_width(), cairo_surface->get_height(), QImage::Format_ARGB32_Premultiplied);
 	}
 	
+	void set_current_stroke(ptr_Stroke current_stroke) {
+		m_current_stroke = current_stroke;
+	}
+	
+	void reset_current_stroke() {
+		m_current_stroke.reset();
+	}
+	
 private slots:
 	void stroke_added(ptr_Stroke stroke);
 	void stroke_deleted(ptr_Stroke stroke);
 	
 private:
-	NormalLayer *m_layer;
+	std::variant<NormalLayer*,TemporaryLayer*> m_layer;
+	std::optional<ptr_Stroke> m_current_stroke; // This is drawn after all the strokes in m_layer. When the stroke is extended, you must call draw_line. When it is finished, add it to m_layer. The current_stroke is then automatically reset to nullptr.
 	
 	void set_transparent();
+	void draw_strokes();
 	void setup_stroke(ptr_Stroke stroke);
 	void draw_stroke(ptr_Stroke stroke);
 	QRect stroke_extents(); // Bounding rectangle of the current path in output coordinates
@@ -87,8 +97,8 @@ private:
 	QImage m_img;
 };
 
-typedef std::variant<NormalLayerPicture*, PDFLayerPicture*> ptr_LayerPicture;
-typedef variant_unique<NormalLayerPicture, PDFLayerPicture> unique_ptr_LayerPicture;
+typedef std::variant<DrawingLayerPicture*, PDFLayerPicture*> ptr_LayerPicture;
+typedef variant_unique<DrawingLayerPicture, PDFLayerPicture> unique_ptr_LayerPicture;
 
 struct layer_picture_unique_to_ptr_helper {
 	typedef unique_ptr_LayerPicture in_type;
@@ -107,7 +117,7 @@ public:
 	auto layers() const {
 		return VectorView<layer_picture_unique_to_ptr_helper>(m_layers);
 	}
-	NormalLayerPicture* temporary_layer() const {
+	DrawingLayerPicture* temporary_layer() const {
 		return m_temporary_layer.get();
 	}
 	const PictureTransformation& transformation() const {
@@ -116,7 +126,7 @@ public:
 private:
 	PictureTransformation m_transformation;
 	std::vector<unique_ptr_LayerPicture> m_layers;
-	std::unique_ptr<NormalLayerPicture> m_temporary_layer;
+	std::unique_ptr<DrawingLayerPicture> m_temporary_layer;
 	
 private slots:
 	void register_layer(int index);
@@ -127,6 +137,7 @@ private slots:
 signals:
 	// Notification that the given rectangle in the image was repainted.
 	void update(const QRect& rect);
+	void removing_layer(ptr_LayerPicture layer); // Emitted just before removing the given layer picture.
 };
 
 

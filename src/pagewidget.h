@@ -4,6 +4,7 @@
 #include "document.h"
 #include "renderer.h"
 
+#include <functional>
 #include <memory>
 
 #include <QWidget>
@@ -13,9 +14,19 @@
 
 class MainWindow;
 
-struct StrokeCreator {
-	unique_ptr_Stroke stroke;
-	int timeout; // -1 for permanent strokes, > 0 for temporary strokes.
+class StrokeCreator {
+public:
+	StrokeCreator(unique_ptr_Stroke stroke, std::function<void(unique_ptr_Stroke)> committer, DrawingLayerPicture *pic);
+	~StrokeCreator(); // Resets (deletes) the current_stroke in pic (which has to equal m_stroke).
+	void commit(); // Commits the stroke using the given committer. (This should add the stroke to the picture.)
+	void add_point(Point p);
+	DrawingLayerPicture *pic() const {
+		return m_pic;
+	}
+private:
+	unique_ptr_Stroke m_stroke;
+	std::function<void(unique_ptr_Stroke)> m_committer;
+	DrawingLayerPicture *m_pic;
 };
 
 class PageWidget : public QWidget
@@ -48,6 +59,7 @@ protected:
 	
 private slots:
 	void update_page(const QRect& rect);
+	void removing_layer_picture(ptr_LayerPicture layer_picture);
 	
 private:
 	void setupPicture();

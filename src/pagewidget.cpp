@@ -15,6 +15,32 @@
 // const int DEFAULT_LINE_WIDTH = 1500;
 const int DEFAULT_ERASER_WIDTH = 1500*20;
 
+
+StrokeCreator::StrokeCreator(unique_ptr_Stroke stroke, std::function<void(unique_ptr_Stroke)> committer, DrawingLayerPicture *pic) : m_stroke(std::move(stroke)), m_committer(committer), m_pic(pic) {
+	assert(m_pic);
+	m_pic->set_current_stroke(get(m_stroke));
+}
+
+StrokeCreator::~StrokeCreator() {
+	if (m_pic)
+		m_pic->reset_current_stroke();
+}
+
+void StrokeCreator::commit()
+{
+	m_committer(std::move(m_stroke));
+	m_pic = nullptr;
+}
+
+void StrokeCreator::add_point(Point p)
+{
+	PathStroke* pst = convert_variant<PathStroke*>(get(m_stroke));
+	Point old = pst->points().empty() ? p : pst->points().back();
+	pst->push_back(p);
+	m_pic->draw_line(old, p, get(m_stroke));
+}
+
+
 PageWidget::PageWidget(MainWindow* view) :
 	QWidget(nullptr),
 	m_view(view)
@@ -48,6 +74,18 @@ void PageWidget::setupPicture()
 void PageWidget::update_page(const QRect& rect)
 {
 	update(rect.translated(m_page_picture->transformation().topLeft));
+}
+
+void PageWidget::removing_layer_picture(ptr_LayerPicture layer_picture)
+{
+	std::visit(overloaded {
+		[&](DrawingLayerPicture* layer_picture) {
+			if (layer_picture == m_current_stroke->pic()) // Removing the layer we're currently drawing on. => Stop drawing.
+				m_current_stroke.reset();
+		},
+		[&](PDFLayerPicture*) {
+		}
+	}, layer_picture);
 }
 
 // Map tablet coordinates in [0,1] x [0,1] to coordinates in real life.
@@ -227,28 +265,36 @@ void PageWidget::start_path(QPointF pp, StrokeType type)
 		return;
 	if (!m_current_stroke) {
 		Point p = m_page_picture->transformation().widget2page(pp);
-		qDebug() << "Roughly at" << (double)p.x / m_page->width() << (double)p.y / m_page->height();
+		unique_ptr_Stroke stroke;
+		int timeout;
 		if (type == StrokeType::Pen) {
-			m_current_stroke = {std::make_unique<PenStroke>(m_view->penSize(), m_view->penColor()), -1};
+			stroke = std::make_unique<PenStroke>(m_view->penSize(), m_view->penColor());
+			timeout = -1;
 		} else if (type == StrokeType::Eraser) {
-			m_current_stroke = {std::make_unique<EraserStroke>(DEFAULT_ERASER_WIDTH), -1};
+			stroke = std::make_unique<EraserStroke>(DEFAULT_ERASER_WIDTH);
+			timeout = -1;
 		} else if (type == StrokeType::LaserPointer) {
 			QColor color = QColorConstants::Red;
 // 			color.setAlphaF(0.3);
-			m_current_stroke = {std::make_unique<PenStroke>(m_view->penSize() * 4, color), 3000}; // 3 second timeout
+			stroke = std::make_unique<PenStroke>(m_view->penSize() * 4, color);
+			timeout = 3000; // 3 second timeout
 		} else {
 			assert(false);
 		}
-		std::visit(overloaded {
-			[&](std::variant<PenStroke*,EraserStroke*> st) {
-				PathStroke* pst = convert_variant<PathStroke*>(st);
-				pst->push_back(p);
-				if (m_current_stroke->timeout == -1)
-					std::get<NormalLayerPicture*>(m_page_picture->layers()[first_normal_layer_index(m_page)])->draw_line(p, p, st);
-				else
-					m_page_picture->temporary_layer()->draw_line(p, p, st);
-			}
-		}, get(m_current_stroke->stroke));
+		if (timeout == -1) {
+			auto layer_picture = std::get<DrawingLayerPicture*>(m_page_picture->layers()[first_normal_layer_index(m_page)]);
+			auto layer = std::get<NormalLayer*>(m_page->layers()[first_normal_layer_index(m_page)]);
+			m_current_stroke.emplace(std::move(stroke), [this,layer](unique_ptr_Stroke st) {
+				m_view->undoStack->push(new AddStrokeCommand(layer, std::move(st)));
+			}, layer_picture);
+		} else {
+			auto layer_picture = m_page_picture->temporary_layer();
+			auto layer = m_page->temporary_layer();
+			m_current_stroke.emplace(std::move(stroke), [layer,timeout](unique_ptr_Stroke st) {
+				layer->add_stroke(std::move(st), timeout);
+			}, layer_picture);
+		}
+		m_current_stroke->add_point(p);
 	}
 }
 
@@ -256,47 +302,14 @@ void PageWidget::continue_path(QPointF pp)
 {
 	if (!m_current_stroke)
 		return;
-	if (m_current_stroke) {
-		Point p = m_page_picture->transformation().widget2page(pp);
-		qDebug() << pp;
-		qDebug() << "Roughly at" << (double)p.x / m_page->width() << (double)p.y / m_page->height();
-		std::visit(overloaded {
-			[&](std::variant<PenStroke*,EraserStroke*> st) {
-				PathStroke* pst = convert_variant<PathStroke*>(st);
-				Point old = pst->points().back();
-				pst->push_back(p);
-				// These draw_line commands are not sufficient!
-				// The LayerPicture somehow has to know about the full current stroke in case of a redraw.
-				// Otherwise, if there is a redraw (for example because an old stroke is deleted) while we are drawing, the current stroke disappears. It then reappears when we finish drawing!
-				if (m_current_stroke->timeout == -1)
-					std::get<NormalLayerPicture*>(m_page_picture->layers()[first_normal_layer_index(m_page)])->draw_line(old, p, st);
-				else
-					m_page_picture->temporary_layer()->draw_line(old, p, st);
-			}
-		}, get(m_current_stroke->stroke));
-	}
+	Point p = m_page_picture->transformation().widget2page(pp);
+	m_current_stroke->add_point(p);
 }
 
 void PageWidget::finish_path()
 {
 	if (!m_current_stroke)
 		return;
-	int timeout = m_current_stroke->timeout;
-	// TODO This unnecessarily redraws the stroke!
-	// If using transparency, this also makes the stroke more opaque.
-	std::visit(overloaded {
-		[&](std::unique_ptr<PenStroke> &st) {
-			if (timeout == -1)
-				m_view->undoStack->push(new AddPenStrokeCommand(std::get<NormalLayer*>(m_page->layers()[first_normal_layer_index(m_page)]), std::move(st)));
-			else
-				m_page->temporary_layer()->add_temporary_stroke(std::move(st), timeout);
-		},
-		[&](std::unique_ptr<EraserStroke> &st) {
-			if (timeout == -1)
-				m_view->undoStack->push(new AddEraserStrokeCommand(std::get<NormalLayer*>(m_page->layers()[first_normal_layer_index(m_page)]), std::move(st)));
-			else
-				m_page->temporary_layer()->add_temporary_stroke(std::move(st), timeout);
-		}
-	}, m_current_stroke->stroke);
+	m_current_stroke->commit();
 	m_current_stroke.reset();
 }
