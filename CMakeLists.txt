@@ -1,69 +1,64 @@
 cmake_minimum_required(VERSION 3.0)
 project(sauklaue)
 
-# Find includes in corresponding build directories
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
-# Instruct CMake to run moc automatically when needed.
 set(CMAKE_AUTOMOC ON)
-# Instruct CMake to create code from Qt designer ui files
-set(CMAKE_AUTOUIC ON)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+# Warnings
 if (MSVC)
-    # warning level 4 and all warnings as errors
-    add_compile_options(/W4 /WX)
+	add_compile_options(/W4 /WX)
 else()
-    # lots of warnings and all warnings as errors
-    add_compile_options(-Wall -Wextra -pedantic -Werror)
+	add_compile_options(-Wall -Wextra -pedantic -Werror)
 endif()
 
 # Find the QtWidgets library
 find_package(Qt5Widgets CONFIG REQUIRED)
+link_libraries(Qt5::Widgets)
 
 include (FindPkgConfig)
 
+# Find the cairomm library
 pkg_check_modules(cairomm REQUIRED "cairomm-1.0")
-include_directories("${cairomm_INCLUDE_DIRS}")
+include_directories(${cairomm_INCLUDE_DIRS})
+link_libraries(${cairomm_LDFLAGS})
 
+# Compile the Cap'n Proto file
 find_package(CapnProto)
 capnp_generate_cpp(CAPNP_SRCS CAPNP_HDRS src/file4.capnp)
-# include_directories(${CMAKE_CURRENT_BINARY_DIR})
+set_property(SOURCE src/file4.capnp.h PROPERTY SKIP_AUTOGEN ON)
+set_property(SOURCE src/file4.capnp.c++ PROPERTY SKIP_AUTOGEN ON)
 link_libraries(CapnProto::capnp)
-
-
 
 find_package(ECM 5.19.0 REQUIRED NO_MODULE)
 set(CMAKE_MODULE_PATH ${ECM_MODULE_PATH})
 
+# Find the Poppler library
 find_package(Poppler REQUIRED Qt5)
 include_directories(${Poppler_INCLUDE_DIRS})
 link_libraries(Poppler::Qt5)
 
-set(sauklaue_core_SRC
-  src/document.cpp
-  src/serializer.cpp
-)
-
 set(sauklaue_SRC
-  src/main.cpp
-  src/mainwindow.cpp
-  src/pagewidget.cpp
-  src/commands.cpp
-  src/renderer.cpp
-  src/tablet.cpp
+	src/document.cpp
+	src/serializer.cpp
+	src/main.cpp
+	src/mainwindow.cpp
+	src/pagewidget.cpp
+	src/commands.cpp
+	src/renderer.cpp
+	src/tablet.cpp
 )
 
-set(sauklaue_conc_SRC
-  src/concatenate.cpp
-)
-
-# Tell CMake to create the helloworld executable
-add_executable(sauklaue ${sauklaue_SRC} ${sauklaue_core_SRC} ${PROTO_SRCS} ${PROTO_HDRS} ${CAPNP_SRCS})
-# add_executable(sauklaue-conc ${sauklaue_conc_SRC} ${sauklaue_core_SRC} ${PROTO_SRCS} ${PROTO_HDRS})
-
-target_link_libraries(sauklaue Qt5::Widgets ${cairomm_LDFLAGS} ${Protobuf_LIBRARIES})
-# target_link_libraries(sauklaue-conc Qt5::Widgets ${cairomm_LDFLAGS} ${Protobuf_LIBRARIES})
+add_executable(sauklaue ${sauklaue_SRC} ${CAPNP_SRCS})
 
 # Install the executable
 install(TARGETS sauklaue DESTINATION bin)
+
+# Mime type, desktop files, icons
+if(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+	install(FILES desktop/sauklaue.xml DESTINATION share/mime/packages)
+	install(FILES desktop/sauklaue.desktop DESTINATION share/applications)
+	install(FILES icons/sauklaue.svg DESTINATION share/icons/hicolor/scalable/apps)
+	install(FILES icons/sauklaue.svg DESTINATION share/icons/hicolor/scalable/mimetypes RENAME application-x-sauklaue.svg)
+endif()

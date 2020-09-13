@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Sauklaue
+Comment=Stylus notetaking application
+Exec=sauklaue gui %f
+MimeType=application/x-sauklaue;
+Terminal=false
+Categories=Office;
+Keywords=Tablet;
+Icon=sauklaue

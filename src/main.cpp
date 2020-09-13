@@ -2,8 +2,6 @@
 
 #include "serializer.h"
 
-#include "file.pb.h"
-
 #include <iostream>
 
 #include <QApplication>
@@ -23,6 +21,7 @@ std::unique_ptr<Document> read_document(QString infile) {
 
 int gui_command(int argc, char **argv) {
 	QApplication app(argc, argv);
+	app.setWindowIcon(QIcon::fromTheme("application-x-sauklaue"));
 	QCommandLineParser parser;
 	parser.setApplicationDescription("Sauklaue (GUI)");
 	parser.addHelpOption();
