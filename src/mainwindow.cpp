@@ -542,26 +542,23 @@ QString MainWindow::strippedName(const QString& fullFileName)
 	return QFileInfo(fullFileName).fileName();
 }
 
-void MainWindow::newPageBefore()
-{
+std::unique_ptr<SPage> new_default_page() {
 	// A4 paper
-	double m2unit = 72000/0.0254; // 1 unit = 1pt/1000 = 1in/72000 = 25.4mm/72000 = 0.0254m/72000
-	int width = pow(2, -0.25 - 2) * m2unit;
-	int height = pow(2, 0.25 - 2) * m2unit;
+	int width = pow(2, -0.25 - 2) * METER_TO_UNIT;
+	int height = pow(2, 0.25 - 2) * METER_TO_UNIT;
 	auto page = std::make_unique<SPage>(width, height);
 	page->add_layer(0);
-	undoStack->push(new AddPagesCommand(doc.get(), current_page(), move_into_vector(std::move(page))));
+	return page;
+}
+
+void MainWindow::newPageBefore()
+{
+	undoStack->push(new AddPagesCommand(doc.get(), current_page(), move_into_vector(new_default_page())));
 }
 
 void MainWindow::newPageAfter()
 {
-	// A4 paper
-	double m2unit = 72000/0.0254; // 1 unit = 1pt/1000 = 1in/72000 = 25.4mm/72000 = 0.0254m/72000
-	int width = pow(2, -0.25 - 2) * m2unit;
-	int height = pow(2, 0.25 - 2) * m2unit;
-	auto page = std::make_unique<SPage>(width, height);
-	page->add_layer(0);
-	undoStack->push(new AddPagesCommand(doc.get(), current_page()+1, move_into_vector(std::move(page))));
+	undoStack->push(new AddPagesCommand(doc.get(), current_page()+1, move_into_vector(new_default_page())));
 }
 
 void MainWindow::deletePage()
@@ -573,13 +570,11 @@ void MainWindow::deletePage()
 
 void MainWindow::nextPage()
 {
-	qDebug() << "nextPage";
 	gotoPage(current_page()+1);
 }
 
 void MainWindow::previousPage()
 {
-	qDebug() << "previousPage";
 	gotoPage(current_page()-1);
 }
 

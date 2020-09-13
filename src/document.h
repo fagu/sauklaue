@@ -54,6 +54,7 @@ const double POINT_TO_UNIT = 1000;
 const double UNIT_TO_POINT = 1/POINT_TO_UNIT;
 const double INCH_TO_UNIT = 72*POINT_TO_UNIT;
 const double UNIT_TO_INCH = 1/INCH_TO_UNIT;
+const double METER_TO_UNIT = INCH_TO_UNIT/0.0254;
 
 struct Point {
 	int x, y;
