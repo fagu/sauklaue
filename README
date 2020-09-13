@@ -14,3 +14,10 @@ make
 
 -- Tablet tricks --
 For the XP-PEN tablet, load the driver and make sure to set the mapping to "AllScreen". Sauklaue will manipulate the mapping assuming the internal setting is "AllScreen".
+
+-- Privacy warnings --
+If you import a pdf file, the entire file will be part of the sauklaue file, even if you later delete some (or all) of the pdf's pages.
+
+Just like any pen, the eraser tool only paints over the things you wrote previously. It doesn't actually erase any information.
+
+The above disclaimers remain true if you export to pdf. It might still be possible to recover some information about pages in the original pdf file that were later deleted. The eraser strokes could easily be removed from the pdf file, revealing the text written below.

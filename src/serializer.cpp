@@ -12,7 +12,7 @@
 #include <QDebug>
 #include <QElapsedTimer>
 
-const uint32_t FILE_FORMAT_VERSION = 4;
+const uint32_t FILE_FORMAT_VERSION = 5;
 
 void write_path(file4::Path::Builder s_path, const std::vector<Point> &points) {
 	auto s_points = s_path.initPoints(points.size());

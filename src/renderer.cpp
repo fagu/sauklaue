@@ -148,8 +148,8 @@ PDFLayerPicture::PDFLayerPicture(PDFLayer* layer, const PictureTransformation& t
 	m_layer = layer;
 	m_layer->pdf()->document()->setRenderHint(Poppler::Document::RenderHint::Antialiasing);
 	m_layer->pdf()->document()->setRenderHint(Poppler::Document::RenderHint::TextAntialiasing);
+	// TODO Render asynchronously
 	Poppler::Page* pdf_page = m_layer->page();
-// 	double res = std::min(72.0*transformation.image_size.width()/(pdf_page->pageSizeF().width()), 72.0*transformation.page_height/(pdf_page->pageSizeF().height()));
 	double res = INCH_TO_UNIT * transformation.unit2pixel;
 	m_img = pdf_page->renderToImage(res, res, 0, 0, transformation.image_size.width(), transformation.image_size.height());
 	assert(!m_img.isNull());
