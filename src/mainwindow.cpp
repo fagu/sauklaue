@@ -416,9 +416,9 @@ void MainWindow::createActions()
 	{
 		QActionGroup* group = new QActionGroup(this);
 		std::vector<std::tuple<int,int,QString> > v = {
-			{750,8,"Medium"},
-			{1500,16,"Medium"},
-			{3000,32,"Large"}
+			{500,8,"Medium"},
+			{1000,16,"Medium"},
+			{2000,32,"Large"}
 		};
 		for (const auto &p : v) {
 			PenSizeAction *action = new PenSizeAction(std::get<0>(p), std::get<1>(p), std::get<2>(p), this);
