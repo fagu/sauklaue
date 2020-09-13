@@ -65,8 +65,9 @@ private:
 private slots:
 	void newFile();
 	void open();
-private:
+public:
 	void loadFile(const QString &fileName);
+private:
 	void setCurrentFile(const QString& fileName);
 	QString strippedName(const QString& fullFileName);
 	void setDocument(std::unique_ptr<Document> _doc);
