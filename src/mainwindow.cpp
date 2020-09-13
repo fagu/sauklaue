@@ -544,8 +544,8 @@ QString MainWindow::strippedName(const QString& fullFileName)
 
 std::unique_ptr<SPage> new_default_page() {
 	// A4 paper
-	int width = pow(2, -0.25 - 2) * METER_TO_UNIT;
-	int height = pow(2, 0.25 - 2) * METER_TO_UNIT;
+	int width = 0.210 * METER_TO_UNIT;
+	int height = 0.297 * METER_TO_UNIT;
 	auto page = std::make_unique<SPage>(width, height);
 	page->add_layer(0);
 	return page;

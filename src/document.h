@@ -50,6 +50,7 @@ public:
 	static const Color BLACK;
 };
 
+// TODO It might be better to choose a different unit so that both pt and mm are an integral number of units.
 const double POINT_TO_UNIT = 1000;
 const double UNIT_TO_POINT = 1/POINT_TO_UNIT;
 const double INCH_TO_UNIT = 72*POINT_TO_UNIT;
