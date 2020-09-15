@@ -1,4 +1,14 @@
-1. Consider compressing the default Cap'n Proto binary format instead of using the Cap'n proto packed format.
+1. Approximate handwriting by smooth curves
+
+ - This could decrease the file size and perhaps rendering speed.
+
+ - Currently, each pen move event produces one point on the stroke. Probably, the frequency with which these events are generated somehow depends on the tablet / platform / ... (?)
+
+ - There should be a setting controlling the maximum allowed deviation of the smooth curve from the actual handwriting. In particular, it should be possible to turn off the smoothness. (?)
+
+ - Potential problem: How to do this while drawing? Can we avoid having to redraw the entire curve after each pen move event?
+
+2. Consider compressing the default Cap'n Proto binary format instead of using the Cap'n proto packed format.
 For example, for a file containing only handwriting (no embedded PDF), I got the following results:
 
 # Original packed format
@@ -40,3 +50,45 @@ time tail -c +41 a.sau | capnp convert packed:binary src/file4.capnp File | xz |
 
 # For comparison: size of the exported pdf file a.pdf
 => 1810621 bytes
+
+3. Export embedded pdf pages to pdf.
+
+4. Color schemes
+
+Idea: There is a (light) paper mode and a (dark) blackboard mode. Each "color" on the palette has an associated RGB value for paper and blackboard. For example, black on paper = white on blackboard. At any point, one can simply switch between the modes.
+
+For example, lecture in blackboard mode, export in paper mode.
+
+5. Interface for selecting, adding, removing, editing layers
+
+For example, there is currently no way to change the background color.
+
+6. Think about composition of layers
+
+ - Should there be only a linear sequence of layers on each page or should more complicated compositions be allowed?
+ - Should it be possible to use the same layer object on several pages, or in several places on the same page?
+
+7. Table of contents
+
+ - Import from PDF
+ - Export to PDF
+
+8. Side-by-side presentation mode
+
+Show the correct two pages in a beamer presentation with \pause. (As a hack, maybe use the table of contents to transmit information.)
+
+9. Configurable layout
+
+We might not always want two columns, one row.
+
+10. Configurable page size
+
+11. Procedural layers
+
+For example, grid background.
+
+12. Scripting :D
+
+13. Allow editing / removing old strokes
+
+14. Object types other than strokes

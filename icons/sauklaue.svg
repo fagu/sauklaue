@@ -5,6 +5,7 @@
    xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
    xmlns:svg="http://www.w3.org/2000/svg"
    xmlns="http://www.w3.org/2000/svg"
+   xmlns:xlink="http://www.w3.org/1999/xlink"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    width="128.0px"
@@ -14,8 +15,31 @@
    id="SVGRoot"
    sodipodi:docname="sauklaue.svg"
    inkscape:version="1.0.1 (3bc2e813f5, 2020-09-07)">
+  <style></style>
   <defs
-     id="defs18" />
+     id="defs18">
+    <linearGradient
+       inkscape:collect="always"
+       id="linearGradient2795">
+      <stop
+         style="stop-color:#005500;stop-opacity:1;"
+         offset="0"
+         id="stop2791" />
+      <stop
+         style="stop-color:#6cff6c;stop-opacity:1"
+         offset="1"
+         id="stop2793" />
+    </linearGradient>
+    <linearGradient
+       inkscape:collect="always"
+       xlink:href="#linearGradient2795"
+       id="linearGradient2797"
+       x1="70"
+       y1="75"
+       x2="25"
+       y2="-75"
+       gradientUnits="userSpaceOnUse" />
+  </defs>
   <sodipodi:namedview
      id="base"
      pagecolor="#ffffff"
@@ -23,9 +47,9 @@
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="5.6"
-     inkscape:cx="85.785019"
-     inkscape:cy="14.7288"
+     inkscape:zoom="7.9195959"
+     inkscape:cx="9.0651846"
+     inkscape:cy="2.7438461"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
      inkscape:document-rotation="0"
@@ -47,7 +71,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title></dc:title>
+        <dc:title />
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -56,18 +80,25 @@
      inkscape:groupmode="layer"
      id="layer1">
     <rect
-       style="fill:#005500;fill-rule:evenodd;stroke-width:0.953462"
+       style="fill:#4d4d4d;fill-opacity:1;fill-rule:evenodd;stroke-width:0.953462"
+       id="rect52-5"
+       width="110"
+       height="100"
+       x="11"
+       y="16" />
+    <rect
+       style="display:inline;fill:url(#linearGradient2797);fill-opacity:1;fill-rule:evenodd;stroke-width:0.953462"
        id="rect52"
        width="110"
        height="100"
        x="10"
        y="15" />
     <path
-       style="fill:none;stroke:#ffdd55;stroke-width:6;stroke-linecap:round;stroke-linejoin:miter;stroke-opacity:1;stroke-miterlimit:4;stroke-dasharray:none"
+       style="fill:none;stroke:#ffffff;stroke-width:6;stroke-linecap:round;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
        d="m 21,34 c 7,-4 8,-5 12,2 4,7 7,6 11,1 4,-5 8,-9 12,-3 4,6 10,7 13,0 3,-7 -2,-12 8,-6 10,6 3,18 11,15 8,-3 6,-21 13,-12 7,9 2,12 9,12"
        id="path56" />
     <path
-       style="fill:none;stroke:#ffdd55;stroke-width:6;stroke-linecap:round;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       style="fill:none;stroke:#ffffff;stroke-width:6;stroke-linecap:round;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
        d="m 20,74 c 10,-7 7,1 15.017857,9.964286 C 43.371141,93.303592 48,83 51.285714,79.571429 c 5.049739,-5.269293 14.267857,-18.125 20.267857,-5.125 C 77.553571,87.446429 73,94 77,90"
        id="path881"
        sodipodi:nodetypes="csssc" />
