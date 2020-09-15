@@ -139,7 +139,15 @@ void MainWindow::loadFile(const QString& fileName)
 #ifndef QT_NO_CURSOR
 	QGuiApplication::setOverrideCursor(Qt::WaitCursor);
 #endif
-	setDocument(Serializer::load(in));
+	try {
+		setDocument(Serializer::load(in));
+	} catch(const SauklaueReadException & e) {
+#ifndef QT_NO_CURSOR
+	QGuiApplication::restoreOverrideCursor();
+#endif
+		QMessageBox::warning(this, tr("Application"), tr("Cannot read file %1:\n%2").arg(QDir::toNativeSeparators(fileName), e.reason()));
+		return;
+	}
 #ifndef QT_NO_CURSOR
 	QGuiApplication::restoreOverrideCursor();
 #endif

@@ -16,7 +16,12 @@ std::unique_ptr<Document> read_document(QString infile) {
 		exit(1);
 	}
 	QDataStream in(&file);
-	return Serializer::load(in);
+	try {
+		return Serializer::load(in);
+	} catch(const SauklaueReadException & e) {
+		std::cerr << "Error: Cannot read file " << infile.toStdString() << ": " << e.reason().toStdString() << std::endl;
+		exit(1);
+	}
 }
 
 int gui_command(int argc, char **argv) {

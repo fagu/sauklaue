@@ -3,6 +3,16 @@
 
 #include "document.h"
 
+class SauklaueReadException : public std::exception {
+public:
+	SauklaueReadException(QString reason) : m_reason(reason) {}
+	QString reason() const {
+		return m_reason;
+	}
+private:
+	QString m_reason;
+};
+
 class Serializer
 {
 public:
