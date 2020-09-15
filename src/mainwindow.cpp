@@ -186,10 +186,19 @@ void MainWindow::newFile()
 void MainWindow::open()
 {
 	if (maybeSave()) {
-		QString fileName = QFileDialog::getOpenFileName(this);
-		if (!fileName.isEmpty()) {
-			loadFile(fileName);
-			undoStack->clear();
+		QStringList mimeTypeFilters({"application/x-sauklaue", "application/octet-stream"});
+		QFileDialog dialog(this, tr("Open File"));
+		dialog.setMimeTypeFilters(mimeTypeFilters);
+		dialog.setFileMode(QFileDialog::ExistingFile);
+		if (dialog.exec()) {
+			QStringList fileNames = dialog.selectedFiles();
+			if (fileNames.size() == 1) {
+				QString fileName = fileNames[0];
+				if (!fileName.isEmpty()) {
+					loadFile(fileName);
+					undoStack->clear();
+				}
+			}
 		}
 	}
 }
@@ -655,34 +664,43 @@ void MainWindow::gotoPageBox(int index)
 
 void MainWindow::insertPDF()
 {
-	QString fileName = QFileDialog::getOpenFileName(this, tr("Insert PDF"));
-	if (!fileName.isEmpty()) {
-		QFileInfo info(fileName);
-		QFile file(fileName);
-		if (!file.open(QIODevice::ReadOnly))
-			return;
-		QByteArray contents = file.readAll();
-		std::unique_ptr<EmbeddedPDF> pdf = std::make_unique<EmbeddedPDF>(info.fileName(), contents);
-		EmbeddedPDF* p_pdf = pdf.get();
-		QUndoCommand *cmd = new QUndoCommand(tr("Insert PDF"));
-		new AddEmbeddedPDFCommand(doc.get(), std::move(pdf), cmd);
-		if (p_pdf->pages().empty()) {
-			qDebug() << "Zero pages => skipping";
-			return;
+	QStringList mimeTypeFilters({"application/pdf", "application/octet-stream"});
+	QFileDialog dialog(this, tr("Import PDF file"));
+	dialog.setMimeTypeFilters(mimeTypeFilters);
+	dialog.setFileMode(QFileDialog::ExistingFile);
+	if (dialog.exec()) {
+		QStringList fileNames = dialog.selectedFiles();
+		if (fileNames.size() == 1) {
+			QString fileName = fileNames[0];
+			if (!fileName.isEmpty()) {
+				QFileInfo info(fileName);
+				QFile file(fileName);
+				if (!file.open(QIODevice::ReadOnly))
+					return;
+				QByteArray contents = file.readAll();
+				std::unique_ptr<EmbeddedPDF> pdf = std::make_unique<EmbeddedPDF>(info.fileName(), contents);
+				EmbeddedPDF* p_pdf = pdf.get();
+				QUndoCommand *cmd = new QUndoCommand(tr("Insert PDF"));
+				new AddEmbeddedPDFCommand(doc.get(), std::move(pdf), cmd);
+				if (p_pdf->pages().empty()) {
+					qDebug() << "Zero pages => skipping";
+					return;
+				}
+				qDebug() << "Number of pages:" << p_pdf->document()->numPages();
+				std::vector<std::unique_ptr<SPage> > pages;
+				for (int page_number = 0; page_number < (int)p_pdf->pages().size(); page_number++) {
+					Poppler::Page* p_page = p_pdf->pages()[page_number];
+					int width = POINT_TO_UNIT*p_page->pageSizeF().width(), height = POINT_TO_UNIT*p_page->pageSizeF().height();
+					auto page = std::make_unique<SPage>(width, height);
+					std::unique_ptr<PDFLayer> pdf_layer = std::make_unique<PDFLayer>(p_pdf, page_number);
+					page->add_layer(0, std::move(pdf_layer));
+					page->add_layer(1); // NormalLayer
+					pages.push_back(std::move(page));
+				}
+				new AddPagesCommand(doc.get(), current_page()+1, std::move(pages), cmd);
+				undoStack->push(cmd);
+			}
 		}
-		qDebug() << "Number of pages:" << p_pdf->document()->numPages();
-		std::vector<std::unique_ptr<SPage> > pages;
-		for (int page_number = 0; page_number < (int)p_pdf->pages().size(); page_number++) {
-			Poppler::Page* p_page = p_pdf->pages()[page_number];
-			int width = POINT_TO_UNIT*p_page->pageSizeF().width(), height = POINT_TO_UNIT*p_page->pageSizeF().height();
-			auto page = std::make_unique<SPage>(width, height);
-			std::unique_ptr<PDFLayer> pdf_layer = std::make_unique<PDFLayer>(p_pdf, page_number);
-			page->add_layer(0, std::move(pdf_layer));
-			page->add_layer(1); // NormalLayer
-			pages.push_back(std::move(page));
-		}
-		new AddPagesCommand(doc.get(), current_page()+1, std::move(pages), cmd);
-		undoStack->push(cmd);
 	}
 }
 
