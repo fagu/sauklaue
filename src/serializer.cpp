@@ -142,8 +142,11 @@ std::unique_ptr<Document> Serializer::load(QDataStream& stream)
 	auto doc = std::make_unique<Document>();
 	if (file_format_version >= 4) {
 		kj::ArrayInputStream in(kj::arrayPtr((unsigned char*)data.c_str(), len));
-		// TODO Set the traversalLimitInWords to something other than 64MB. (Maybe just set it to a constant times the file size?)
-		capnp::PackedMessageReader message(in);
+		capnp::ReaderOptions opt;
+		// Set the traversalLimitInWords to 512MiB. This means that we in particular can't read any files larger than 512MiB.
+		// TODO Figure out a better traversalLimitInWords.
+		opt.traversalLimitInWords = 64 * 1024 * 1024;
+		capnp::PackedMessageReader message(in, opt);
 		auto s_file = message.getRoot<file4::File>();
 		std::vector<EmbeddedPDF*> pdfs;
 		try {
@@ -167,17 +170,22 @@ std::unique_ptr<Document> Serializer::load(QDataStream& stream)
 					layer->reserve_strokes(s_strokes.size());
 					for (auto s_stroke : s_strokes) {
 						unique_ptr_Stroke stroke;
-						if (s_stroke.hasPen()) {
+						switch(s_stroke.which()) {
+						case file4::Stroke::PEN: {
 							auto s_special_stroke = s_stroke.getPen();
 							auto special_stroke = std::make_unique<PenStroke>(s_special_stroke.getWidth(), s_special_stroke.getColor());
 							load_path_4(s_special_stroke.getPath(), special_stroke.get());
 							stroke = std::move(special_stroke);
-						} else if (s_stroke.hasEraser()) {
+							break;
+						}
+						case file4::Stroke::ERASER: {
 							auto s_special_stroke = s_stroke.getEraser();
 							auto special_stroke = std::make_unique<EraserStroke>(s_special_stroke.getWidth());
 							load_path_4(s_special_stroke.getPath(), special_stroke.get());
 							stroke = std::move(special_stroke);
-						} else {
+							break;
+						}
+						default:
 							throw SauklaueReadException("Invalid Sauklaue file: Unknown stroke type.");
 						}
 						layer->add_stroke(std::move(stroke));

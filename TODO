@@ -1,3 +1,42 @@
-- Handle errors
+1. Consider compressing the default Cap'n Proto binary format instead of using the Cap'n proto packed format.
+For example, for a file containing only handwriting (no embedded PDF), I got the following results:
 
-- Remember current stroke to be able to redraw it when necessary. Or draw the current stroke on a separate layer.
+# Original packed format
+time tail -c +41 a.sau | wc -c
+=> 2446615 bytes
+
+# Unpacked binary format
+time tail -c +41 a.sau | capnp convert packed:binary src/file4.capnp File | gzip | wc -c
+=> 2969920 bytes
+
+# Compress the packed file with gzip
+time tail -c +41 a.sau | gzip | wc -c
+=> 1574861 bytes
+
+# Compress the unpacked binary file with gzip
+time tail -c +41 a.sau | capnp convert packed:binary src/file4.capnp File | gzip | wc -c
+=> 1565029 bytes
+(Compression takes about 0.2 s. Decompression takes about 0.04 s.)
+
+# Compress the unpacked binary file with lz4
+time tail -c +41 a.sau | capnp convert packed:binary src/file4.capnp File | lz4 | wc -c
+=> 2277312 bytes
+(Compression takes about 0.01 s. Decompression takes about 0.01 s.)
+
+# Compress the unpacked binary file with zlib
+time tail -c +41 a.sau | capnp convert packed:binary src/file4.capnp File | zlib-flate -compress | wc -c
+=> 1565363 bytes
+(Compression takes about 0.21 s. Decompression takes about 0.04 s.)
+
+# Compress the unpacked binary file with zstd (with default compression level 3)
+time tail -c +41 a.sau | capnp convert packed:binary src/file4.capnp File | zstd | wc -c
+=> 1681520 bytes
+(Compression takes about 0.05 s. Decompression takes about 0.01 s.)
+
+# Compress the unpacked binary file with xz
+time tail -c +41 a.sau | capnp convert packed:binary src/file4.capnp File | xz | wc -c
+=> 1113384 bytes
+(Compression takes about 1.31 s. Decompression takes about 0.16 s.)
+
+# For comparison: size of the exported pdf file a.pdf
+=> 1810621 bytes
