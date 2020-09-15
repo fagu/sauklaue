@@ -146,11 +146,15 @@ std::unique_ptr<Document> Serializer::load(QDataStream& stream)
 		capnp::PackedMessageReader message(in);
 		auto s_file = message.getRoot<file4::File>();
 		std::vector<EmbeddedPDF*> pdfs;
-		for (auto s_pdf : s_file.getEmbeddedPDFs()) {
-			auto s_contents = s_pdf.getContents();
-			auto pdf = std::make_unique<EmbeddedPDF>(QString::fromStdString(s_pdf.getName()), QByteArray((const char*)s_contents.begin(), s_contents.size()));
-			pdfs.push_back(pdf.get());
-			doc->add_embedded_pdf(std::move(pdf));
+		try {
+			for (auto s_pdf : s_file.getEmbeddedPDFs()) {
+				auto s_contents = s_pdf.getContents();
+				auto pdf = std::make_unique<EmbeddedPDF>(QString::fromStdString(s_pdf.getName()), QByteArray((const char*)s_contents.begin(), s_contents.size()));
+				pdfs.push_back(pdf.get());
+				doc->add_embedded_pdf(std::move(pdf));
+			}
+		} catch (const PDFReadException &e) {
+			throw SauklaueReadException("Invalid embedded pdf file: " + e.reason());
 		}
 		for (auto s_page : s_file.getPages()) {
 			auto page = std::make_unique<SPage>(s_page.getWidth(), s_page.getHeight());

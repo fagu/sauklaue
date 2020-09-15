@@ -17,7 +17,7 @@ class Serializer
 {
 public:
 	static void save(Document* doc, QDataStream &stream);
-	static std::unique_ptr<Document> load(QDataStream &stream);
+	static std::unique_ptr<Document> load(QDataStream &stream); // May throw SauklaueReadException
 };
 
 #endif // SERIALIZER_H

@@ -678,27 +678,32 @@ void MainWindow::insertPDF()
 				if (!file.open(QIODevice::ReadOnly))
 					return;
 				QByteArray contents = file.readAll();
-				std::unique_ptr<EmbeddedPDF> pdf = std::make_unique<EmbeddedPDF>(info.fileName(), contents);
-				EmbeddedPDF* p_pdf = pdf.get();
-				QUndoCommand *cmd = new QUndoCommand(tr("Insert PDF"));
-				new AddEmbeddedPDFCommand(doc.get(), std::move(pdf), cmd);
-				if (p_pdf->pages().empty()) {
-					qDebug() << "Zero pages => skipping";
+				try {
+					std::unique_ptr<EmbeddedPDF> pdf = std::make_unique<EmbeddedPDF>(info.fileName(), contents);
+					EmbeddedPDF* p_pdf = pdf.get();
+					QUndoCommand *cmd = new QUndoCommand(tr("Insert PDF"));
+					new AddEmbeddedPDFCommand(doc.get(), std::move(pdf), cmd);
+					if (p_pdf->pages().empty()) {
+						qDebug() << "Zero pages => skipping";
+						return;
+					}
+					qDebug() << "Number of pages:" << p_pdf->document()->numPages();
+					std::vector<std::unique_ptr<SPage> > pages;
+					for (int page_number = 0; page_number < (int)p_pdf->pages().size(); page_number++) {
+						Poppler::Page* p_page = p_pdf->pages()[page_number];
+						int width = POINT_TO_UNIT*p_page->pageSizeF().width(), height = POINT_TO_UNIT*p_page->pageSizeF().height();
+						auto page = std::make_unique<SPage>(width, height);
+						std::unique_ptr<PDFLayer> pdf_layer = std::make_unique<PDFLayer>(p_pdf, page_number);
+						page->add_layer(0, std::move(pdf_layer));
+						page->add_layer(1); // NormalLayer
+						pages.push_back(std::move(page));
+					}
+					new AddPagesCommand(doc.get(), current_page()+1, std::move(pages), cmd);
+					undoStack->push(cmd);
+				} catch(const PDFReadException &e) {
+					QMessageBox::warning(this, tr("Application"), tr("Cannot read pdf file %1:\n%2").arg(QDir::toNativeSeparators(fileName), e.reason()));
 					return;
 				}
-				qDebug() << "Number of pages:" << p_pdf->document()->numPages();
-				std::vector<std::unique_ptr<SPage> > pages;
-				for (int page_number = 0; page_number < (int)p_pdf->pages().size(); page_number++) {
-					Poppler::Page* p_page = p_pdf->pages()[page_number];
-					int width = POINT_TO_UNIT*p_page->pageSizeF().width(), height = POINT_TO_UNIT*p_page->pageSizeF().height();
-					auto page = std::make_unique<SPage>(width, height);
-					std::unique_ptr<PDFLayer> pdf_layer = std::make_unique<PDFLayer>(p_pdf, page_number);
-					page->add_layer(0, std::move(pdf_layer));
-					page->add_layer(1); // NormalLayer
-					pages.push_back(std::move(page));
-				}
-				new AddPagesCommand(doc.get(), current_page()+1, std::move(pages), cmd);
-				undoStack->push(cmd);
 			}
 		}
 	}

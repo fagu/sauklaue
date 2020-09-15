@@ -191,9 +191,19 @@ private:
 	std::list<FadingStroke> m_strokes;
 };
 
+class PDFReadException : public std::exception {
+public:
+	PDFReadException(QString reason) : m_reason(reason) {}
+	QString reason() const {
+		return m_reason;
+	}
+private:
+	QString m_reason;
+};
+
 class EmbeddedPDF {
 public:
-	EmbeddedPDF(const QString &name, const QByteArray &contents);
+	EmbeddedPDF(const QString &name, const QByteArray &contents); // May throw PDFReadException
 	QString name() const {
 		return m_name;
 	}

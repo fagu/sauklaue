@@ -60,10 +60,14 @@ NormalLayer::NormalLayer(const NormalLayer& a)
 EmbeddedPDF::EmbeddedPDF(const QString& name, const QByteArray& contents) :
 	m_name(name), m_contents(contents), m_document(Poppler::Document::loadFromData(contents))
 {
-	assert(m_document && !m_document->isLocked()); // TODO
+	if (!m_document)
+		throw PDFReadException("Invalid pdf file.");
+	if (m_document->isLocked())
+		throw PDFReadException("Pdf file is locked.");
 	for (int page_number = 0; page_number < m_document->numPages(); page_number++) {
 		m_pages.emplace_back(m_document->page(page_number));
-		assert(m_pages[page_number]); // TODO
+		if (!m_pages[page_number])
+			throw PDFReadException("Invalid page " + QString::number(page_number+1));
 	}
 }
 
