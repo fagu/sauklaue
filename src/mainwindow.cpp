@@ -433,7 +433,7 @@ void MainWindow::createActions()
 	{
 		QActionGroup* group = new QActionGroup(this);
 		std::vector<std::tuple<int,int,QString> > v = {
-			{500,8,"Medium"},
+			{500,8,"Small"},
 			{1000,16,"Medium"},
 			{2000,32,"Large"}
 		};
