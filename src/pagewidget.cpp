@@ -44,9 +44,10 @@ void StrokeCreator::add_point(Point p)
 }
 
 
-PageWidget::PageWidget(MainWindow* view) :
+PageWidget::PageWidget(MainWindow* view, int view_index) :
 	QWidget(nullptr),
-	m_view(view)
+	m_view(view),
+	m_view_index(view_index)
 {
 	setMinimumSize(20,20);
 	connect(view, &MainWindow::blackboardModeToggled, this, qOverload<>(&QWidget::update));
@@ -219,7 +220,7 @@ void PageWidget::mouseReleaseEvent(QMouseEvent* )
 void PageWidget::mouseDoubleClickEvent(QMouseEvent* event)
 {
 	if (page_index != -1 && event->button() == Qt::LeftButton)
-		m_view->gotoPage(page_index);
+		m_view->focusView(m_view_index);
 }
 
 void PageWidget::tabletEvent(QTabletEvent* event)

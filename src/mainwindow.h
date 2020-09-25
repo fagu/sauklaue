@@ -55,10 +55,9 @@ private slots:
 public:
 	std::unique_ptr<Document> doc;
 private:
-	int first_displayed_page = 0; // The first displayed page (0 if the document is empty).
-	int focused_view = -1; // Index of the focused PageWidget.
-	int current_page() {return focused_view == -1 ? -1 : first_displayed_page + focused_view;}
-	std::vector<PageWidget*> pagewidgets; // owned and deleted by the QMainWindow
+	int focused_view = -1; // Index of the focused PageWidget. Should be -1 if and only if the document has no pages.
+	std::array<int,2> page_numbers; // Should be -1 if and only if the document has no pages.
+	std::array<PageWidget*,2> pagewidgets; // owned and deleted by the QMainWindow
 	QString curFile;
 	
 	/* Opening documents */
@@ -87,7 +86,9 @@ private slots:
 private:
 	QAction *deletePageAction;
 	QAction *previousPageAction;
+	std::array<QAction*,2> previousPageInViewAction;
 	QAction *nextPageAction;
+	std::array<QAction*,2> nextPageInViewAction;
 	QAction *firstPageAction;
 	QAction *lastPageAction;
 	QAction *gotoPageAction;
@@ -97,17 +98,28 @@ private:
 	void updatePageNavigation();
 public:
 	void gotoPage(int index);
+	void showPages(std::array<int,2> new_page_numbers, int new_focused_view);
 private slots:
 	void newPageBefore();
 	void newPageAfter();
 	void deletePage();
 	void previousPage();
+	void previousPageInView(int view);
 	void nextPage();
+	void nextPageInView(int view);
 	void firstPage();
 	void lastPage();
 	void actionGotoPage();
 	void gotoPageBox(int index); // 1-based index!
 	void insertPDF();
+	
+	/* Views */
+private:
+	QAction *previousViewAction;
+	QAction *nextViewAction;
+private slots:
+	void previousView();
+	void nextView();
 	
 #ifndef QT_NO_SESSIONMANAGER
 	void commitData(QSessionManager &);
@@ -140,6 +152,13 @@ public:
 	bool blackboardMode() {
 		return m_blackboard;
 	}
+private:
+	bool m_views_linked = true; // Whether the page widgets should always display consecutive pages.
+private slots:
+	void setLinkedPages(bool on);
+	
+public:
+	void focusView(int view_index);
 	
 private:
 	void createActions();

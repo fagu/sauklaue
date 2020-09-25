@@ -72,6 +72,30 @@ void PenSizeAction::triggered(bool on)
 		m_view->setPenSize(m_size);
 }
 
+// Some helper functions for assigning pages to views.
+
+// Tries to assign consecutive pages, where the given view should get the given page.
+std::array<int,2> assign_pages_linked_fixing_one_view(int number_of_pages, int view, int page) {
+	std::array<int,2> res;
+	if (number_of_pages == 0) {
+		for (int i = 0; i < 2; i++)
+			res[i] = -1;
+	} else {
+		assert(0 <= view && view < 2);
+		assert(0 <= page && page < number_of_pages);
+		int first_page = page-view;
+		// The first view should be nonempty.
+		if (first_page < 0)
+			first_page = 0;
+		// The last view should be nonempty unless there are fewer pages than views.
+		if (number_of_pages >= 2 && first_page + 2 > number_of_pages)
+			first_page = number_of_pages - 2;
+		for (int i = 0; i < 2; i++)
+			res[i] = first_page + i < number_of_pages ? first_page + i : -1;
+	}
+	return res;
+}
+
 
 
 MainWindow::MainWindow(QWidget *parent) :
@@ -82,8 +106,10 @@ MainWindow::MainWindow(QWidget *parent) :
 	tablet = std::make_unique<Tablet>();
 	QWidget *mainArea = new QWidget();
 	QHBoxLayout *layout = new QHBoxLayout();
-	pagewidgets.emplace_back(new PageWidget(this));
-	pagewidgets.emplace_back(new PageWidget(this));
+	for (int i = 0; i < 2; i++) {
+		page_numbers[i] = -1;
+		pagewidgets[i] = new PageWidget(this, i);
+	}
 	for (PageWidget *p : pagewidgets)
 		layout->addWidget(p);
 	mainArea->setLayout(layout);
@@ -334,6 +360,7 @@ void MainWindow::createActions()
 		pagesMenu->addAction(action);
 		deletePageAction = action;
 	}
+	pagesMenu->addSeparator();
 	{
 		const QIcon icon = QIcon::fromTheme("go-up");
 		QAction *action = new QAction(icon, tr("&Previous Page"));
@@ -341,9 +368,16 @@ void MainWindow::createActions()
 		action->setShortcuts(QKeySequence::MoveToPreviousPage);
 		connect(action, &QAction::triggered, this, &MainWindow::previousPage);
 		pagesMenu->addAction(action);
-		for (size_t i = 0; i < 2; i++)
-			toolbar[i]->addAction(action);
 		previousPageAction = action;
+	}
+	// If the pages are unlinked, we should enable the "previous page" action on all views independently. (Depending on whether that particular view is showing the first page or not.) This is why we create a separate global action (in the menu) that applies to the currently focused view, and one action for each view.
+	for (int i = 0; i < 2; i++) {
+		const QIcon icon = QIcon::fromTheme("go-up");
+		QAction *action = new QAction(icon, tr("&Previous Page"));
+		action->setStatusTip(tr("Move to the previous page"));
+		connect(action, &QAction::triggered, this, [this,i]() {previousPageInView(i);});
+		toolbar[i]->addAction(action);
+		previousPageInViewAction[i] = action;
 	}
 	{
 		for (size_t i = 0; i < 2; i++) {
@@ -365,9 +399,16 @@ void MainWindow::createActions()
 		action->setShortcuts(QKeySequence::MoveToNextPage);
 		connect(action, &QAction::triggered, this, &MainWindow::nextPage);
 		pagesMenu->addAction(action);
-		for (size_t i = 0; i < 2; i++)
-			toolbar[i]->addAction(action);
 		nextPageAction = action;
+	}
+	// If the pages are unlinked, we should enable the "next page" action on all views independently. (Depending on whether that particular view is showing the last page or not.) This is why we create a separate global action (in the menu) that applies to the currently focused view, and one action for each view.
+	for (int i = 0; i < 2; i++) {
+		const QIcon icon = QIcon::fromTheme("go-down");
+		QAction *action = new QAction(icon, tr("&Next Page"));
+		action->setStatusTip(tr("Move to the next page"));
+		connect(action, &QAction::triggered, this, [this,i]() {nextPageInView(i);});
+		toolbar[i]->addAction(action);
+		nextPageInViewAction[i] = action;
 	}
 	{
 		const QIcon icon = QIcon::fromTheme("go-first");
@@ -402,6 +443,25 @@ void MainWindow::createActions()
 		action->setStatusTip(tr("Insert a PDF file after the current page"));
 		connect(action, &QAction::triggered, this, &MainWindow::insertPDF);
 		pagesMenu->addAction(action);
+	}
+	QMenu *viewsMenu = menuBar()->addMenu(tr("&Views"));
+	{
+		const QIcon icon = QIcon::fromTheme("go-previous");
+		QAction *action = new QAction(icon, tr("&Previous View"));
+		action->setStatusTip(tr("Focus the previous view"));
+		action->setShortcut(QKeySequence(Qt::Key_Left));
+		connect(action, &QAction::triggered, this, &MainWindow::previousView);
+		viewsMenu->addAction(action);
+		previousViewAction = action;
+	}
+	{
+		const QIcon icon = QIcon::fromTheme("go-next");
+		QAction *action = new QAction(icon, tr("&Next View"));
+		action->setStatusTip(tr("Focus the next view"));
+		action->setShortcut(QKeySequence(Qt::Key_Right));
+		connect(action, &QAction::triggered, this, &MainWindow::nextView);
+		viewsMenu->addAction(action);
+		nextViewAction = action;
 	}
 	for (size_t i = 0; i < 2; i++)
 		toolbar[i]->addSeparator();
@@ -464,6 +524,15 @@ void MainWindow::createActions()
 		action->setCheckable(true);
 		action->setStatusTip(tr("Blackboard mode"));
 		connect(action, &QAction::triggered, this, &MainWindow::setBlackboardMode);
+		for (size_t i = 0; i < 2; i++)
+			toolbar[i]->addAction(action);
+	}
+	{
+		const QIcon icon = QIcon::fromTheme("handle-move");
+		QAction *action = new QAction(icon, tr("Unlink views"), this);
+		action->setCheckable(true);
+		action->setStatusTip(tr("Allow independently changing pages on different views"));
+		connect(action, &QAction::triggered, this, &MainWindow::setLinkedPages);
 		for (size_t i = 0; i < 2; i++)
 			toolbar[i]->addAction(action);
 	}
@@ -570,29 +639,55 @@ std::unique_ptr<SPage> new_default_page() {
 
 void MainWindow::newPageBefore()
 {
-	undoStack->push(new AddPagesCommand(doc.get(), current_page(), move_into_vector(new_default_page())));
+	undoStack->push(new AddPagesCommand(doc.get(), focused_view != -1 ? page_numbers[focused_view] : 0, move_into_vector(new_default_page())));
 }
 
 void MainWindow::newPageAfter()
 {
-	undoStack->push(new AddPagesCommand(doc.get(), current_page()+1, move_into_vector(new_default_page())));
+	undoStack->push(new AddPagesCommand(doc.get(), focused_view != -1 ? page_numbers[focused_view]+1 : 0, move_into_vector(new_default_page())));
 }
 
 void MainWindow::deletePage()
 {
-	if (current_page() == -1)
+	if (focused_view == -1)
 		return;
-	undoStack->push(new DeletePagesCommand(doc.get(), current_page(), 1));
+	undoStack->push(new DeletePagesCommand(doc.get(), page_numbers[focused_view], 1));
 }
 
 void MainWindow::nextPage()
 {
-	gotoPage(current_page()+1);
+	assert(focused_view != -1);
+	gotoPage(page_numbers[focused_view]+1);
+}
+
+void MainWindow::nextPageInView(int view)
+{
+	if (m_views_linked)
+		nextPage();
+	else {
+		// Try to keep everything as is, but change the given view.
+		std::array<int,2> res = page_numbers;
+		res[view]++;
+		showPages(res, focused_view);
+	}
 }
 
 void MainWindow::previousPage()
 {
-	gotoPage(current_page()-1);
+	assert(focused_view != -1);
+	gotoPage(page_numbers[focused_view]-1);
+}
+
+void MainWindow::previousPageInView(int view)
+{
+	if (m_views_linked)
+		previousPage();
+	else {
+		// Try to keep everything as is, but change the given view.
+		std::array<int,2> res = page_numbers;
+		res[view]--;
+		showPages(res, focused_view);
+	}
 }
 
 void MainWindow::firstPage()
@@ -607,52 +702,69 @@ void MainWindow::lastPage()
 
 void MainWindow::actionGotoPage()
 {
+	assert(focused_view != -1);
 	bool ok;
-	int page = QInputDialog::getInt(this, tr("Go to Page"), tr("Page:"), current_page()+1, 1, doc->pages().size(), 1, &ok);
+	int page = QInputDialog::getInt(this, tr("Go to Page"), tr("Page:"), page_numbers[focused_view]+1, 1, doc->pages().size(), 1, &ok);
 	if (ok)
 		gotoPage(page - 1);
 }
 
 void MainWindow::gotoPage(int index)
 {
-	int new_first_displayed_page = first_displayed_page;
-	int new_focused_view = focused_view;
-	if (doc->pages().size() == 0) {
-		new_first_displayed_page = 0;
-		new_focused_view = -1;
+	if (doc->pages().empty()) {
+		std::array<int,2> res;
+		for (int i = 0; i < 2; i++)
+			res[i] = -1;
+		showPages(res, -1);
 	} else {
-		if (index < 0) // Page out of bounds => set to something reasonable
+		int new_focused_view = focused_view;
+		if (focused_view == -1)
+			new_focused_view = 0;
+		if (index < 0)
 			index = 0;
-		else if (index >= (int)doc->pages().size()) // Page out of bounds => set to something reasonable
-			index = doc->pages().size() - 1;
-		if (index < first_displayed_page) {
-			new_first_displayed_page = index;
-		} else if (index >= first_displayed_page + (int)pagewidgets.size()) {
-			new_first_displayed_page = index - (int)pagewidgets.size() + 1;
+		if (index >= (int)doc->pages().size())
+			index = (int)doc->pages().size()-1;
+		if (m_views_linked) {
+			std::array<int,2> res = assign_pages_linked_fixing_one_view(doc->pages().size(), new_focused_view, index);
+			new_focused_view = index - res[0];
+			if (new_focused_view < 0 || new_focused_view >= 2)
+				new_focused_view = 0;
+			showPages(res, new_focused_view);
+		} else {
+			// Try to keep everything as is, but change the focused view.
+			std::array<int,2> res = page_numbers;
+			for (int i = 0; i < 2; i++) {
+				if (res[i] == -1)
+					res[i] = 0;
+				if (res[i] >= (int)doc->pages().size())
+					res[i] = (int)doc->pages().size()-1;
+			}
+			res[new_focused_view] = index;
+			showPages(res, new_focused_view);
 		}
-		if (new_first_displayed_page + (int)pagewidgets.size() > (int)doc->pages().size())
-			new_first_displayed_page = doc->pages().size() - (int)pagewidgets.size();
-		if (new_first_displayed_page < 0)
-			new_first_displayed_page = 0;
-		new_focused_view = index - new_first_displayed_page;
 	}
-	assert(new_first_displayed_page >= 0);
-	assert(new_focused_view == -1 || (0 <= new_focused_view && new_focused_view < (int)pagewidgets.size()));
+}
+
+void MainWindow::showPages(std::array<int, 2> new_page_numbers, int new_focused_view)
+{
 	if (new_focused_view != focused_view && focused_view != -1) {
 		pagewidgets[focused_view]->unfocusPage();
 	}
-	first_displayed_page = new_first_displayed_page;
 	for (int i = 0; i < (int)pagewidgets.size(); i++) {
-		int index = first_displayed_page + i;
-		if (index < (int)doc->pages().size())
-			pagewidgets[i]->setPage(doc->pages()[index], index);
-		else
+		page_numbers[i] = new_page_numbers[i];
+		if (page_numbers[i] != -1) {
+			assert(0 <= page_numbers[i] && page_numbers[i] < (int)doc->pages().size());
+			pagewidgets[i]->setPage(doc->pages()[page_numbers[i]], page_numbers[i]);
+		} else {
 			pagewidgets[i]->setPage(nullptr, -1);
+		}
 	}
 	if (new_focused_view != focused_view) {
 		focused_view = new_focused_view;
-		if (focused_view != -1)
+		if (focused_view != -1) {
+			assert(page_numbers[focused_view] != -1);
 			pagewidgets[focused_view]->focusPage();
+		}
 	}
 	updatePageNavigation();
 }
@@ -698,7 +810,7 @@ void MainWindow::insertPDF()
 						page->add_layer(1); // NormalLayer
 						pages.push_back(std::move(page));
 					}
-					new AddPagesCommand(doc.get(), current_page()+1, std::move(pages), cmd);
+					new AddPagesCommand(doc.get(), focused_view != -1 ? page_numbers[focused_view]+1 : 0, std::move(pages), cmd);
 					undoStack->push(cmd);
 				} catch(const PDFReadException &e) {
 					QMessageBox::warning(this, tr("Application"), tr("Cannot read pdf file %1:\n%2").arg(QDir::toNativeSeparators(fileName), e.reason()));
@@ -707,6 +819,32 @@ void MainWindow::insertPDF()
 			}
 		}
 	}
+}
+
+void MainWindow::previousView()
+{
+	int view = focused_view;
+	if (view == -1)
+		return;
+	do {
+		view++;
+		if (view == 2)
+			view = 0;
+	} while(page_numbers[view] == -1);
+	focusView(view);
+}
+
+void MainWindow::nextView()
+{
+	int view = focused_view;
+	if (view == -1)
+		return;
+	do {
+		view--;
+		if (view == -1)
+			view = 2 - 1;
+	} while(page_numbers[view] == -1);
+	focusView(view);
 }
 
 
@@ -738,14 +876,39 @@ void MainWindow::pages_deleted(int first_page, [[maybe_unused]] int number_of_pa
 
 void MainWindow::updatePageNavigation() {
 	deletePageAction->setEnabled(focused_view != -1);
-	nextPageAction->setEnabled(focused_view != -1 && current_page()+1 < (int)doc->pages().size());
-	previousPageAction->setEnabled(focused_view != -1 && current_page() > 0);
-	firstPageAction->setEnabled(doc->pages().size() > 0);
-	lastPageAction->setEnabled(doc->pages().size() > 0);
-	gotoPageAction->setEnabled(doc->pages().size() > 0);
+	bool can_next = false, can_prev = false;
+	if (focused_view != -1) {
+		if (m_views_linked) {
+			can_next = page_numbers[0]+2 < (int)doc->pages().size();
+			can_prev = page_numbers[0] > 0;
+		} else {
+			can_next = page_numbers[focused_view]+1 < (int)doc->pages().size();
+			can_prev = page_numbers[focused_view] > 0;
+		}
+	}
+	nextPageAction->setEnabled(can_next);
+	previousPageAction->setEnabled(can_prev);
+	for (int i = 0; i < 2; i++) {
+		if (m_views_linked) {
+			nextPageInViewAction[i]->setEnabled(can_next);
+			previousPageInViewAction[i]->setEnabled(can_prev);
+		} else {
+			nextPageInViewAction[i]->setEnabled(page_numbers[i]+1 < (int)doc->pages().size());
+			previousPageInViewAction[i]->setEnabled(page_numbers[i] > 0);
+		}
+	}
+	firstPageAction->setEnabled(doc->pages().size() > 1);
+	lastPageAction->setEnabled(doc->pages().size() > 1);
+	gotoPageAction->setEnabled(doc->pages().size() > 1);
+	int number_of_active_views = 0;
+	for (int i = 0; i < 2; i++)
+		if (page_numbers[i] != -1)
+			number_of_active_views++;
+	previousViewAction->setEnabled(number_of_active_views > 1);
+	nextViewAction->setEnabled(number_of_active_views > 1);
 	for (size_t i = 0; i < 2; i++) {
-		if (current_page() != -1)
-			currentPageLabel[i]->setText(QString::number(current_page()+1));
+		if (page_numbers[i] != -1)
+			currentPageLabel[i]->setText(QString::number(page_numbers[i]+1));
 		else
 			currentPageLabel[i]->setText("-");
 		pageCountLabel[i]->setText(QString::number(doc->pages().size()));
@@ -767,6 +930,40 @@ void MainWindow::setBlackboardMode(bool on)
 	if (m_blackboard != on) {
 		m_blackboard = on;
 		emit blackboardModeToggled(on);
+	}
+}
+
+void MainWindow::setLinkedPages(bool on)
+{
+	if (m_views_linked != !on) {
+		m_views_linked = !on;
+		if (m_views_linked) {
+			// Try to keep the focused view the same and change other views.
+			// This might be impossible if there are too few pages before or after the focused page.
+			showPages(assign_pages_linked_fixing_one_view(doc->pages().size(), focused_view, page_numbers[focused_view]), focused_view);
+		} else {
+			// Try to keep everything as is, but display the last page in all empty views, assuming the document is nonempty.
+			std::array<int,2> res = page_numbers;
+			for (size_t i = 0; i < 2; i++) {
+				if (res[i] == -1)
+					res[i] = (int)doc->pages().size()-1;
+			}
+			showPages(res, focused_view);
+		}
+	}
+}
+
+void MainWindow::focusView(int view_index)
+{
+	if (focused_view != view_index) {
+		if (focused_view != -1)
+			pagewidgets[focused_view]->unfocusPage();
+		focused_view = view_index;
+		if (focused_view != -1) {
+			assert(page_numbers[focused_view] != -1);
+			pagewidgets[focused_view]->focusPage();
+		}
+		updatePageNavigation();
 	}
 }
 

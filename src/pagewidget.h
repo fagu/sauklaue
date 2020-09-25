@@ -34,7 +34,7 @@ class PageWidget : public QWidget
 	Q_OBJECT
 
 public:
-	explicit PageWidget(MainWindow *view);
+	explicit PageWidget(MainWindow *view, int view_index);
 	
 	void setPage(SPage *page, int index);
 	
@@ -77,6 +77,7 @@ private:
 	bool has_focus = false;
 	int page_index;
 	MainWindow *m_view;
+	int m_view_index;
 	SPage *m_page = nullptr;
 	std::unique_ptr<PagePicture> m_page_picture;
 	std::optional<StrokeCreator> m_current_stroke;
