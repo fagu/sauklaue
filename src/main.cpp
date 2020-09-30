@@ -145,6 +145,8 @@ int save_command(int argc, char **argv) {
 
 int main(int argc, char **argv)
 {
+	QCoreApplication::setApplicationName("sauklaue");
+	QCoreApplication::setOrganizationName("sauklaue");
 	int res;
 	if (argc >= 2) {
 		// Remove argv[1].
