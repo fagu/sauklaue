@@ -169,6 +169,7 @@ int main(int argc, char **argv)
 				<< "    " << argv[0] << " save\n";
 			res = 1;
 		}
+		delete[] argvs;
 	} else {
 		res = gui_command(argc, argv);
 	}
