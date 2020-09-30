@@ -71,6 +71,17 @@ EmbeddedPDF::EmbeddedPDF(const QString& name, const QByteArray& contents) :
 	}
 }
 
+GObjectWrapper<PopplerDocument> EmbeddedPDF::glib_document() const
+{
+	GBytes* data = g_bytes_new(m_contents.data(), m_contents.length());
+	GError* err = nullptr;
+	GObjectWrapper<PopplerDocument> doc(poppler_document_new_from_bytes(data, nullptr, &err));
+	g_bytes_unref(data);
+	if (err)
+		throw PDFReadException("Invalid pdf file.");
+	return doc;
+}
+
 
 
 

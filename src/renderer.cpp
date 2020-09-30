@@ -207,6 +207,9 @@ void PagePicture::update_layer(const QRect& rect)
 
 void PDFExporter::save(Document* doc, const std::string& file_name)
 {
+	std::map<EmbeddedPDF*,GObjectWrapper<PopplerDocument> > poppler_docs;
+	for (EmbeddedPDF* pdf : doc->embedded_pdfs())
+		poppler_docs.emplace(pdf, pdf->glib_document());
 	Cairo::RefPtr<Cairo::PdfSurface> surface = Cairo::PdfSurface::create(file_name, 0, 0);
 	Cairo::RefPtr<Cairo::Context> cr = Cairo::Context::create(surface);
 	cr->set_line_cap(Cairo::LINE_CAP_ROUND);
@@ -279,8 +282,13 @@ void PDFExporter::save(Document* doc, const std::string& file_name)
 						}, stroke);
 					}
 				},
-				[&](PDFLayer* ) {
-					// TODO Export PDF layers
+				[&](PDFLayer* layer) {
+					GObjectWrapper<PopplerPage> page(poppler_document_get_page(poppler_docs[layer->pdf()].get(), layer->page_number()));
+					if (!page)
+						throw PDFReadException("Invalid page " + QString::number(layer->page_number()+1));
+					CairoGroup cg(cr);
+					cr->scale(POINT_TO_UNIT, POINT_TO_UNIT); // Use original scale
+					poppler_page_render(page.get(), cr->cobj());
 				}
 			}, layer);
 		}

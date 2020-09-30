@@ -201,6 +201,32 @@ private:
 	QString m_reason;
 };
 
+template<class T>
+class GObjectWrapper {
+public:
+	GObjectWrapper() : m_value(nullptr) {}
+	explicit GObjectWrapper(T* value) : m_value(value) {}
+	GObjectWrapper(const GObjectWrapper&) = delete;
+	GObjectWrapper(GObjectWrapper&& w) : m_value(w.m_value) {
+		w.m_value = nullptr;
+	}
+	~GObjectWrapper() {
+		if (m_value)
+			g_object_unref(m_value);
+	}
+	operator bool() const {
+		return m_value;
+	}
+	T* get() const {
+		return m_value;
+	}
+	T* operator->() const {
+		return m_value;
+	}
+private:
+	T* m_value;
+};
+
 class EmbeddedPDF {
 public:
 	EmbeddedPDF(const QString &name, const QByteArray &contents); // May throw PDFReadException
@@ -216,6 +242,8 @@ public:
 	auto pages() const {
 		return vector_unique_to_pointer(m_pages);
 	}
+	// Returns a new poppler-glib object for the document.
+	GObjectWrapper<PopplerDocument> glib_document() const;
 private:
 	QString m_name;
 	QByteArray m_contents;

@@ -8,6 +8,10 @@
 #include <variant>
 #include <vector>
 
+// The header poppler.h defines a variable called signals, which is a qt keyword.
+// We therefore have to include it before all qt headers.
+#include <poppler.h>
+
 #include <QRectF>
 
 #include <cairomm/context.h>

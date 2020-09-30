@@ -10,7 +10,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 if (MSVC)
 	add_compile_options(/W4 /WX)
 else()
-	add_compile_options(-Wall -Wextra -pedantic -Werror)
+	add_compile_options(-Wall -Wextra -pedantic -Werror -Wno-deprecated-declarations)
 endif()
 
 # Find the QtWidgets library
@@ -35,9 +35,12 @@ find_package(ECM 5.19.0 REQUIRED NO_MODULE)
 set(CMAKE_MODULE_PATH ${ECM_MODULE_PATH})
 
 # Find the Poppler library
-find_package(Poppler REQUIRED Qt5)
-include_directories(${Poppler_INCLUDE_DIRS})
-link_libraries(Poppler::Qt5)
+pkg_search_module(PopplerQt REQUIRED poppler-qt5)
+pkg_search_module(PopplerGlib REQUIRED poppler-glib)
+include_directories(${PopplerQt_INCLUDE_DIRS})
+include_directories(${PopplerGlib_INCLUDE_DIRS})
+link_libraries(${PopplerQt_LDFLAGS})
+link_libraries(${PopplerGlib_LDFLAGS})
 
 set(sauklaue_SRC
 	src/document.cpp

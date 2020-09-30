@@ -3,6 +3,8 @@
 
 #include <memory>
 
+#include "util.h"
+
 #include <QMainWindow>
 class QSpinBox;
 class QLabel;
