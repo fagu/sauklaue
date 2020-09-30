@@ -58,30 +58,22 @@ NormalLayer::NormalLayer(const NormalLayer& a)
 
 
 EmbeddedPDF::EmbeddedPDF(const QString& name, const QByteArray& contents) :
-	m_name(name), m_contents(contents), m_document(Poppler::Document::loadFromData(contents))
+	m_name(name), m_contents(contents)
 {
+	GBytes* data = g_bytes_new(m_contents.data(), m_contents.length());
+	GError* err = nullptr;
+	m_document.reset(poppler_document_new_from_bytes(data, nullptr, &err));
+	g_bytes_unref(data);
+	if (err)
+		throw PDFReadException("Invalid pdf file.");
 	if (!m_document)
 		throw PDFReadException("Invalid pdf file.");
-	if (m_document->isLocked())
-		throw PDFReadException("Pdf file is locked.");
-	for (int page_number = 0; page_number < m_document->numPages(); page_number++) {
-		m_pages.emplace_back(m_document->page(page_number));
+	for (int page_number = 0; page_number < poppler_document_get_n_pages(document()); page_number++) {
+		m_pages.emplace_back(poppler_document_get_page(document(), page_number));
 		if (!m_pages[page_number])
 			throw PDFReadException("Invalid page " + QString::number(page_number+1));
 	}
 }
-
-GObjectWrapper<PopplerDocument> EmbeddedPDF::glib_document() const
-{
-	GBytes* data = g_bytes_new(m_contents.data(), m_contents.length());
-	GError* err = nullptr;
-	GObjectWrapper<PopplerDocument> doc(poppler_document_new_from_bytes(data, nullptr, &err));
-	g_bytes_unref(data);
-	if (err)
-		throw PDFReadException("Invalid pdf file.");
-	return doc;
-}
-
 
 
 

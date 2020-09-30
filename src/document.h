@@ -14,8 +14,6 @@
 #include <QTimer>
 #include <QDebug>
 
-#include <poppler-qt5.h>
-
 class Color {
 public:
 	constexpr Color(uint32_t _x) : x(_x) {}
@@ -210,6 +208,13 @@ public:
 	GObjectWrapper(GObjectWrapper&& w) : m_value(w.m_value) {
 		w.m_value = nullptr;
 	}
+	void reset(T* value) {
+		if (m_value == value)
+			return;
+		if (m_value)
+			g_object_unref(m_value);
+		m_value = value;
+	}
 	~GObjectWrapper() {
 		if (m_value)
 			g_object_unref(m_value);
@@ -226,6 +231,18 @@ public:
 private:
 	T* m_value;
 };
+template<class T>
+struct wrapper_to_ptr_helper {
+	typedef GObjectWrapper<T> in_type;
+	typedef T* out_type;
+	out_type operator()(const in_type &p) {
+		return p.get();
+	}
+};
+template<class T>
+VectorView<wrapper_to_ptr_helper<T> > vector_wrapper_to_pointer(const std::vector<GObjectWrapper<T> > &v) {
+	return VectorView<wrapper_to_ptr_helper<T> >(v);
+}
 
 class EmbeddedPDF {
 public:
@@ -236,19 +253,17 @@ public:
 	QByteArray contents() const {
 		return m_contents;
 	}
-	Poppler::Document* document() const {
+	PopplerDocument* document() const {
 		return m_document.get();
 	}
 	auto pages() const {
-		return vector_unique_to_pointer(m_pages);
+		return vector_wrapper_to_pointer(m_pages);
 	}
-	// Returns a new poppler-glib object for the document.
-	GObjectWrapper<PopplerDocument> glib_document() const;
 private:
 	QString m_name;
 	QByteArray m_contents;
-	std::unique_ptr<Poppler::Document> m_document;
-	std::vector<std::unique_ptr<Poppler::Page> > m_pages; // Destructed before m_document
+	GObjectWrapper<PopplerDocument> m_document;
+	std::vector<GObjectWrapper<PopplerPage> > m_pages; // Destructed before m_document
 };
 
 class PDFLayer : public QObject {
@@ -263,7 +278,7 @@ public:
 	int page_number() const {
 		return m_page_number;
 	}
-	Poppler::Page* page() const {
+	PopplerPage* page() const {
 		return m_pdf->pages()[m_page_number];
 	}
 private:

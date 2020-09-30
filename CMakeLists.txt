@@ -35,11 +35,8 @@ find_package(ECM 5.19.0 REQUIRED NO_MODULE)
 set(CMAKE_MODULE_PATH ${ECM_MODULE_PATH})
 
 # Find the Poppler library
-pkg_search_module(PopplerQt REQUIRED poppler-qt5)
 pkg_search_module(PopplerGlib REQUIRED poppler-glib)
-include_directories(${PopplerQt_INCLUDE_DIRS})
 include_directories(${PopplerGlib_INCLUDE_DIRS})
-link_libraries(${PopplerQt_LDFLAGS})
 link_libraries(${PopplerGlib_LDFLAGS})
 
 set(sauklaue_SRC

@@ -153,13 +153,16 @@ PDFLayerPicture::PDFLayerPicture(PDFLayer* layer, const PictureTransformation& t
 	LayerPicture(transformation)
 {
 	m_layer = layer;
-	m_layer->pdf()->document()->setRenderHint(Poppler::Document::RenderHint::Antialiasing);
-	m_layer->pdf()->document()->setRenderHint(Poppler::Document::RenderHint::TextAntialiasing);
+	cairo_surface = Cairo::ImageSurface::create(Cairo::FORMAT_ARGB32, transformation.image_size.width(), transformation.image_size.height());
+	Cairo::RefPtr<Cairo::Context> cr = Cairo::Context::create(cairo_surface);
+	cr->set_antialias(Cairo::ANTIALIAS_GRAY);
+	Cairo::FontOptions font_options;
+	font_options.set_antialias(Cairo::ANTIALIAS_GRAY);
+	cr->set_font_options(font_options);
+	double scale = POINT_TO_UNIT * transformation.unit2pixel;
+	cr->scale(scale, scale);
 	// TODO Render asynchronously
-	Poppler::Page* pdf_page = m_layer->page();
-	double res = INCH_TO_UNIT * transformation.unit2pixel;
-	m_img = pdf_page->renderToImage(res, res, 0, 0, transformation.image_size.width(), transformation.image_size.height());
-	assert(!m_img.isNull());
+	poppler_page_render(layer->page(), cr->cobj());
 }
 
 
@@ -207,9 +210,6 @@ void PagePicture::update_layer(const QRect& rect)
 
 void PDFExporter::save(Document* doc, const std::string& file_name)
 {
-	std::map<EmbeddedPDF*,GObjectWrapper<PopplerDocument> > poppler_docs;
-	for (EmbeddedPDF* pdf : doc->embedded_pdfs())
-		poppler_docs.emplace(pdf, pdf->glib_document());
 	Cairo::RefPtr<Cairo::PdfSurface> surface = Cairo::PdfSurface::create(file_name, 0, 0);
 	Cairo::RefPtr<Cairo::Context> cr = Cairo::Context::create(surface);
 	cr->set_line_cap(Cairo::LINE_CAP_ROUND);
@@ -283,12 +283,9 @@ void PDFExporter::save(Document* doc, const std::string& file_name)
 					}
 				},
 				[&](PDFLayer* layer) {
-					GObjectWrapper<PopplerPage> page(poppler_document_get_page(poppler_docs[layer->pdf()].get(), layer->page_number()));
-					if (!page)
-						throw PDFReadException("Invalid page " + QString::number(layer->page_number()+1));
 					CairoGroup cg(cr);
 					cr->scale(POINT_TO_UNIT, POINT_TO_UNIT); // Use original scale
-					poppler_page_render(page.get(), cr->cobj());
+					poppler_page_render(layer->page(), cr->cobj());
 				}
 			}, layer);
 		}

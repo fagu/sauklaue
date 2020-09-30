@@ -90,11 +90,12 @@ class PDFLayerPicture : public LayerPicture {
 public:
 	PDFLayerPicture(PDFLayer *layer, const PictureTransformation &transformation);
 	QImage img() const override {
-		return m_img;
+		cairo_surface->flush();
+		return QImage((const uchar*)cairo_surface->get_data(), cairo_surface->get_width(), cairo_surface->get_height(), QImage::Format_ARGB32_Premultiplied);
 	}
 private:
 	PDFLayer *m_layer;
-	QImage m_img;
+	Cairo::RefPtr<Cairo::ImageSurface> cairo_surface;
 };
 
 typedef std::variant<DrawingLayerPicture*, PDFLayerPicture*> ptr_LayerPicture;

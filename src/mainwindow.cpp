@@ -799,11 +799,14 @@ void MainWindow::insertPDF()
 						qDebug() << "Zero pages => skipping";
 						return;
 					}
-					qDebug() << "Number of pages:" << p_pdf->document()->numPages();
+					qDebug() << "Number of pages:" << p_pdf->pages().size();
 					std::vector<std::unique_ptr<SPage> > pages;
 					for (int page_number = 0; page_number < (int)p_pdf->pages().size(); page_number++) {
-						Poppler::Page* p_page = p_pdf->pages()[page_number];
-						int width = POINT_TO_UNIT*p_page->pageSizeF().width(), height = POINT_TO_UNIT*p_page->pageSizeF().height();
+						PopplerPage* p_page = p_pdf->pages()[page_number];
+						double width, height;
+						poppler_page_get_size(p_page, &width, &height);
+						width *= POINT_TO_UNIT;
+						height *= POINT_TO_UNIT;
 						auto page = std::make_unique<SPage>(width, height);
 						std::unique_ptr<PDFLayer> pdf_layer = std::make_unique<PDFLayer>(p_pdf, page_number);
 						page->add_layer(0, std::move(pdf_layer));
