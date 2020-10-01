@@ -51,7 +51,7 @@ time tail -c +41 a.sau | capnp convert packed:binary src/file4.capnp File | xz |
 # For comparison: size of the exported pdf file a.pdf
 => 1810621 bytes
 
-3. Export embedded pdf pages to pdf.
+3. Tablet settings
 
 4. Color schemes
 
@@ -92,3 +92,5 @@ For example, grid background.
 13. Allow editing / removing old strokes
 
 14. Object types other than strokes
+
+15. Automatically adjust window size to paper format.
