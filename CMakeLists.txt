@@ -16,6 +16,8 @@ endif()
 # Find the QtWidgets library
 find_package(Qt5Widgets CONFIG REQUIRED)
 link_libraries(Qt5::Widgets)
+#find_package(Qt5X11Extras CONFIG REQUIRED)
+#link_libraries(Qt5::X11Extras)
 
 include (FindPkgConfig)
 
@@ -23,6 +25,14 @@ include (FindPkgConfig)
 pkg_check_modules(cairomm REQUIRED "cairomm-1.0")
 include_directories(${cairomm_INCLUDE_DIRS})
 link_libraries(${cairomm_LDFLAGS})
+
+# Find the Xlib library
+pkg_search_module(Xlib REQUIRED x11)
+include_directories(${Xlib_INCLUDE_DIRS})
+link_libraries(${Xlib_LDFLAGS})
+pkg_search_module(Xinput REQUIRED xi)
+include_directories(${Xinput_INCLUDE_DIRS})
+link_libraries(${Xinput_LDFLAGS})
 
 # Compile the Cap'n Proto file
 find_package(CapnProto)

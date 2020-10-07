@@ -6,6 +6,8 @@
 
 #include <cairomm/matrix.h>
 
+struct _XDisplay;
+
 class Tablet : public QObject
 {
 	Q_OBJECT
@@ -18,7 +20,9 @@ private slots:
 	void time_to_set_transformation_matrix();
 private:
 	Cairo::Matrix transformation_matrix;
-	QTimer* transformation_matrix_timer;
+	QTimer* transformation_matrix_timer; // Quick on-demand one-shot timer
+	QTimer* transformation_matrix_timer_backup; // Occasionally try to set the transformation matrix just in case a tablet/pen was connected in the meantime.
+	_XDisplay* display;
 };
 
 #endif // TABLET_H
