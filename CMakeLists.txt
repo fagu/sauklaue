@@ -37,12 +37,9 @@ link_libraries(${Xinput_LDFLAGS})
 # Compile the Cap'n Proto file
 find_package(CapnProto)
 capnp_generate_cpp(CAPNP_SRCS CAPNP_HDRS src/file4.capnp)
-set_property(SOURCE src/file4.capnp.h PROPERTY SKIP_AUTOGEN ON)
-set_property(SOURCE src/file4.capnp.c++ PROPERTY SKIP_AUTOGEN ON)
+set_property(SOURCE ${CAPNP_HDRS} PROPERTY SKIP_AUTOGEN ON)
+set_property(SOURCE ${CAPNP_SRCS} PROPERTY SKIP_AUTOGEN ON)
 link_libraries(CapnProto::capnp)
-
-find_package(ECM 5.19.0 REQUIRED NO_MODULE)
-set(CMAKE_MODULE_PATH ${ECM_MODULE_PATH})
 
 # Find the Poppler library
 pkg_search_module(PopplerGlib REQUIRED poppler-glib)
