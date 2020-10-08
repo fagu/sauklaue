@@ -254,14 +254,6 @@ void PageWidget::tabletEvent(QTabletEvent* event)
 	}
 }
 
-int first_normal_layer_index(SPage* page) {
-	for (size_t i = 0; i < page->layers().size(); i++) {
-		if (std::holds_alternative<NormalLayer*>(page->layers()[i]))
-			return i;
-	}
-	assert(false); // No NormalLayer present => Don't know what to draw on.
-}
-
 void PageWidget::start_path(QPointF pp, StrokeType type)
 {
 	if (!m_page_picture)
@@ -285,8 +277,17 @@ void PageWidget::start_path(QPointF pp, StrokeType type)
 			assert(false);
 		}
 		if (timeout == -1) {
-			auto layer_picture = std::get<DrawingLayerPicture*>(m_page_picture->layers()[first_normal_layer_index(m_page)]);
-			auto layer = std::get<NormalLayer*>(m_page->layers()[first_normal_layer_index(m_page)]);
+			int layer_index = -1;
+			for (size_t i = 0; i < m_page->layers().size(); i++) {
+				if (std::holds_alternative<NormalLayer*>(m_page->layers()[i])) {
+					layer_index = i;
+					break;
+				}
+			}
+			if (layer_index == -1)
+				return;
+			auto layer_picture = std::get<DrawingLayerPicture*>(m_page_picture->layers()[layer_index]);
+			auto layer = std::get<NormalLayer*>(m_page->layers()[layer_index]);
 			m_current_stroke.emplace(std::move(stroke), [this,layer](unique_ptr_Stroke st) {
 				m_view->undoStack->push(new AddStrokeCommand(layer, std::move(st)));
 			}, layer_picture);
