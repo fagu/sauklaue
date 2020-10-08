@@ -276,8 +276,8 @@ void MainWindow::createActions()
 	addToolBar(Qt::ToolBarArea::LeftToolBarArea, toolbar[0]);
 	addToolBar(Qt::ToolBarArea::RightToolBarArea, toolbar[1]);
 	{
-		const QIcon newIcon = QIcon::fromTheme("document-new", QIcon(":/images/new.png"));
-		QAction *action = new QAction(newIcon, tr("&New"), this);
+		const QIcon icon = QIcon::fromTheme("document-new");
+		QAction *action = new QAction(icon, tr("&New"), this);
 		action->setShortcuts(QKeySequence::New);
 		action->setStatusTip(tr("Create a new file"));
 		connect(action, &QAction::triggered, this, &MainWindow::newFile);
@@ -285,8 +285,8 @@ void MainWindow::createActions()
 	// 	fileToolBar->addAction(action);
 	}
 	{
-		const QIcon openIcon = QIcon::fromTheme("document-open", QIcon(":/images/open.png"));
-		QAction *action = new QAction(openIcon, tr("&Open..."), this);
+		const QIcon icon = QIcon::fromTheme("document-open");
+		QAction *action = new QAction(icon, tr("&Open..."), this);
 		action->setShortcuts(QKeySequence::Open);
 		action->setStatusTip(tr("Open an existing file"));
 		connect(action, &QAction::triggered, this, &MainWindow::open);
@@ -294,8 +294,8 @@ void MainWindow::createActions()
 	// 	fileToolBar->addAction(action);
 	}
 	{
-		const QIcon saveIcon = QIcon::fromTheme("document-save", QIcon(":/images/save.png"));
-		QAction *action = new QAction(saveIcon, tr("&Save"), this);
+		const QIcon icon = QIcon::fromTheme("document-save");
+		QAction *action = new QAction(icon, tr("&Save"), this);
 		action->setShortcuts(QKeySequence::Save);
 		action->setStatusTip(tr("Save the document to disk"));
 		connect(action, &QAction::triggered, this, &MainWindow::save);
@@ -303,8 +303,8 @@ void MainWindow::createActions()
 	// 	fileToolBar->addAction(action);
 	}
 	{
-		const QIcon saveAsIcon = QIcon::fromTheme("document-save-as", QIcon(":/images/saveas.png"));
-		QAction *action = new QAction(saveAsIcon, tr("Save &As..."), this);
+		const QIcon icon = QIcon::fromTheme("document-save-as");
+		QAction *action = new QAction(icon, tr("Save &As..."), this);
 		action->setShortcuts(QKeySequence::SaveAs);
 		action->setStatusTip(tr("Save the document under a new name"));
 		connect(action, &QAction::triggered, this, &MainWindow::saveAs);
@@ -313,8 +313,8 @@ void MainWindow::createActions()
 	}
     fileMenu->addSeparator();
 	{
-		const QIcon saveAsIcon = QIcon::fromTheme("document-export", QIcon(":/images/export.png"));
-		QAction *action = new QAction(saveAsIcon, tr("&Export PDF"), this);
+		const QIcon icon = QIcon::fromTheme("document-export");
+		QAction *action = new QAction(icon, tr("&Export PDF"), this);
 		action->setShortcut(QKeySequence(Qt::CTRL + Qt::Key_E));
 		action->setStatusTip(tr("Export PDF file"));
 		connect(action, &QAction::triggered, this, &MainWindow::exportPDF);
@@ -323,38 +323,45 @@ void MainWindow::createActions()
 	}
     fileMenu->addSeparator();
 	{
-		const QIcon exitIcon = QIcon::fromTheme("application-exit");
-		QAction *action = fileMenu->addAction(exitIcon, tr("E&xit"), this, &QWidget::close);
+		const QIcon icon = QIcon::fromTheme("application-exit");
+		QAction *action = fileMenu->addAction(icon, tr("E&xit"), this, &QWidget::close);
 		action->setShortcuts(QKeySequence::Quit);
 		action->setStatusTip(tr("Exit the application"));
 	}
 	QMenu *editMenu = menuBar()->addMenu(tr("&Edit"));
 	{
+		const QIcon icon = QIcon::fromTheme("edit-undo");
 		QAction *action = undoStack->createUndoAction(this, tr("&Undo"));
+		action->setIcon(icon);
 		action->setShortcuts(QKeySequence::Undo);
 		editMenu->addAction(action);
 	}
 	{
+		const QIcon icon = QIcon::fromTheme("edit-redo");
 		QAction *action = undoStack->createRedoAction(this, tr("&Redo"));
+		action->setIcon(icon);
 		action->setShortcuts(QKeySequence::Redo);
 		editMenu->addAction(action);
 	}
 	QMenu *pagesMenu = menuBar()->addMenu(tr("&Pages"));
 	{
-		QAction *action = new QAction(tr("New Page &Before"));
+		const QIcon icon = QIcon::fromTheme("list-add");
+		QAction *action = new QAction(icon, tr("New Page &Before"));
 		action->setStatusTip(tr("Add a new page before the current one"));
 		connect(action, &QAction::triggered, this, &MainWindow::newPageBefore);
 		pagesMenu->addAction(action);
 	}
 	{
-		QAction *action = new QAction(tr("New Page &After"));
+		const QIcon icon = QIcon::fromTheme("list-add");
+		QAction *action = new QAction(icon, tr("New Page &After"));
 		action->setStatusTip(tr("Add a new page after the current one"));
 		action->setShortcut(QKeySequence(Qt::CTRL + Qt::Key_D));
 		connect(action, &QAction::triggered, this, &MainWindow::newPageAfter);
 		pagesMenu->addAction(action);
 	}
 	{
-		QAction *action = new QAction(tr("&Delete Page"));
+		const QIcon icon = QIcon::fromTheme("list-remove");
+		QAction *action = new QAction(icon, tr("&Delete Page"));
 		action->setStatusTip(tr("Delete the current page"));
 		connect(action, &QAction::triggered, this, &MainWindow::deletePage);
 		pagesMenu->addAction(action);
@@ -439,7 +446,8 @@ void MainWindow::createActions()
 	}
 	pagesMenu->addSeparator();
 	{
-		QAction *action = new QAction(tr("&Insert PDF file"));
+		const QIcon icon = QIcon::fromTheme("document-import");
+		QAction *action = new QAction(icon, tr("&Insert PDF file"));
 		action->setStatusTip(tr("Insert a PDF file after the current page"));
 		connect(action, &QAction::triggered, this, &MainWindow::insertPDF);
 		pagesMenu->addAction(action);
