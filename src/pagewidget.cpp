@@ -156,9 +156,9 @@ void PageWidget::unfocusPage()
 	update();
 }
 
-void PageWidget::paintEvent(QPaintEvent* event)
+void PageWidget::paintEvent([[maybe_unused]] QPaintEvent* event)
 {
-	qDebug() << "paint" << event->region();
+// 	qDebug() << "paint" << event->region();
 	QPainter painter(this);
 	painter.setRenderHint(QPainter::Antialiasing, false);
 	// Background around the pages
