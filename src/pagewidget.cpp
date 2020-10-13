@@ -44,20 +44,18 @@ void StrokeCreator::add_point(Point p)
 }
 
 
-PageWidget::PageWidget(MainWindow* view, int view_index) :
+PageWidget::PageWidget(MainWindow* view) :
 	QWidget(nullptr),
-	m_view(view),
-	m_view_index(view_index)
+	m_view(view)
 {
 	setMinimumSize(20,20);
 	connect(view, &MainWindow::blackboardModeToggled, this, qOverload<>(&QWidget::update));
 }
 
-void PageWidget::setPage(SPage* page, int index)
+void PageWidget::setPage(SPage* page)
 {
 	if (m_page == page)
 		return;
-	page_index = index;
 	m_page = page;
 	m_current_stroke.reset();
 	setupPicture();
@@ -112,9 +110,8 @@ QRectF PageWidget::minimum_rect_in_pixels()
 
 void PageWidget::update_tablet_map()
 {
-	if (!has_focus) {
+	if (!has_focus)
 		return;
-	}
 	assert(m_page_picture);
 	TabletHandler::self()->set_active_region(minimum_rect_in_pixels(), screen()->virtualSize());
 }
@@ -140,23 +137,23 @@ void PageWidget::paintEvent([[maybe_unused]] QPaintEvent* event)
 	painter.setRenderHint(QPainter::Antialiasing, false);
 	// Background around the pages
 	painter.fillRect(0,0,width(),height(), QColorConstants::LightGray);
-	if (!m_page_picture) {
+	if (!m_page_picture)
 		return;
-	}
-// 	int x1 = m_page_picture->dx, y1 = m_page_picture->dy, x2 = m_page_picture->dx+m_page_picture->page_width, y2 = m_page_picture->dx+m_page_picture->page_height;
 	// Page background color
 	painter.fillRect(m_page_picture->transformation().image_rect, m_view->blackboardMode() ? QColorConstants::Black : QColorConstants::White);
+	// Draw ordinary layers.
 	for (auto layer_picture : m_page_picture->layers()) {
 		LayerPicture* base_layer_picture = convert_variant<LayerPicture*>(layer_picture);
 		painter.drawImage(m_page_picture->transformation().topLeft, base_layer_picture->img());
 	}
-	// We draw the temporary layer semi-transparent.
-	painter.setOpacity(0.3);
+	// Draw the temporary layer (semi-transparent).
 	{
+		painter.setOpacity(0.3);
 		auto layer_picture = m_page_picture->temporary_layer();
 		painter.drawImage(m_page_picture->transformation().topLeft, layer_picture->img());
+		painter.setOpacity(1);
 	}
-	painter.setOpacity(1);
+	// Draw red border around focused pages.
 	if (has_focus) {
 		painter.setPen(QPen(QColorConstants::Red, 3));
 		painter.drawRect(m_page_picture->transformation().image_rect);
@@ -176,9 +173,9 @@ void PageWidget::moveEvent(QMoveEvent* )
 
 void PageWidget::mousePressEvent(QMouseEvent* event)
 {
-	if (has_focus && event->button() == Qt::LeftButton)
+	if (event->button() == Qt::LeftButton)
 		start_path(event->pos(), StrokeType::Pen);
-	else if (has_focus && event->button() == Qt::RightButton)
+	else if (event->button() == Qt::RightButton)
 		start_path(event->pos(), StrokeType::Eraser);
 	else if (event->button() == Qt::MiddleButton)
 		start_path(event->pos(), StrokeType::LaserPointer);
@@ -196,8 +193,8 @@ void PageWidget::mouseReleaseEvent(QMouseEvent* )
 
 void PageWidget::mouseDoubleClickEvent(QMouseEvent* event)
 {
-	if (page_index != -1 && event->button() == Qt::LeftButton)
-		m_view->focusView(m_view_index);
+	if (m_page && event->button() == Qt::LeftButton)
+		emit focus();
 }
 
 void PageWidget::tabletEvent(QTabletEvent* event)
@@ -205,15 +202,14 @@ void PageWidget::tabletEvent(QTabletEvent* event)
 	if (event->pointerType() == QTabletEvent::Pen || event->pointerType() == QTabletEvent::Eraser) {
 		if (event->type() == QEvent::TabletPress) {
 			// If we push the right button while touching the surface, the left button is automatically pushed as well.
-			if (has_focus && event->button() == Qt::LeftButton) { // Do not draw if we only press the right button while hovering.
+			if (event->button() == Qt::LeftButton) { // Do not draw if we only press the right button while hovering.
 				StrokeType type = StrokeType::Pen;
 				if (event->pointerType() == QTabletEvent::Eraser || (event->buttons() & Qt::RightButton))
 					type = StrokeType::Eraser;
 				start_path(event->posF(), type);
 				event->accept();
 			} else if (event->button() == Qt::RightButton) {
-				if (has_focus)
-					setCursor(Qt::CrossCursor);
+// 				setCursor(Qt::CrossCursor);
 				event->accept();
 			} else if (event->button() == Qt::MiddleButton) {
 				start_path(event->posF(), StrokeType::LaserPointer);
@@ -224,8 +220,8 @@ void PageWidget::tabletEvent(QTabletEvent* event)
 			event->accept();
 		} else if (event->type() == QEvent::TabletRelease) {
 			finish_path();
-			if (event->button() == Qt::RightButton)
-				unsetCursor();
+// 			if (event->button() == Qt::RightButton)
+// 				unsetCursor();
 			event->accept();
 		}
 	}
@@ -247,7 +243,6 @@ void PageWidget::start_path(QPointF pp, StrokeType type)
 			timeout = -1;
 		} else if (type == StrokeType::LaserPointer) {
 			QColor color = QColorConstants::Red;
-// 			color.setAlphaF(0.3);
 			stroke = std::make_unique<PenStroke>(m_view->penSize() * 4, color);
 			timeout = 3000; // 3 second timeout
 		} else {

@@ -108,7 +108,8 @@ MainWindow::MainWindow(QWidget *parent) :
 	QHBoxLayout *layout = new QHBoxLayout();
 	for (int i = 0; i < 2; i++) {
 		page_numbers[i] = -1;
-		pagewidgets[i] = new PageWidget(this, i);
+		pagewidgets[i] = new PageWidget(this);
+		connect(pagewidgets[i], &PageWidget::focus, this, [this,i]() {focusView(i);});
 	}
 	for (PageWidget *p : pagewidgets)
 		layout->addWidget(p);
@@ -203,8 +204,8 @@ void MainWindow::closeEvent(QCloseEvent* event)
 
 void MainWindow::moveEvent(QMoveEvent* )
 {
-	for (PageWidget* p : pagewidgets)
-		p->update_tablet_map();
+	if (focused_view != -1)
+		pagewidgets[focused_view]->update_tablet_map();
 }
 
 void MainWindow::newFile()
@@ -787,9 +788,9 @@ void MainWindow::showPages(std::array<int, 2> new_page_numbers, int new_focused_
 		page_numbers[i] = new_page_numbers[i];
 		if (page_numbers[i] != -1) {
 			assert(0 <= page_numbers[i] && page_numbers[i] < (int)doc->pages().size());
-			pagewidgets[i]->setPage(doc->pages()[page_numbers[i]], page_numbers[i]);
+			pagewidgets[i]->setPage(doc->pages()[page_numbers[i]]);
 		} else {
-			pagewidgets[i]->setPage(nullptr, -1);
+			pagewidgets[i]->setPage(nullptr);
 		}
 	}
 	if (new_focused_view != focused_view) {

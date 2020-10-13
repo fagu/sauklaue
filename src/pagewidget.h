@@ -34,25 +34,34 @@ class PageWidget : public QWidget
 	Q_OBJECT
 
 public:
-	explicit PageWidget(MainWindow *view, int view_index);
+	explicit PageWidget(MainWindow *view);
 	
-	void setPage(SPage *page, int index);
+	void setPage(SPage *page);
 	
+private:
 	Cairo::Matrix page_to_pixels();
+public:
 	QRectF minimum_rect_in_pixels();
 	void update_tablet_map();
 	
+public:
 	void focusPage();
 	void unfocusPage();
+signals:
+	void focus();
 	
 protected:
 	void paintEvent(QPaintEvent *event) override;
+	
 	void resizeEvent(QResizeEvent *event) override;
 	void moveEvent(QMoveEvent *event) override;
+	
 	void mousePressEvent(QMouseEvent *event) override;
 	void mouseReleaseEvent(QMouseEvent *event) override;
 	void mouseMoveEvent(QMouseEvent *event) override;
+	
 	void mouseDoubleClickEvent(QMouseEvent * event) override;
+	
 	void tabletEvent(QTabletEvent * event) override;
 	
 private slots:
@@ -73,9 +82,7 @@ private:
 	
 private:
 	bool has_focus = false;
-	int page_index;
 	MainWindow *m_view;
-	int m_view_index;
 	SPage *m_page = nullptr;
 	std::unique_ptr<PagePicture> m_page_picture;
 	std::optional<StrokeCreator> m_current_stroke;

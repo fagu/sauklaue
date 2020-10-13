@@ -152,7 +152,7 @@ SettingsDialog::SettingsDialog(QWidget *parent) : QDialog(parent)
 	setLayout(layout);
 	
 	{
-		QLabel *label = new QLabel(tr("Check the external tablet/pen device(s) whose writing area should be mapped only onto the current page. Also input the orientation of the tablet and the correct width/height ratio."));
+		QLabel *label = new QLabel(tr("Check the external tablet/pen device(s) whose writing area should be mapped only onto the current page. Also input the orientation of the tablet and the correct width/height ratio (before rotation)."));
 		label->setWordWrap(true);
 		layout->addWidget(label);
 	}
