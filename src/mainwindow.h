@@ -6,6 +6,7 @@
 #include "util.h"
 
 #include <QMainWindow>
+#include <KRecentFilesAction>
 class QSpinBox;
 class QLabel;
 class QSessionManager;
@@ -66,8 +67,11 @@ private:
 private slots:
 	void newFile();
 	void open();
+private:
+	KRecentFilesAction *recentFilesAction;
 public:
 	void loadFile(const QString &fileName);
+	void loadUrl(const QUrl &url);
 private:
 	void setCurrentFile(const QString& fileName);
 	QString strippedName(const QString& fullFileName);

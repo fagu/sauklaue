@@ -184,6 +184,14 @@ void MainWindow::loadFile(const QString& fileName)
 	statusBar()->showMessage(tr("File loaded"), 2000);
 }
 
+void MainWindow::loadUrl(const QUrl &url) {
+	if (!url.isValid() || !url.isLocalFile()) {
+		QMessageBox::warning(this, tr("Application"), tr("Cannot open url %1").arg(url.toString()));
+		return;
+	}
+	loadFile(url.toLocalFile());
+}
+
 void MainWindow::closeEvent(QCloseEvent* event)
 {
 	if (maybeSave()) {
@@ -293,6 +301,11 @@ void MainWindow::createActions()
 		connect(action, &QAction::triggered, this, &MainWindow::open);
 		fileMenu->addAction(action);
 	// 	fileToolBar->addAction(action);
+	}
+	{
+		recentFilesAction = new KRecentFilesAction(QIcon::fromTheme("document-open-recent"), tr("Open Recent"), this);
+		connect(recentFilesAction, &KRecentFilesAction::urlSelected, this, &MainWindow::loadUrl);
+		fileMenu->addAction(recentFilesAction);
 	}
 	{
 		const QIcon icon = QIcon::fromTheme("document-save");
@@ -566,12 +579,14 @@ void MainWindow::readSettings()
     } else {
         restoreGeometry(geometry);
     }
+	recentFilesAction->loadEntries(Settings::self()->config()->group("Recent Files"));
 }
 
 void MainWindow::writeSettings()
 {
     QSettings settings;
     settings.setValue("geometry", saveGeometry());
+	recentFilesAction->saveEntries(Settings::self()->config()->group("Recent Files"));
 }
 
 bool MainWindow::maybeSave()
@@ -632,6 +647,9 @@ void MainWindow::setCurrentFile(const QString& fileName)
 {
 	curFile = fileName;
 	setWindowModified(false);
+	
+	if (!fileName.isEmpty())
+		recentFilesAction->addUrl(QUrl::fromLocalFile(fileName));
 	
 	QString shownName = curFile;
 	if (curFile.isEmpty())
