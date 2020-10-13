@@ -18,8 +18,11 @@ class Tablet : public QObject
 {
 	Q_OBJECT
 public:
+	static Tablet *self();
+private:
 	Tablet();
 	~Tablet();
+public:
 	std::vector<QString> device_list();
 	// Maps tablets to the given region in screen coordinates (px).
 	void set_active_region(QRectF rect, QSize screen_size);

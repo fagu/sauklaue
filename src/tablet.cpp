@@ -9,6 +9,15 @@
 #include <X11/extensions/XInput2.h>
 // #include <QtX11Extras/QX11Info>
 
+Tablet * tablet_singleton = nullptr;
+
+Tablet * Tablet::self()
+{
+	if (!tablet_singleton)
+		tablet_singleton = new Tablet;
+	return tablet_singleton;
+}
+
 Tablet::Tablet()
 {
 	m_rect = QRectF(0, 0, 1, 1); // TODO

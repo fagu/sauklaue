@@ -146,7 +146,7 @@ TabletSetting TabletRow::get() const
 
 
 
-SettingsDialog::SettingsDialog(Tablet *tablet, QWidget *parent) : QDialog(parent), m_tablet(tablet)
+SettingsDialog::SettingsDialog(QWidget *parent) : QDialog(parent)
 {
 	QVBoxLayout *layout = new QVBoxLayout;
 	setLayout(layout);
@@ -224,7 +224,7 @@ void SettingsDialog::reload()
 		tablet_names.insert(tablet.name);
 	m_rows.clear();
 	std::set<QString> connected_tablets;
-	for (const QString &tablet_name : m_tablet->device_list()) {
+	for (const QString &tablet_name : Tablet::self()->device_list()) {
 		connected_tablets.insert(tablet_name);
 		if (!tablet_names.count(tablet_name)) {
 			tablet_settings.emplace_back(tablet_name);

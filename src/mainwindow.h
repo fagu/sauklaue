@@ -183,7 +183,6 @@ protected:
 
 public:
 	QUndoStack *undoStack;
-	std::unique_ptr<Tablet> tablet;
 };
 
 #endif // MAINWINDOW_H

@@ -104,7 +104,6 @@ MainWindow::MainWindow(QWidget *parent) :
     m_pen_color(QColorConstants::Black)
 {
 	undoStack = new QUndoStack(this);
-	tablet = std::make_unique<Tablet>();
 	QWidget *mainArea = new QWidget();
 	QHBoxLayout *layout = new QHBoxLayout();
 	for (int i = 0; i < 2; i++) {
@@ -800,7 +799,7 @@ void MainWindow::showPages(std::array<int, 2> new_page_numbers, int new_focused_
 			pagewidgets[focused_view]->focusPage();
 		}
 		if (focused_view == -1) {
-			tablet->set_active_region(screen()->virtualGeometry(), screen()->virtualSize());
+			Tablet::self()->set_active_region(screen()->virtualGeometry(), screen()->virtualSize());
 		}
 	}
 	updatePageNavigation();
@@ -889,7 +888,7 @@ void MainWindow::nextView()
 
 void MainWindow::showSettings()
 {
-	SettingsDialog *dialog = new SettingsDialog(tablet.get(), this);
+	SettingsDialog *dialog = new SettingsDialog(this);
 	dialog->show();
 }
 

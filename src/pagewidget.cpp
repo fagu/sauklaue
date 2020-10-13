@@ -116,7 +116,7 @@ void PageWidget::update_tablet_map()
 		return;
 	}
 	assert(m_page_picture);
-	m_view->tablet->set_active_region(minimum_rect_in_pixels(), screen()->virtualSize());
+	Tablet::self()->set_active_region(minimum_rect_in_pixels(), screen()->virtualSize());
 }
 
 void PageWidget::focusPage()

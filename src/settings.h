@@ -67,13 +67,12 @@ private:
 class SettingsDialog : public QDialog {
 	Q_OBJECT
 public:
-	SettingsDialog(Tablet* tablet, QWidget *parent = nullptr);
+	SettingsDialog(QWidget *parent = nullptr);
 private slots:
 	void reload();
 	void ok();
 	void cancel();
 private:
-	Tablet* m_tablet;
 	QGridLayout *tabletGrid;
 	std::vector<std::unique_ptr<TabletRow> > m_rows;
 };
