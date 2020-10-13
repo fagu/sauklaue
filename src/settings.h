@@ -15,40 +15,40 @@
 #include <map>
 #include <optional>
 
-class Tablet;
+class TabletHandler;
 
-class TabletSetting {
+class TabletSettings {
 public:
 	QString name; // Name of the input device
-	bool enabled;
-	int orientation; // Rotation in degrees
-	int width, height;
-	TabletSetting(QString _name) : name(_name), enabled(false), orientation(0), width(100), height(100) {}
-	TabletSetting(const TabletSetting&) = default;
+	bool enabled; // Whether the input device coordinates should be transformed
+	int orientation; // Real rotation of the input device in degrees (clockwise)
+	int width, height; // Real width and height of the input device (before rotation)
+	TabletSettings(QString _name) : name(_name), enabled(false), orientation(0), width(100), height(100) {}
+	TabletSettings(const TabletSettings&) = default;
 };
 
 class Settings : public ConfigGenerated {
 	Q_OBJECT
 public:
 	static Settings *self();
-	std::vector<TabletSetting> tablets() const;
-	void set_tablets(const std::vector<TabletSetting> &tablets);
-	std::optional<TabletSetting> tablet(const QString name) const;
+	std::vector<TabletSettings> tablets() const;
+	void set_tablets(const std::vector<TabletSettings> &tablets);
+	std::optional<TabletSettings> tablet(const QString name) const;
 private:
 	Settings();
 protected:
 	virtual void usrRead();
 	virtual bool usrSave();
 private:
-	std::map<QString,TabletSetting> m_tablets;
-	std::vector<TabletSetting> m_tabletsvec;
+	std::map<QString,TabletSettings> m_tablets;
+	std::vector<TabletSettings> m_tabletsvec;
 };
 
 class TabletRow : public QObject {
 	Q_OBJECT
 public:
-	TabletRow(const TabletSetting& tablet, QGridLayout *tabletGrid, int i, bool connected);
-	TabletSetting get() const;
+	TabletRow(const TabletSettings& tablet, QGridLayout *tabletGrid, int i, bool connected);
+	TabletSettings get() const;
 private slots:
 	void update();
 	void rotateRight();

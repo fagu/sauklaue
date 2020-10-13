@@ -21,14 +21,14 @@ Settings * Settings::self()
 Settings::Settings() : ConfigGenerated() {
 }
 
-std::vector<TabletSetting> Settings::tablets() const {
+std::vector<TabletSettings> Settings::tablets() const {
 	return m_tabletsvec;
 }
 
-void Settings::set_tablets(const std::vector<TabletSetting> &tablets) {
+void Settings::set_tablets(const std::vector<TabletSettings> &tablets) {
 	m_tablets.clear();
 	m_tabletsvec.clear();
-	for (const TabletSetting &tablet : tablets) {
+	for (const TabletSettings &tablet : tablets) {
 		if (!m_tablets.count(tablet.name)) {
 			m_tablets.emplace(tablet.name, tablet);
 			m_tabletsvec.push_back(tablet);
@@ -36,7 +36,7 @@ void Settings::set_tablets(const std::vector<TabletSetting> &tablets) {
 	}
 }
 
-std::optional<TabletSetting> Settings::tablet(const QString name) const {
+std::optional<TabletSettings> Settings::tablet(const QString name) const {
 	if (m_tablets.count(name))
 		return m_tablets.find(name)->second;
 	else
@@ -52,7 +52,7 @@ void Settings::usrRead()
 		if (m_tablets.count(name))
 			continue;
 		KConfigGroup tgrp = grp.group(name);
-		TabletSetting tablet(name);
+		TabletSettings tablet(name);
 		tablet.enabled = tgrp.readEntry("Enabled", true);
 		tablet.orientation = tgrp.readEntry("Orientation", 0);
 		tablet.width = tgrp.readEntry("Width", 0);
@@ -66,7 +66,7 @@ bool Settings::usrSave() {
 	if (!ConfigGenerated::usrSave())
 		return false;
 	KConfigGroup grp = config()->group("Tablets");
-	for (const TabletSetting& tablet : m_tabletsvec) {
+	for (const TabletSettings& tablet : m_tabletsvec) {
 		KConfigGroup tgrp = grp.group(tablet.name);
 		tgrp.writeEntry("Enabled", tablet.enabled);
 		tgrp.writeEntry("Orientation", tablet.orientation);
@@ -76,7 +76,7 @@ bool Settings::usrSave() {
 	return true;
 }
 
-TabletRow::TabletRow(const TabletSetting& tablet, QGridLayout* tabletGrid, int i, bool connected)
+TabletRow::TabletRow(const TabletSettings& tablet, QGridLayout* tabletGrid, int i, bool connected)
 {
 	m_name = tablet.name;
 	m_orientation_degrees = tablet.orientation;
@@ -133,9 +133,9 @@ void TabletRow::rotateRight()
 	update();
 }
 
-TabletSetting TabletRow::get() const
+TabletSettings TabletRow::get() const
 {
-	TabletSetting res(m_name);
+	TabletSettings res(m_name);
 	res.enabled = m_enabled->isChecked();
 	res.orientation = m_orientation_degrees;
 	res.width = qRound(m_width->value()*10);
@@ -219,19 +219,19 @@ void SettingsDialog::reload()
 		delete child;   // delete the layout item
 	}
 	std::set<QString> tablet_names;
-	std::vector<TabletSetting> tablet_settings = Settings::self()->tablets();
-	for (const TabletSetting &tablet : tablet_settings)
+	std::vector<TabletSettings> tablet_settings = Settings::self()->tablets();
+	for (const TabletSettings &tablet : tablet_settings)
 		tablet_names.insert(tablet.name);
 	m_rows.clear();
 	std::set<QString> connected_tablets;
-	for (const QString &tablet_name : Tablet::self()->device_list()) {
+	for (const QString &tablet_name : TabletHandler::self()->device_list()) {
 		connected_tablets.insert(tablet_name);
 		if (!tablet_names.count(tablet_name)) {
 			tablet_settings.emplace_back(tablet_name);
 			tablet_names.insert(tablet_name);
 		}
 	}
-	std::sort(tablet_settings.begin(), tablet_settings.end(), [](const TabletSetting &a, const TabletSetting &b) {return a.name < b.name;});
+	std::sort(tablet_settings.begin(), tablet_settings.end(), [](const TabletSettings &a, const TabletSettings &b) {return a.name < b.name;});
 	for (int i = 0; i < (int)tablet_settings.size(); i++) {
 		m_rows.push_back(std::make_unique<TabletRow>(tablet_settings[i], tabletGrid, i+1, connected_tablets.count(tablet_settings[i].name)));
 	}
@@ -239,7 +239,7 @@ void SettingsDialog::reload()
 
 void SettingsDialog::ok()
 {
-	std::vector<TabletSetting> tablets;
+	std::vector<TabletSettings> tablets;
 	for (const auto& row : m_rows)
 		tablets.push_back(row->get());
 	Settings::self()->set_tablets(tablets);

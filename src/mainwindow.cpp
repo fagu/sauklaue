@@ -799,7 +799,7 @@ void MainWindow::showPages(std::array<int, 2> new_page_numbers, int new_focused_
 			pagewidgets[focused_view]->focusPage();
 		}
 		if (focused_view == -1) {
-			Tablet::self()->set_active_region(screen()->virtualGeometry(), screen()->virtualSize());
+			TabletHandler::self()->set_active_region(screen()->virtualGeometry(), screen()->virtualSize());
 		}
 	}
 	updatePageNavigation();

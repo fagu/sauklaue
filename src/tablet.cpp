@@ -9,24 +9,24 @@
 #include <X11/extensions/XInput2.h>
 // #include <QtX11Extras/QX11Info>
 
-Tablet * tablet_singleton = nullptr;
+TabletHandler * tablet_singleton = nullptr;
 
-Tablet * Tablet::self()
+TabletHandler * TabletHandler::self()
 {
 	if (!tablet_singleton)
-		tablet_singleton = new Tablet;
+		tablet_singleton = new TabletHandler;
 	return tablet_singleton;
 }
 
-Tablet::Tablet()
+TabletHandler::TabletHandler()
 {
 	m_rect = QRectF(0, 0, 1, 1); // TODO
 	m_screen_size = QSize(1, 1); // TODO
-	transformation_matrix_timer = new QTimer(this);
-	transformation_matrix_timer->setSingleShot(true);
-	transformation_matrix_timer_backup = new QTimer(this);
-	connect(transformation_matrix_timer, &QTimer::timeout, this, &Tablet::time_to_set_transformation_matrix);
-	connect(transformation_matrix_timer_backup, &QTimer::timeout, this, &Tablet::time_to_set_transformation_matrix);
+	on_demand_timer = new QTimer(this);
+	on_demand_timer->setSingleShot(true);
+	periodic_timer = new QTimer(this);
+	connect(on_demand_timer, &QTimer::timeout, this, &TabletHandler::update_matrices_now);
+	connect(periodic_timer, &QTimer::timeout, this, &TabletHandler::update_matrices_now);
 // 	display = QX11Info::display();
 	display = XOpenDisplay(nullptr);
 	if (!display) {
@@ -40,19 +40,19 @@ Tablet::Tablet()
 		return;
 	}
 	// TODO Instead of trying to set the transformation matrix once every second, watch out for "device connected" signals.
-	transformation_matrix_timer_backup->start(1000);
+	periodic_timer->start(1000);
 }
 
-Tablet::~Tablet()
+TabletHandler::~TabletHandler()
 {
 	// Immediately reset the transformation matrix to the identity matrix.
 	m_rect = QRectF(0, 0, 1, 1); // TODO
 	m_screen_size = QSize(1, 1); // TODO
-	time_to_set_transformation_matrix();
+	update_matrices_now();
 	XCloseDisplay(display);
 }
 
-std::vector<QString> Tablet::device_list()
+std::vector<QString> TabletHandler::device_list()
 {
 	std::vector<QString> tablet_names;
     // Print a list of all devices.
@@ -70,18 +70,20 @@ std::vector<QString> Tablet::device_list()
 	return tablet_names;
 }
 
-void Tablet::set_active_region(QRectF rect, QSize screen_size)
+void TabletHandler::set_active_region(QRectF rect, QSize screen_size)
 {
+	if (m_rect == rect && m_screen_size == screen_size)
+		return;
 	m_rect = rect;
 	m_screen_size = screen_size;
-	transformation_matrix_timer->start(10);
+	on_demand_timer->start(10);
 }
 
-Cairo::Matrix tablet_to_reality(const TabletSetting &tablet) {
+Cairo::Matrix tablet_to_reality(const TabletSettings &tablet) {
 	return Cairo::scaling_matrix(tablet.width, tablet.height) * Cairo::rotation_matrix(tablet.orientation*M_PI/180);
 }
 
-Cairo::Matrix Tablet::matrix(const TabletSetting& tablet) const
+Cairo::Matrix TabletHandler::matrix(const TabletSettings& tablet) const
 {
 	Cairo::Matrix t2r = tablet_to_reality(tablet);
 	Cairo::Matrix r2t = t2r; r2t.invert();
@@ -92,7 +94,7 @@ Cairo::Matrix Tablet::matrix(const TabletSetting& tablet) const
 }
 
 
-void Tablet::time_to_set_transformation_matrix()
+void TabletHandler::update_matrices_now()
 {
 	qDebug() << "Setting transformation matrix.";
 	if (!display) {
@@ -107,7 +109,7 @@ void Tablet::time_to_set_transformation_matrix()
 	bool found = false;
 	for (int i = 0; i < ndevices; i++) {
 		XIDeviceInfo* device = &info[i];
-		std::optional<TabletSetting> tablet = Settings::self()->tablet(device->name);
+		std::optional<TabletSettings> tablet = Settings::self()->tablet(device->name);
 		if (tablet && tablet->enabled) {
 			Cairo::Matrix cmat = matrix(*tablet);
 			double dx = 0, dy = 0;
