@@ -51,7 +51,6 @@ void Settings::usrRead()
 	for (QString name : grp.groupList()) {
 		if (m_tablets.count(name))
 			continue;
-		qDebug() << "Found" << name;
 		KConfigGroup tgrp = grp.group(name);
 		TabletSetting tablet(name);
 		tablet.enabled = tgrp.readEntry("Enabled", true);
