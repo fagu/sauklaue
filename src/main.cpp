@@ -1,6 +1,7 @@
 #include "mainwindow.h"
 
 #include "serializer.h"
+#include "settings.h"
 
 #include <iostream>
 
@@ -147,6 +148,7 @@ int main(int argc, char **argv)
 {
 	QCoreApplication::setApplicationName("sauklaue");
 	QCoreApplication::setOrganizationName("sauklaue");
+	Settings::self()->load();
 	int res;
 	if (argc >= 2) {
 		// Remove argv[1].

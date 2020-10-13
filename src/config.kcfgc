@@ -1,0 +1,4 @@
+File=config.kcfg
+ClassName=ConfigGenerated
+Mutators=true
+DefaultValueGetters=true

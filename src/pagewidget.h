@@ -38,10 +38,8 @@ public:
 	
 	void setPage(SPage *page, int index);
 	
-	Cairo::Matrix tablet_to_reality();
 	Cairo::Matrix page_to_pixels();
 	QRectF minimum_rect_in_pixels();
-	Cairo::Matrix tablet_to_screen();
 	void update_tablet_map();
 	
 	void focusPage();

@@ -7,6 +7,7 @@
 #include "serializer.h"
 #include "renderer.h"
 #include "tablet.h"
+#include "settings.h"
 
 #include <QHBoxLayout>
 #include <QStatusBar>
@@ -341,6 +342,13 @@ void MainWindow::createActions()
 		QAction *action = undoStack->createRedoAction(this, tr("&Redo"));
 		action->setIcon(icon);
 		action->setShortcuts(QKeySequence::Redo);
+		editMenu->addAction(action);
+	}
+	editMenu->addSeparator();
+	{
+		const QIcon icon = QIcon::fromTheme("configure");
+		QAction *action = new QAction(icon, tr("&Preferences"));
+		connect(action, &QAction::triggered, this, &MainWindow::showSettings);
 		editMenu->addAction(action);
 	}
 	QMenu *pagesMenu = menuBar()->addMenu(tr("&Pages"));
@@ -773,6 +781,9 @@ void MainWindow::showPages(std::array<int, 2> new_page_numbers, int new_focused_
 			assert(page_numbers[focused_view] != -1);
 			pagewidgets[focused_view]->focusPage();
 		}
+		if (focused_view == -1) {
+			tablet->set_active_region(screen()->virtualGeometry(), screen()->virtualSize());
+		}
 	}
 	updatePageNavigation();
 }
@@ -858,6 +869,11 @@ void MainWindow::nextView()
 	focusView(view);
 }
 
+void MainWindow::showSettings()
+{
+	SettingsDialog *dialog = new SettingsDialog(tablet.get(), this);
+	dialog->show();
+}
 
 
 #ifndef QT_NO_SESSIONMANAGER

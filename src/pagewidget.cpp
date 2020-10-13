@@ -92,14 +92,6 @@ void PageWidget::removing_layer_picture(ptr_LayerPicture layer_picture)
 	}, layer_picture);
 }
 
-// Map tablet coordinates in [0,1] x [0,1] to coordinates in real life.
-Cairo::Matrix PageWidget::tablet_to_reality()
-{
-	// Tablet size: 28cm x 15.8cm
-	// Rotated 90 degrees clockwise
-	return Cairo::scaling_matrix(28, 15.8) * Cairo::rotation_matrix(M_PI/2);
-}
-
 Cairo::Matrix PageWidget::page_to_pixels()
 {
 	assert(m_page_picture);
@@ -118,28 +110,13 @@ QRectF PageWidget::minimum_rect_in_pixels()
 	return QRectF(QPointF(rect.left()-MARGIN, rect.top()-MARGIN), QPointF(rect.right()+MARGIN, rect.bottom()+MARGIN));
 }
 
-Cairo::Matrix PageWidget::tablet_to_screen()
-{
-	assert(m_page);
-	Cairo::Matrix t2pi = tablet_to_reality() * page_to_pixels();
-	Cairo::Matrix pi2t = t2pi; pi2t.invert();
-	// Compute the minimum bounding rectangle in tablet coordinates.
-	QRectF minrect = minimum_rect_in_pixels();
-	QRectF minrect2 = bounding_rect(pi2t, minrect);
-	double scale = std::max(minrect2.width(), minrect2.height());
-	double dx = (minrect2.left()+minrect2.right()-scale)/2, dy = (minrect2.top()+minrect2.bottom()-scale)/2;
-	QSize scr = screen()->virtualSize();
-	return Cairo::scaling_matrix(scale, scale) * Cairo::translation_matrix(dx, dy) * t2pi * Cairo::scaling_matrix(1./scr.width(), 1./scr.height());
-}
-
 void PageWidget::update_tablet_map()
 {
 	if (!has_focus) {
-// 		m_view->tablet->set_transformation_matrix(Cairo::identity_matrix());
 		return;
 	}
 	assert(m_page_picture);
-	m_view->tablet->set_transformation_matrix(tablet_to_screen());
+	m_view->tablet->set_active_region(minimum_rect_in_pixels(), screen()->virtualSize());
 }
 
 void PageWidget::focusPage()

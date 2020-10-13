@@ -123,6 +123,11 @@ private slots:
 	void previousView();
 	void nextView();
 	
+	/* Settings */
+private slots:
+	void showSettings();
+	
+private slots:
 #ifndef QT_NO_SESSIONMANAGER
 	void commitData(QSessionManager &);
 #endif

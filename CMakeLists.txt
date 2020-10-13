@@ -46,6 +46,11 @@ pkg_search_module(PopplerGlib REQUIRED poppler-glib)
 include_directories(${PopplerGlib_INCLUDE_DIRS})
 link_libraries(${PopplerGlib_LDFLAGS})
 
+# Find the KConfig library
+find_package(KF5Config)
+link_libraries(KF5::ConfigCore KF5::ConfigGui)
+kconfig_add_kcfg_files(CONFIG_SRCS src/config.kcfgc)
+
 set(sauklaue_SRC
 	src/document.cpp
 	src/serializer.cpp
@@ -55,9 +60,10 @@ set(sauklaue_SRC
 	src/commands.cpp
 	src/renderer.cpp
 	src/tablet.cpp
+	src/settings.cpp
 )
 
-add_executable(sauklaue ${sauklaue_SRC} ${CAPNP_SRCS})
+add_executable(sauklaue ${sauklaue_SRC} ${CAPNP_SRCS} ${CONFIG_SRCS})
 
 # Install the executable
 install(TARGETS sauklaue DESTINATION bin)
