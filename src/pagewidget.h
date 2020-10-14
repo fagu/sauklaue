@@ -40,8 +40,8 @@ public:
 	
 private:
 	Cairo::Matrix page_to_pixels();
-public:
 	QRectF minimum_rect_in_pixels();
+public:
 	void update_tablet_map();
 	
 public:

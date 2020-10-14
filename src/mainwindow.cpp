@@ -33,48 +33,6 @@
 
 #include <KCursorSaver>
 
-PenColorAction::PenColorAction(QColor color, QString name, MainWindow* view) : QObject(view), m_color(color), m_view(view)
-{
-	QPixmap pixmap(64,64);
-// 	pixmap.fill(color);
-	pixmap.fill(Qt::transparent);
-	QPainter painter(&pixmap);
-	painter.setRenderHint(QPainter::RenderHint::Antialiasing);
-	painter.setBrush(color);
-	painter.drawEllipse(QRect(0,0,64,64));
-	QIcon icon(pixmap);
-	m_action = new QAction(icon, name, this);
-	m_action->setCheckable(true);
-	connect(m_action, &QAction::triggered, this, &PenColorAction::triggered);
-}
-
-void PenColorAction::triggered(bool on)
-{
-	if (on)
-		m_view->setPenColor(m_color);
-}
-
-PenSizeAction::PenSizeAction(int pen_size, int icon_size, QString name, MainWindow* view) : QObject(view), m_size(pen_size), m_view(view)
-{
-	QPixmap pixmap(64,64);
-// 	pixmap.fill(color);
-	pixmap.fill(Qt::transparent);
-	QPainter painter(&pixmap);
-	painter.setRenderHint(QPainter::RenderHint::Antialiasing);
-	painter.setBrush(QColorConstants::Black);
-	painter.drawEllipse(QPoint(32,32), icon_size, icon_size);
-	QIcon icon(pixmap);
-	m_action = new QAction(icon, name, this);
-	m_action->setCheckable(true);
-	connect(m_action, &QAction::triggered, this, &PenSizeAction::triggered);
-}
-
-void PenSizeAction::triggered(bool on)
-{
-	if (on)
-		m_view->setPenSize(m_size);
-}
-
 // Some helper functions for assigning pages to views.
 
 // Tries to assign consecutive pages, where the given view should get the given page.
@@ -102,21 +60,19 @@ std::array<int,2> assign_pages_linked_fixing_one_view(int number_of_pages, int v
 
 
 MainWindow::MainWindow(QWidget *parent) :
-    QMainWindow(parent),
-    m_pen_color(QColorConstants::Black)
+    QMainWindow(parent)
 {
 	undoStack = new QUndoStack(this);
 	QWidget *mainArea = new QWidget();
+	setCentralWidget(mainArea);
 	QHBoxLayout *layout = new QHBoxLayout();
+	mainArea->setLayout(layout);
 	for (int i = 0; i < 2; i++) {
 		page_numbers[i] = -1;
 		pagewidgets[i] = new PageWidget(this);
 		connect(pagewidgets[i], &PageWidget::focus, this, [this,i]() {focusView(i);});
+		layout->addWidget(pagewidgets[i]);
 	}
-	for (PageWidget *p : pagewidgets)
-		layout->addWidget(p);
-	mainArea->setLayout(layout);
-	setCentralWidget(mainArea);
 	
 	createActions();
 	statusBar()->show();
@@ -132,11 +88,9 @@ MainWindow::MainWindow(QWidget *parent) :
 	}
 	
 	QGuiApplication::setFallbackSessionManagementEnabled(false);
-	connect(qApp, &QGuiApplication::commitDataRequest,
-			this, &MainWindow::commitData);
+	connect(qApp, &QGuiApplication::commitDataRequest, this, &MainWindow::commitData);
 	setDocument(std::make_unique<Document>());
 	setCurrentFile(QString());
-	updatePageNavigation();
 	setUnifiedTitleAndToolBarOnMac(true);
 }
 
@@ -172,7 +126,6 @@ void MainWindow::loadFile(const QString& fileName)
 	}
 	
 	setCurrentFile(fileName);
-	updatePageNavigation();
 	statusBar()->showMessage(tr("File loaded"), 2000);
 }
 
@@ -205,7 +158,6 @@ void MainWindow::newFile()
 	if (maybeSave()) {
 		setDocument(std::make_unique<Document>());
 		setCurrentFile(QString());
-		updatePageNavigation();
 		undoStack->clear();
 	}
 }
@@ -241,11 +193,11 @@ bool MainWindow::save()
 
 bool MainWindow::saveAs()
 {
+	QStringList mimeTypeFilters({"application/x-sauklaue", "application/octet-stream"});
 	QFileDialog dialog(this, tr("Save File"));
-	dialog.setWindowModality(Qt::WindowModal);
+	dialog.setMimeTypeFilters(mimeTypeFilters);
 	dialog.setAcceptMode(QFileDialog::AcceptSave);
-	dialog.setDefaultSuffix("sau");
-	if (dialog.exec() != QDialog::Accepted)
+	if (!dialog.exec())
 		return false;
 	return saveFile(dialog.selectedFiles().first());
 }
@@ -273,7 +225,15 @@ void MainWindow::createActions()
 	for (size_t i = 0; i < 2; i++) {
 		toolbars[i] = new QToolBar();
 		toolbars[i]->setMovable(false);
+		toolbars[i]->setFloatable(false);
+		// By default, right-clicking on a toolbar opes a menu in which we can hide a toolbar.
+		// But without a corresponding button in the window menu, there's currently no obvious way of un-hiding.
+		// We therefore disable and don't show the hiding option.
+		toolbars[i]->toggleViewAction()->setEnabled(false);
+		toolbars[i]->toggleViewAction()->setVisible(false);
 	}
+	toolbars[0]->setWindowTitle(tr("Left"));
+	toolbars[1]->setWindowTitle(tr("Right"));
 	addToolBar(Qt::ToolBarArea::LeftToolBarArea, toolbars[0]);
 	addToolBar(Qt::ToolBarArea::RightToolBarArea, toolbars[1]);
 	{
@@ -477,10 +437,20 @@ void MainWindow::createActions()
 			{QColorConstants::Black, "Black"}
 		};
 		for (const auto &p : v) {
-			PenColorAction *action = new PenColorAction(p.first, p.second, this);
+			QColor color = p.first;
+			QString name = p.second;
+			QPixmap pixmap(64,64);
+			pixmap.fill(Qt::transparent);
+			QPainter painter(&pixmap);
+			painter.setRenderHint(QPainter::RenderHint::Antialiasing);
+			painter.setBrush(color);
+			painter.drawEllipse(QRect(0,0,64,64));
+			QAction *action = new QAction(pixmap, name, this);
+			action->setCheckable(true);
+			connect(action, &QAction::triggered, this, [this,color](bool on) {if (on) setPenColor(color);});
 			for (QToolBar* tb : toolbars)
-				tb->addAction(action->action());
-			group->addAction(action->action());
+				tb->addAction(action);
+			group->addAction(action);
 		}
 		group->actions().back()->trigger();
 	}
@@ -494,10 +464,21 @@ void MainWindow::createActions()
 			{2000,32,"Large"}
 		};
 		for (const auto &p : v) {
-			PenSizeAction *action = new PenSizeAction(std::get<0>(p), std::get<1>(p), std::get<2>(p), this);
+			int pen_size = std::get<0>(p);
+			int icon_size = std::get<1>(p);
+			QString name = std::get<2>(p);
+			QPixmap pixmap(64,64);
+			pixmap.fill(Qt::transparent);
+			QPainter painter(&pixmap);
+			painter.setRenderHint(QPainter::RenderHint::Antialiasing);
+			painter.setBrush(QColorConstants::Black);
+			painter.drawEllipse(QPoint(32,32), icon_size, icon_size);
+			QAction *action = new QAction(pixmap, name, this);
+			action->setCheckable(true);
+			connect(action, &QAction::triggered, this, [this,pen_size](bool on) {if (on) setPenSize(pen_size);});
 			for (QToolBar* tb : toolbars)
-				tb->addAction(action->action());
-			group->addAction(action->action());
+				tb->addAction(action);
+			group->addAction(action);
 		}
 		group->actions()[1]->trigger();
 	}
@@ -515,8 +496,7 @@ void MainWindow::createActions()
 			painter.drawLine(QPoint(15,32+(j-1)*10), QPoint(49,32+(j-1)*10));
 			painter.drawLine(QPoint(15,32+(j-1)*10), QPoint(49,32+(j-1)*10));
 		}
-		QIcon icon(pixmap);
-		QAction *action = new QAction(icon, tr("Blackboard mode"), this);
+		QAction *action = new QAction(pixmap, tr("Blackboard mode"), this);
 		action->setCheckable(true);
 		action->setStatusTip(tr("Blackboard mode"));
 		connect(action, &QAction::triggered, this, &MainWindow::setBlackboardMode);
@@ -783,9 +763,11 @@ void MainWindow::insertPDF()
 					return;
 				QByteArray contents = file.readAll();
 				try {
-					std::unique_ptr<EmbeddedPDF> pdf = std::make_unique<EmbeddedPDF>(info.fileName(), contents);
+					auto pdf = std::make_unique<EmbeddedPDF>(info.fileName(), contents);
 					EmbeddedPDF* p_pdf = pdf.get();
+					// Command macro consisting of two steps: 1) Embed the pdf file. 2) Add the pdf's pages.
 					QUndoCommand *cmd = new QUndoCommand(tr("Insert PDF"));
+					// 1) Embed the pdf file.
 					new AddEmbeddedPDFCommand(doc.get(), std::move(pdf), cmd);
 					if (p_pdf->pages().empty()) {
 						qDebug() << "Zero pages => skipping";
@@ -800,12 +782,13 @@ void MainWindow::insertPDF()
 						width *= POINT_TO_UNIT;
 						height *= POINT_TO_UNIT;
 						auto page = std::make_unique<SPage>(width, height);
-						std::unique_ptr<PDFLayer> pdf_layer = std::make_unique<PDFLayer>(p_pdf, page_number);
-						page->add_layer(0, std::move(pdf_layer));
+						page->add_layer(0, std::make_unique<PDFLayer>(p_pdf, page_number));
 						page->add_layer(1); // NormalLayer
 						pages.push_back(std::move(page));
 					}
+					// 2) Add the pdf's pages.
 					new AddPagesCommand(doc.get(), focused_view != -1 ? page_numbers[focused_view]+1 : 0, std::move(pages), cmd);
+					// Run the command macro.
 					undoStack->push(cmd);
 				} catch(const PDFReadException &e) {
 					QMessageBox::warning(this, tr("Application"), tr("Cannot read pdf file %1:\n%2").arg(QDir::toNativeSeparators(fileName), e.reason()));

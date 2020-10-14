@@ -10,6 +10,7 @@
 
 #include <QDebug>
 #include <QElapsedTimer>
+#include <QCoreApplication>
 
 const uint32_t FILE_FORMAT_VERSION = 5;
 constexpr std::string_view magic_string("sauklaue_9NyB3wiHcGwA1dPGoadQJry");
@@ -108,7 +109,7 @@ void Serializer::save(Document *doc, QDataStream &stream)
 void load_path_4(file4::Path::Reader s_path, PathStroke *path) {
 	auto s_points = s_path.getPoints();
 	if (s_points.size() == 0)
-		throw SauklaueReadException("Invalid Sauklaue file: Empty path.");
+		throw SauklaueReadException(QCoreApplication::tr("Invalid Sauklaue file: Empty path."));
 	path->reserve_points(s_points.size());
 	for (auto s_point : s_points) {
 		Point point(s_point.getX(), s_point.getY());
@@ -120,25 +121,25 @@ std::unique_ptr<Document> Serializer::load(QDataStream& stream)
 {
 	char magic_string_in[magic_string.size()+10];
 	if (stream.readRawData(magic_string_in, magic_string.size()) != magic_string.size())
-		throw SauklaueReadException("Not a Sauklaue file.");
+		throw SauklaueReadException(QCoreApplication::tr("Not a Sauklaue file."));
 	if (std::string_view(magic_string_in, magic_string.size()) != magic_string)
-		throw SauklaueReadException("Not a Sauklaue file.");
+		throw SauklaueReadException(QCoreApplication::tr("Not a Sauklaue file."));
 	uint32_t file_format_version;
 	stream >> file_format_version;
 	if (stream.status() != QDataStream::Ok)
-		throw SauklaueReadException("Not a Sauklaue file.");
+		throw SauklaueReadException(QCoreApplication::tr("Not a Sauklaue file."));
 	qDebug() << "File format version" << file_format_version;
 	if (file_format_version > FILE_FORMAT_VERSION)
-		throw SauklaueReadException("File format " + QString::number(file_format_version) + " too new. Only formats up to " + QString::number(FILE_FORMAT_VERSION) + " supported. Consider updating.");
+		throw SauklaueReadException(QCoreApplication::tr("File format %1 too new. Only formats up to %2 supported. Consider updating.").arg(file_format_version).arg(FILE_FORMAT_VERSION));
 	if (file_format_version < 4)
-		throw SauklaueReadException("Not a Sauklaue file.");
+		throw SauklaueReadException(QCoreApplication::tr("Not a Sauklaue file."));
 	stream.setVersion(QDataStream::Qt_5_15);
 	char* c_data; uint len;
 	stream.readBytes(c_data, len);
 	std::string data(c_data, len);
 	delete[] c_data;
 	if (stream.status() != QDataStream::Ok)
-		throw SauklaueReadException("Invalid Sauklaue file: Too short.");
+		throw SauklaueReadException(QCoreApplication::tr("Invalid Sauklaue file: Too short."));
 	auto doc = std::make_unique<Document>();
 	if (file_format_version >= 4) {
 		kj::ArrayInputStream in(kj::arrayPtr((unsigned char*)data.c_str(), len));
@@ -157,7 +158,7 @@ std::unique_ptr<Document> Serializer::load(QDataStream& stream)
 				doc->add_embedded_pdf(std::move(pdf));
 			}
 		} catch (const PDFReadException &e) {
-			throw SauklaueReadException("Invalid embedded pdf file: " + e.reason());
+			throw SauklaueReadException(QCoreApplication::tr("Invalid embedded pdf file: %1").arg(e.reason()));
 		}
 		for (auto s_page : s_file.getPages()) {
 			auto page = std::make_unique<SPage>(s_page.getWidth(), s_page.getHeight());
@@ -186,7 +187,7 @@ std::unique_ptr<Document> Serializer::load(QDataStream& stream)
 							break;
 						}
 						default:
-							throw SauklaueReadException("Invalid Sauklaue file: Unknown stroke type.");
+							throw SauklaueReadException(QCoreApplication::tr("Invalid Sauklaue file: Unknown stroke type."));
 						}
 						layer->add_stroke(std::move(stroke));
 					}
@@ -200,7 +201,7 @@ std::unique_ptr<Document> Serializer::load(QDataStream& stream)
 					break;
 				}
 				default:
-					throw SauklaueReadException("Invalid Sauklaue file: Unknown layer type.");
+					throw SauklaueReadException(QCoreApplication::tr("Invalid Sauklaue file: Unknown layer type."));
 				}
 			}
 			doc->add_page(doc->pages().size(), std::move(page));

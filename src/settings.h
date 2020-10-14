@@ -71,6 +71,7 @@ public:
 private slots:
 	void reload();
 	void ok();
+	void apply();
 	void cancel();
 private:
 	QGridLayout *tabletGrid;

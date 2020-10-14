@@ -15,36 +15,6 @@ class QUndoStack;
 #include "pagewidget.h"
 #include "tablet.h"
 
-class PenColorAction : public QObject {
-	Q_OBJECT
-public:
-	PenColorAction(QColor color, QString name, MainWindow *view);
-	QAction* action() const {
-		return m_action;
-	}
-private slots:
-	void triggered(bool on);
-private:
-	QColor m_color;
-	MainWindow *m_view;
-	QAction* m_action;
-};
-
-class PenSizeAction : public QObject {
-	Q_OBJECT
-public:
-	PenSizeAction(int pen_size, int icon_size, QString name, MainWindow *view);
-	QAction* action() const {
-		return m_action;
-	}
-private slots:
-	void triggered(bool on);
-private:
-	int m_size;
-	MainWindow *m_view;
-	QAction* m_action;
-};
-
 class MainWindow : public QMainWindow
 {
 	Q_OBJECT

@@ -147,6 +147,11 @@ TabletSettings TabletRow::get() const
 
 SettingsDialog::SettingsDialog(QWidget *parent) : QDialog(parent)
 {
+	setWindowTitle(tr("Settings"));
+	
+	// It can be convenient to try out a setup with the preferences window open.
+	// We therefore don't make the window modal.
+	
 	QVBoxLayout *layout = new QVBoxLayout;
 	setLayout(layout);
 	
@@ -192,23 +197,30 @@ SettingsDialog::SettingsDialog(QWidget *parent) : QDialog(parent)
 	}
 	
 	QHBoxLayout *bottom = new QHBoxLayout;
-	QPushButton *reloadButton = new QPushButton(QIcon::fromTheme("view-refresh"), tr("Reload"));
-	connect(reloadButton, &QPushButton::clicked, this, &SettingsDialog::reload);
-	bottom->addWidget(reloadButton);
+	{
+		QPushButton *button = new QPushButton(QIcon::fromTheme("view-refresh"), tr("Reload"));
+		connect(button, &QPushButton::clicked, this, &SettingsDialog::reload);
+		bottom->addWidget(button);
+	}
 	bottom->addStretch();
 	layout->addLayout(bottom);
-	QPushButton *okButton = new QPushButton(QIcon::fromTheme("dialog-ok-apply"), tr("OK"));
-	connect(okButton, &QPushButton::clicked, this, &SettingsDialog::ok);
-	bottom->addWidget(okButton);
-	QPushButton *cancelButton = new QPushButton(QIcon::fromTheme("dialog-cancel"), tr("Cancel"));
-	connect(cancelButton, &QPushButton::clicked, this, &SettingsDialog::cancel);
-	bottom->addWidget(cancelButton);
+	{
+		QPushButton *button = new QPushButton(QIcon::fromTheme("dialog-ok-apply"), tr("OK"));
+		connect(button, &QPushButton::clicked, this, &SettingsDialog::ok);
+		bottom->addWidget(button);
+	}
+	{
+		QPushButton *button = new QPushButton(QIcon::fromTheme("dialog-ok-apply"), tr("Apply"));
+		connect(button, &QPushButton::clicked, this, &SettingsDialog::apply);
+		bottom->addWidget(button);
+	}
+	{
+		QPushButton *button = new QPushButton(QIcon::fromTheme("dialog-cancel"), tr("Cancel"));
+		connect(button, &QPushButton::clicked, this, &SettingsDialog::cancel);
+		bottom->addWidget(button);
+	}
 	
 	reload();
-	
-	setModal(true);
-	
-	setWindowTitle(tr("Settings"));
 }
 
 void SettingsDialog::reload()
@@ -238,12 +250,17 @@ void SettingsDialog::reload()
 
 void SettingsDialog::ok()
 {
+	apply();
+	close();
+}
+
+void SettingsDialog::apply()
+{
 	std::vector<TabletSettings> tablets;
 	for (const auto& row : m_rows)
 		tablets.push_back(row->get());
 	Settings::self()->set_tablets(tablets);
 	Settings::self()->save();
-	close();
 }
 
 void SettingsDialog::cancel()
