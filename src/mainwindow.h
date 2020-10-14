@@ -74,7 +74,6 @@ public:
 	void loadUrl(const QUrl &url);
 private:
 	void setCurrentFile(const QString& fileName);
-	QString strippedName(const QString& fullFileName);
 	void setDocument(std::unique_ptr<Document> _doc);
 	
 	/* Saving documents */

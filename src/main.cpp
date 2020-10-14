@@ -27,6 +27,7 @@ std::unique_ptr<Document> read_document(QString infile) {
 
 int gui_command(int argc, char **argv) {
 	QApplication app(argc, argv);
+	Settings::self()->load();
 	app.setWindowIcon(QIcon::fromTheme("application-x-sauklaue"));
 	QCommandLineParser parser;
 	parser.setApplicationDescription("Sauklaue (GUI)");
@@ -46,6 +47,7 @@ int gui_command(int argc, char **argv) {
 
 int export_command(int argc, char **argv) {
 	QCoreApplication app(argc, argv);
+	Settings::self()->load();
 	QCommandLineParser parser;
 	parser.setApplicationDescription("Export to PDF");
 	parser.addHelpOption();
@@ -112,6 +114,7 @@ int export_command(int argc, char **argv) {
 
 int save_command(int argc, char **argv) {
 	QCoreApplication app(argc, argv);
+	Settings::self()->load();
 	QCommandLineParser parser;
 	parser.setApplicationDescription("Open and then save a file. This is useful if you want to update the file to a newer file format.");
 	parser.addHelpOption();
@@ -148,7 +151,6 @@ int main(int argc, char **argv)
 {
 	QCoreApplication::setApplicationName("sauklaue");
 	QCoreApplication::setOrganizationName("sauklaue");
-	Settings::self()->load();
 	int res;
 	if (argc >= 2) {
 		// Remove argv[1].

@@ -618,13 +618,8 @@ void MainWindow::setCurrentFile(const QString& fileName)
 	
 	QString shownName = curFile;
 	if (curFile.isEmpty())
-		shownName = "untitled.txt";
+		shownName = "untitled.sau";
 	setWindowFilePath(shownName);
-}
-
-QString MainWindow::strippedName(const QString& fullFileName)
-{
-	return QFileInfo(fullFileName).fileName();
 }
 
 std::unique_ptr<SPage> new_default_page() {
