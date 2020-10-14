@@ -116,7 +116,6 @@ private slots:
 	void firstPage();
 	void lastPage();
 	void actionGotoPage();
-	void gotoPageBox(int index); // 1-based index!
 	void insertPDF();
 	
 	/* Views */
@@ -132,9 +131,7 @@ private slots:
 	void showSettings();
 	
 private slots:
-#ifndef QT_NO_SESSIONMANAGER
 	void commitData(QSessionManager &);
-#endif
 	
 	void pages_added(int first_page, int number_of_pages);
 	void pages_deleted(int first_page, int number_of_pages);

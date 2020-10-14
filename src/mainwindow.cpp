@@ -31,6 +31,8 @@
 #include <QPainter>
 #include <QInputDialog>
 
+#include <KCursorSaver>
+
 PenColorAction::PenColorAction(QColor color, QString name, MainWindow* view) : QObject(view), m_color(color), m_view(view)
 {
 	QPixmap pixmap(64,64);
@@ -129,11 +131,9 @@ MainWindow::MainWindow(QWidget *parent) :
 		timer->start(180000);
 	}
 	
-#ifndef QT_NO_SESSIONMANAGER
 	QGuiApplication::setFallbackSessionManagementEnabled(false);
 	connect(qApp, &QGuiApplication::commitDataRequest,
 			this, &MainWindow::commitData);
-#endif
 	setDocument(std::make_unique<Document>());
 	setCurrentFile(QString());
 	updatePageNavigation();
@@ -161,24 +161,16 @@ void MainWindow::loadFile(const QString& fileName)
 		                     .arg(QDir::toNativeSeparators(fileName), file.errorString()));
 		return;
 	}
-
+	
 	QDataStream in(&file);
-#ifndef QT_NO_CURSOR
-	QGuiApplication::setOverrideCursor(Qt::WaitCursor);
-#endif
 	try {
+		KCursorSaver cursor(Qt::WaitCursor);
 		setDocument(Serializer::load(in));
 	} catch(const SauklaueReadException & e) {
-#ifndef QT_NO_CURSOR
-	QGuiApplication::restoreOverrideCursor();
-#endif
 		QMessageBox::warning(this, tr("Application"), tr("Cannot read file %1:\n%2").arg(QDir::toNativeSeparators(fileName), e.reason()));
 		return;
 	}
-#ifndef QT_NO_CURSOR
-	QGuiApplication::restoreOverrideCursor();
-#endif
-
+	
 	setCurrentFile(fileName);
 	updatePageNavigation();
 	statusBar()->showMessage(tr("File loaded"), 2000);
@@ -613,9 +605,9 @@ bool MainWindow::saveFile(const QString& fileName)
 {
 	QString errorMessage;
 	
-	QGuiApplication::setOverrideCursor(Qt::WaitCursor);
 	QSaveFile file(fileName);
 	if (file.open(QFile::WriteOnly)) {
+		KCursorSaver cursor(Qt::WaitCursor);
 		QDataStream out(&file);
 		QElapsedTimer save_timer; save_timer.start();
 		Serializer::save(doc.get(), out);
@@ -630,7 +622,6 @@ bool MainWindow::saveFile(const QString& fileName)
 		errorMessage = tr("Cannot open file %1 for writing:\n%2.")
 			.arg(QDir::toNativeSeparators(fileName), file.errorString());
 	}
-	QGuiApplication::restoreOverrideCursor();
 	
 	if (!errorMessage.isEmpty()) {
 		QMessageBox::warning(this, tr("Application"), errorMessage);
@@ -806,11 +797,6 @@ void MainWindow::showPages(std::array<int, 2> new_page_numbers, int new_focused_
 	updatePageNavigation();
 }
 
-void MainWindow::gotoPageBox(int index)
-{
-	gotoPage(index-1);
-}
-
 void MainWindow::insertPDF()
 {
 	QStringList mimeTypeFilters({"application/pdf", "application/octet-stream"});
@@ -894,7 +880,6 @@ void MainWindow::showSettings()
 }
 
 
-#ifndef QT_NO_SESSIONMANAGER
 void MainWindow::commitData(QSessionManager &manager)
 {
 	if (manager.allowsInteraction()) {
@@ -906,7 +891,6 @@ void MainWindow::commitData(QSessionManager &manager)
 			save();
 	}
 }
-#endif
 
 void MainWindow::pages_added(int first_page, int number_of_pages)
 {
@@ -1022,7 +1006,6 @@ void MainWindow::exportPDF()
 	QFileInfo info(curFile);
 	QString pdf_file_name = info.path() + "/" + info.baseName() + ".pdf";
 	qDebug() << "Exporting to" << pdf_file_name;
-	QGuiApplication::setOverrideCursor(Qt::WaitCursor);
+	KCursorSaver cursor(Qt::WaitCursor);
 	PDFExporter::save(doc.get(), pdf_file_name.toStdString());
-	QGuiApplication::restoreOverrideCursor();
 }

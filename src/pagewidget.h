@@ -48,7 +48,7 @@ public:
 	void focusPage();
 	void unfocusPage();
 signals:
-	void focus();
+	void focus(); // Signals that this widget would like to request focus.
 	
 protected:
 	void paintEvent(QPaintEvent *event) override;
@@ -81,10 +81,16 @@ private:
 	void finish_path();
 	
 private:
-	bool has_focus = false;
 	MainWindow *m_view;
+	// The following are equivalent:
+	//  a) !m_page
+	//  b) !m_page_picture
+	// They imply:
+	//  c) !has_focus
+	//  d) !m_current_stroke
 	SPage *m_page = nullptr;
 	std::unique_ptr<PagePicture> m_page_picture;
+	bool has_focus = false;
 	std::optional<StrokeCreator> m_current_stroke;
 };
 

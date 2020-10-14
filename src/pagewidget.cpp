@@ -55,8 +55,10 @@ PageWidget::PageWidget(MainWindow* view) :
 void PageWidget::setPage(SPage* page)
 {
 	if (m_page == page)
-		return;
+		return; // Do nothing. In particular, don't clear m_current_stroke.
 	m_page = page;
+	if (!m_page)
+		assert(!has_focus);
 	m_current_stroke.reset();
 	setupPicture();
 }
@@ -92,7 +94,7 @@ void PageWidget::removing_layer_picture(ptr_LayerPicture layer_picture)
 
 Cairo::Matrix PageWidget::page_to_pixels()
 {
-	assert(m_page_picture);
+	assert(m_page);
 	// We assume here that mapToGlobal is always a translation.
 	// TODO Find out if that assumption is correct.
 	QPoint translation = mapToGlobal(QPoint(0,0));
@@ -112,7 +114,7 @@ void PageWidget::update_tablet_map()
 {
 	if (!has_focus)
 		return;
-	assert(m_page_picture);
+	assert(m_page);
 	TabletHandler::self()->set_active_region(minimum_rect_in_pixels(), screen()->virtualSize());
 }
 
@@ -137,7 +139,7 @@ void PageWidget::paintEvent([[maybe_unused]] QPaintEvent* event)
 	painter.setRenderHint(QPainter::Antialiasing, false);
 	// Background around the pages
 	painter.fillRect(0,0,width(),height(), QColorConstants::LightGray);
-	if (!m_page_picture)
+	if (!m_page)
 		return;
 	// Page background color
 	painter.fillRect(m_page_picture->transformation().image_rect, m_view->blackboardMode() ? QColorConstants::Black : QColorConstants::White);
@@ -229,7 +231,7 @@ void PageWidget::tabletEvent(QTabletEvent* event)
 
 void PageWidget::start_path(QPointF pp, StrokeType type)
 {
-	if (!m_page_picture)
+	if (!m_page)
 		return;
 	if (!m_current_stroke) {
 		Point p = m_page_picture->transformation().widget2page(pp);

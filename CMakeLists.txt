@@ -55,6 +55,10 @@ kconfig_add_kcfg_files(CONFIG_SRCS src/config.kcfgc)
 find_package(KF5ConfigWidgets)
 link_libraries(KF5::ConfigWidgets)
 
+# Find the KGuiAddons library
+find_package(KF5GuiAddons)
+link_libraries(KF5::GuiAddons)
+
 set(sauklaue_SRC
 	src/document.cpp
 	src/serializer.cpp
