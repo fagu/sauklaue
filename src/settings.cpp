@@ -82,9 +82,8 @@ TabletRow::TabletRow(const TabletSettings& tablet, QGridLayout* tabletGrid, int 
 	m_orientation_degrees = tablet.orientation;
 	m_enabled = new QCheckBox;
 	m_enabled->setChecked(tablet.enabled);
-	QIcon icon = QIcon::fromTheme(connected ? "network-connect" : "network-disconnect");
 	m_enabled->setIconSize(QSize(32,32));
-	m_enabled->setIcon(icon);
+	m_enabled->setIcon(QIcon::fromTheme(connected ? "network-connect" : "network-disconnect"));
 	m_enabled->setText(tablet.name);
 	connect(m_enabled, &QCheckBox::toggled, this, &TabletRow::update);
 	tabletGrid->addWidget(m_enabled, i+1, 0);

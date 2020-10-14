@@ -269,30 +269,26 @@ void MainWindow::documentWasModified()
 void MainWindow::createActions()
 {
 	QMenu *fileMenu = menuBar()->addMenu(tr("&File"));
-	std::array<QToolBar*,2> toolbar;
+	std::array<QToolBar*,2> toolbars;
 	for (size_t i = 0; i < 2; i++) {
-		toolbar[i] = new QToolBar();
-		toolbar[i]->setMovable(false);
+		toolbars[i] = new QToolBar();
+		toolbars[i]->setMovable(false);
 	}
-	addToolBar(Qt::ToolBarArea::LeftToolBarArea, toolbar[0]);
-	addToolBar(Qt::ToolBarArea::RightToolBarArea, toolbar[1]);
+	addToolBar(Qt::ToolBarArea::LeftToolBarArea, toolbars[0]);
+	addToolBar(Qt::ToolBarArea::RightToolBarArea, toolbars[1]);
 	{
-		const QIcon icon = QIcon::fromTheme("document-new");
-		QAction *action = new QAction(icon, tr("&New"), this);
+		QAction *action = new QAction(QIcon::fromTheme("document-new"), tr("&New"), this);
 		action->setShortcuts(QKeySequence::New);
 		action->setStatusTip(tr("Create a new file"));
 		connect(action, &QAction::triggered, this, &MainWindow::newFile);
 		fileMenu->addAction(action);
-	// 	fileToolBar->addAction(action);
 	}
 	{
-		const QIcon icon = QIcon::fromTheme("document-open");
-		QAction *action = new QAction(icon, tr("&Open..."), this);
+		QAction *action = new QAction(QIcon::fromTheme("document-open"), tr("&Open..."), this);
 		action->setShortcuts(QKeySequence::Open);
 		action->setStatusTip(tr("Open an existing file"));
 		connect(action, &QAction::triggered, this, &MainWindow::open);
 		fileMenu->addAction(action);
-	// 	fileToolBar->addAction(action);
 	}
 	{
 		recentFilesAction = new KRecentFilesAction(QIcon::fromTheme("document-open-recent"), tr("Open Recent"), this);
@@ -300,81 +296,70 @@ void MainWindow::createActions()
 		fileMenu->addAction(recentFilesAction);
 	}
 	{
-		const QIcon icon = QIcon::fromTheme("document-save");
-		QAction *action = new QAction(icon, tr("&Save"), this);
+		QAction *action = new QAction(QIcon::fromTheme("document-save"), tr("&Save"), this);
 		action->setShortcuts(QKeySequence::Save);
 		action->setStatusTip(tr("Save the document to disk"));
 		connect(action, &QAction::triggered, this, &MainWindow::save);
 		fileMenu->addAction(action);
-	// 	fileToolBar->addAction(action);
 	}
 	{
-		const QIcon icon = QIcon::fromTheme("document-save-as");
-		QAction *action = new QAction(icon, tr("Save &As..."), this);
+		QAction *action = new QAction(QIcon::fromTheme("document-save-as"), tr("Save &As..."), this);
 		action->setShortcuts(QKeySequence::SaveAs);
 		action->setStatusTip(tr("Save the document under a new name"));
 		connect(action, &QAction::triggered, this, &MainWindow::saveAs);
 		fileMenu->addAction(action);
-	// 	fileToolBar->addAction(action);
 	}
     fileMenu->addSeparator();
 	{
-		const QIcon icon = QIcon::fromTheme("document-export");
-		QAction *action = new QAction(icon, tr("&Export PDF"), this);
+		QAction *action = new QAction(QIcon::fromTheme("document-export"), tr("&Export PDF"), this);
 		action->setShortcut(QKeySequence(Qt::CTRL + Qt::Key_E));
 		action->setStatusTip(tr("Export PDF file"));
 		connect(action, &QAction::triggered, this, &MainWindow::exportPDF);
 		fileMenu->addAction(action);
-	// 	fileToolBar->addAction(action);
 	}
     fileMenu->addSeparator();
 	{
-		const QIcon icon = QIcon::fromTheme("application-exit");
-		QAction *action = fileMenu->addAction(icon, tr("E&xit"), this, &QWidget::close);
+		QAction *action = new QAction(QIcon::fromTheme("application-exit"), tr("E&xit"), this);
 		action->setShortcuts(QKeySequence::Quit);
 		action->setStatusTip(tr("Exit the application"));
+		connect(action, &QAction::triggered, this, &QWidget::close);
+		fileMenu->addAction(action);
 	}
 	QMenu *editMenu = menuBar()->addMenu(tr("&Edit"));
 	{
-		const QIcon icon = QIcon::fromTheme("edit-undo");
 		QAction *action = undoStack->createUndoAction(this, tr("&Undo"));
-		action->setIcon(icon);
+		action->setIcon(QIcon::fromTheme("edit-undo"));
 		action->setShortcuts(QKeySequence::Undo);
 		editMenu->addAction(action);
 	}
 	{
-		const QIcon icon = QIcon::fromTheme("edit-redo");
 		QAction *action = undoStack->createRedoAction(this, tr("&Redo"));
-		action->setIcon(icon);
+		action->setIcon(QIcon::fromTheme("edit-redo"));
 		action->setShortcuts(QKeySequence::Redo);
 		editMenu->addAction(action);
 	}
 	editMenu->addSeparator();
 	{
-		const QIcon icon = QIcon::fromTheme("configure");
-		QAction *action = new QAction(icon, tr("&Preferences"));
+		QAction *action = new QAction(QIcon::fromTheme("configure"), tr("&Preferences"));
 		connect(action, &QAction::triggered, this, &MainWindow::showSettings);
 		editMenu->addAction(action);
 	}
 	QMenu *pagesMenu = menuBar()->addMenu(tr("&Pages"));
 	{
-		const QIcon icon = QIcon::fromTheme("list-add");
-		QAction *action = new QAction(icon, tr("New Page &Before"));
+		QAction *action = new QAction(QIcon::fromTheme("list-add"), tr("New Page &Before"));
 		action->setStatusTip(tr("Add a new page before the current one"));
 		connect(action, &QAction::triggered, this, &MainWindow::newPageBefore);
 		pagesMenu->addAction(action);
 	}
 	{
-		const QIcon icon = QIcon::fromTheme("list-add");
-		QAction *action = new QAction(icon, tr("New Page &After"));
+		QAction *action = new QAction(QIcon::fromTheme("list-add"), tr("New Page &After"));
 		action->setStatusTip(tr("Add a new page after the current one"));
 		action->setShortcut(QKeySequence(Qt::CTRL + Qt::Key_D));
 		connect(action, &QAction::triggered, this, &MainWindow::newPageAfter);
 		pagesMenu->addAction(action);
 	}
 	{
-		const QIcon icon = QIcon::fromTheme("list-remove");
-		QAction *action = new QAction(icon, tr("&Delete Page"));
+		QAction *action = new QAction(QIcon::fromTheme("list-remove"), tr("&Delete Page"));
 		action->setStatusTip(tr("Delete the current page"));
 		connect(action, &QAction::triggered, this, &MainWindow::deletePage);
 		pagesMenu->addAction(action);
@@ -382,8 +367,7 @@ void MainWindow::createActions()
 	}
 	pagesMenu->addSeparator();
 	{
-		const QIcon icon = QIcon::fromTheme("go-up");
-		QAction *action = new QAction(icon, tr("&Previous Page"));
+		QAction *action = new QAction(QIcon::fromTheme("go-up"), tr("&Previous Page"));
 		action->setStatusTip(tr("Move to the previous page"));
 		action->setShortcuts(QKeySequence::MoveToPreviousPage);
 		connect(action, &QAction::triggered, this, &MainWindow::previousPage);
@@ -392,11 +376,10 @@ void MainWindow::createActions()
 	}
 	// If the pages are unlinked, we should enable the "previous page" action on all views independently. (Depending on whether that particular view is showing the first page or not.) This is why we create a separate global action (in the menu) that applies to the currently focused view, and one action for each view.
 	for (int i = 0; i < 2; i++) {
-		const QIcon icon = QIcon::fromTheme("go-up");
-		QAction *action = new QAction(icon, tr("&Previous Page"));
+		QAction *action = new QAction(QIcon::fromTheme("go-up"), tr("&Previous Page"));
 		action->setStatusTip(tr("Move to the previous page"));
 		connect(action, &QAction::triggered, this, [this,i]() {previousPageInView(i);});
-		toolbar[i]->addAction(action);
+		toolbars[i]->addAction(action);
 		previousPageInViewAction[i] = action;
 	}
 	{
@@ -407,14 +390,13 @@ void MainWindow::createActions()
 			ofLabel->setAlignment(Qt::AlignCenter);
 			pageCountLabel[i] = new QLabel("");
 			pageCountLabel[i]->setAlignment(Qt::AlignCenter);
-			toolbar[i]->addWidget(currentPageLabel[i]);
-			toolbar[i]->addWidget(ofLabel);
-			toolbar[i]->addWidget(pageCountLabel[i]);
+			toolbars[i]->addWidget(currentPageLabel[i]);
+			toolbars[i]->addWidget(ofLabel);
+			toolbars[i]->addWidget(pageCountLabel[i]);
 		}
 	}
 	{
-		const QIcon icon = QIcon::fromTheme("go-down");
-		QAction *action = new QAction(icon, tr("&Next Page"));
+		QAction *action = new QAction(QIcon::fromTheme("go-down"), tr("&Next Page"));
 		action->setStatusTip(tr("Move to the next page"));
 		action->setShortcuts(QKeySequence::MoveToNextPage);
 		connect(action, &QAction::triggered, this, &MainWindow::nextPage);
@@ -423,16 +405,14 @@ void MainWindow::createActions()
 	}
 	// If the pages are unlinked, we should enable the "next page" action on all views independently. (Depending on whether that particular view is showing the last page or not.) This is why we create a separate global action (in the menu) that applies to the currently focused view, and one action for each view.
 	for (int i = 0; i < 2; i++) {
-		const QIcon icon = QIcon::fromTheme("go-down");
-		QAction *action = new QAction(icon, tr("&Next Page"));
+		QAction *action = new QAction(QIcon::fromTheme("go-down"), tr("&Next Page"));
 		action->setStatusTip(tr("Move to the next page"));
 		connect(action, &QAction::triggered, this, [this,i]() {nextPageInView(i);});
-		toolbar[i]->addAction(action);
+		toolbars[i]->addAction(action);
 		nextPageInViewAction[i] = action;
 	}
 	{
-		const QIcon icon = QIcon::fromTheme("go-first");
-		QAction *action = new QAction(icon, tr("&First Page"));
+		QAction *action = new QAction(QIcon::fromTheme("go-first"), tr("&First Page"));
 		action->setStatusTip(tr("Move to the first page"));
 		action->setShortcuts(QKeySequence::MoveToStartOfLine);
 		connect(action, &QAction::triggered, this, &MainWindow::firstPage);
@@ -440,8 +420,7 @@ void MainWindow::createActions()
 		firstPageAction = action;
 	}
 	{
-		const QIcon icon = QIcon::fromTheme("go-last");
-		QAction *action = new QAction(icon, tr("&Last Page"));
+		QAction *action = new QAction(QIcon::fromTheme("go-last"), tr("&Last Page"));
 		action->setStatusTip(tr("Move to the first page"));
 		action->setShortcuts(QKeySequence::MoveToEndOfLine);
 		connect(action, &QAction::triggered, this, &MainWindow::lastPage);
@@ -449,8 +428,7 @@ void MainWindow::createActions()
 		lastPageAction = action;
 	}
 	{
-		const QIcon icon = QIcon::fromTheme("go-jump");
-		QAction *action = new QAction(icon, tr("&Go to page..."));
+		QAction *action = new QAction(QIcon::fromTheme("go-jump"), tr("&Go to page..."));
 		action->setStatusTip(tr("Move to a specific page"));
 		action->setShortcut(QKeySequence(Qt::CTRL + Qt::Key_G));
 		connect(action, &QAction::triggered, this, &MainWindow::actionGotoPage);
@@ -459,16 +437,14 @@ void MainWindow::createActions()
 	}
 	pagesMenu->addSeparator();
 	{
-		const QIcon icon = QIcon::fromTheme("document-import");
-		QAction *action = new QAction(icon, tr("&Insert PDF file"));
+		QAction *action = new QAction(QIcon::fromTheme("document-import"), tr("&Insert PDF file"));
 		action->setStatusTip(tr("Insert a PDF file after the current page"));
 		connect(action, &QAction::triggered, this, &MainWindow::insertPDF);
 		pagesMenu->addAction(action);
 	}
 	QMenu *viewsMenu = menuBar()->addMenu(tr("&Views"));
 	{
-		const QIcon icon = QIcon::fromTheme("go-previous");
-		QAction *action = new QAction(icon, tr("&Previous View"));
+		QAction *action = new QAction(QIcon::fromTheme("go-previous"), tr("&Previous View"));
 		action->setStatusTip(tr("Focus the previous view"));
 		action->setShortcut(QKeySequence(Qt::Key_Left));
 		connect(action, &QAction::triggered, this, &MainWindow::previousView);
@@ -476,16 +452,15 @@ void MainWindow::createActions()
 		previousViewAction = action;
 	}
 	{
-		const QIcon icon = QIcon::fromTheme("go-next");
-		QAction *action = new QAction(icon, tr("&Next View"));
+		QAction *action = new QAction(QIcon::fromTheme("go-next"), tr("&Next View"));
 		action->setStatusTip(tr("Focus the next view"));
 		action->setShortcut(QKeySequence(Qt::Key_Right));
 		connect(action, &QAction::triggered, this, &MainWindow::nextView);
 		viewsMenu->addAction(action);
 		nextViewAction = action;
 	}
-	for (size_t i = 0; i < 2; i++)
-		toolbar[i]->addSeparator();
+	for (QToolBar* tb : toolbars)
+		tb->addSeparator();
 	{
 		QActionGroup* group = new QActionGroup(this);
 		std::vector<std::pair<QColor,QString> > v = {
@@ -503,14 +478,14 @@ void MainWindow::createActions()
 		};
 		for (const auto &p : v) {
 			PenColorAction *action = new PenColorAction(p.first, p.second, this);
-			for (size_t i = 0; i < 2; i++)
-				toolbar[i]->addAction(action->action());
+			for (QToolBar* tb : toolbars)
+				tb->addAction(action->action());
 			group->addAction(action->action());
 		}
 		group->actions().back()->trigger();
 	}
-	for (size_t i = 0; i < 2; i++)
-		toolbar[i]->addSeparator();
+	for (QToolBar* tb : toolbars)
+		tb->addSeparator();
 	{
 		QActionGroup* group = new QActionGroup(this);
 		std::vector<std::tuple<int,int,QString> > v = {
@@ -520,14 +495,14 @@ void MainWindow::createActions()
 		};
 		for (const auto &p : v) {
 			PenSizeAction *action = new PenSizeAction(std::get<0>(p), std::get<1>(p), std::get<2>(p), this);
-			for (size_t i = 0; i < 2; i++)
-				toolbar[i]->addAction(action->action());
+			for (QToolBar* tb : toolbars)
+				tb->addAction(action->action());
 			group->addAction(action->action());
 		}
 		group->actions()[1]->trigger();
 	}
-	for (size_t i = 0; i < 2; i++)
-		toolbar[i]->addSeparator();
+	for (QToolBar* tb : toolbars)
+		tb->addSeparator();
 	{
 		QPixmap pixmap(64,64);
 		pixmap.fill(Qt::transparent);
@@ -545,17 +520,16 @@ void MainWindow::createActions()
 		action->setCheckable(true);
 		action->setStatusTip(tr("Blackboard mode"));
 		connect(action, &QAction::triggered, this, &MainWindow::setBlackboardMode);
-		for (size_t i = 0; i < 2; i++)
-			toolbar[i]->addAction(action);
+		for (QToolBar* tb : toolbars)
+			tb->addAction(action);
 	}
 	{
-		const QIcon icon = QIcon::fromTheme("handle-move");
-		QAction *action = new QAction(icon, tr("Unlink views"), this);
+		QAction *action = new QAction(QIcon::fromTheme("handle-move"), tr("Unlink views"), this);
 		action->setCheckable(true);
 		action->setStatusTip(tr("Allow independently changing pages on different views"));
 		connect(action, &QAction::triggered, this, &MainWindow::setLinkedPages);
-		for (size_t i = 0; i < 2; i++)
-			toolbar[i]->addAction(action);
+		for (QToolBar* tb : toolbars)
+			tb->addAction(action);
 	}
 }
 
