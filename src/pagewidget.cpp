@@ -41,6 +41,26 @@ void StrokeCreator::add_point(Point p) {
 	m_pic->draw_line(old, p, get(m_stroke));
 }
 
+double EraserCursor::radius() const {
+	return m_width * transformation()->unit2pixel / 2;
+}
+
+QRect EraserCursor::rect() const {
+	double r = radius();
+	return QRect((pos() - QPointF(r+1,r+1)).toPoint(), (pos() + QPointF(r+1,r+1)).toPoint());
+}
+
+void EraserCursor::paint(QPainter& painter) const {
+	painter.save();
+	painter.setClipRegion(transformation()->image_rect);
+	painter.setPen(QPen(Qt::black, 1));
+	painter.setBrush(Qt::white);
+	painter.setOpacity(0.5);
+	double r = radius();
+	painter.drawEllipse(pos(), r, r);
+	painter.restore();
+}
+
 PageWidget::PageWidget(ToolState* toolState) :
     QWidget(nullptr),
     m_tool_state(toolState) {
@@ -60,6 +80,7 @@ void PageWidget::setPage(SPage* page) {
 
 void PageWidget::setupPicture() {
 	if (m_page) {
+		set_tool_cursor(nullptr);
 		m_page_picture = std::make_unique<PagePicture>(m_page, width(), height());
 		connect(m_page_picture.get(), &PagePicture::update, this, &PageWidget::update_page);
 	} else {
@@ -130,6 +151,9 @@ void PageWidget::paintEvent([[maybe_unused]] QPaintEvent* event) {
 		painter.drawImage(m_page_picture->transformation().topLeft, layer_picture->img());
 		painter.setOpacity(1);
 	}
+	// Draw the tool cursor.
+	if (m_tool_cursor)
+		m_tool_cursor->paint(painter);
 	// Draw red border around focused pages.
 	if (has_focus) {
 		painter.setPen(QPen(QColorConstants::Red, 3));
@@ -149,19 +173,23 @@ void PageWidget::moveEvent(QMoveEvent*) {
 void PageWidget::mousePressEvent(QMouseEvent* event) {
 	if (event->button() == Qt::LeftButton)
 		start_path(event->pos(), StrokeType::Pen);
-	else if (event->button() == Qt::RightButton)
+	else if (event->button() == Qt::RightButton) {
 		start_path(event->pos(), StrokeType::Eraser);
-	else if (event->button() == Qt::MiddleButton)
+		if (m_page)
+			set_tool_cursor(std::make_unique<EraserCursor>(event->pos(), &m_page_picture->transformation(), DEFAULT_ERASER_WIDTH));
+	} else if (event->button() == Qt::MiddleButton)
 		start_path(event->pos(), StrokeType::LaserPointer);
 	if (m_page)
 		emit focus();
 }
 
 void PageWidget::mouseMoveEvent(QMouseEvent* event) {
+	move_tool_cursor(event->pos());
 	continue_path(event->pos());
 }
 
 void PageWidget::mouseReleaseEvent(QMouseEvent*) {
+	set_tool_cursor(nullptr);
 	finish_path();
 }
 
@@ -176,19 +204,21 @@ void PageWidget::tabletEvent(QTabletEvent* event) {
 				start_path(event->posF(), type);
 				event->accept();
 			} else if (event->button() == Qt::RightButton) {
-				// 				setCursor(Qt::CrossCursor);
+				if (m_page)
+					set_tool_cursor(std::make_unique<EraserCursor>(event->posF(), &m_page_picture->transformation(), DEFAULT_ERASER_WIDTH));
 				event->accept();
 			} else if (event->button() == Qt::MiddleButton) {
 				start_path(event->posF(), StrokeType::LaserPointer);
 				event->accept();
 			}
 		} else if (event->type() == QEvent::TabletMove) {
+			move_tool_cursor(event->posF());
 			continue_path(event->posF());
 			event->accept();
 		} else if (event->type() == QEvent::TabletRelease) {
 			finish_path();
-			// 			if (event->button() == Qt::RightButton)
-			// 				unsetCursor();
+			if (!(event->buttons() & Qt::RightButton))
+				set_tool_cursor(nullptr);
 			event->accept();
 		}
 	}
@@ -256,4 +286,22 @@ void PageWidget::finish_path() {
 		return;
 	m_current_stroke->commit();
 	m_current_stroke.reset();
+}
+
+void PageWidget::set_tool_cursor(std::unique_ptr<ToolCursor> tool_cursor) {
+	std::optional<QRect> old;
+	if (m_tool_cursor)
+		old = m_tool_cursor->rect();
+	m_tool_cursor = std::move(tool_cursor);
+	if (old)
+		update(old.value());
+	if (m_tool_cursor) {
+		connect(m_tool_cursor.get(), &ToolCursor::update, this, qOverload<const QRect&>(&PageWidget::update));
+		update(m_tool_cursor->rect());
+	}
+}
+
+void PageWidget::move_tool_cursor(QPointF pos) {
+	if (m_tool_cursor)
+		m_tool_cursor->move(pos);
 }
