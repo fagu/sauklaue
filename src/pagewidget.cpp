@@ -146,18 +146,21 @@ void PageWidget::paintEvent([[maybe_unused]] QPaintEvent* event) {
 	}
 	// Draw the temporary layer (semi-transparent).
 	{
+		painter.save();
 		painter.setOpacity(0.3);
 		auto layer_picture = m_page_picture->temporary_layer();
 		painter.drawImage(m_page_picture->transformation().topLeft, layer_picture->img());
-		painter.setOpacity(1);
+		painter.restore();
 	}
 	// Draw the tool cursor.
 	if (m_tool_cursor)
 		m_tool_cursor->paint(painter);
 	// Draw red border around focused pages.
 	if (has_focus) {
+		painter.save();
 		painter.setPen(QPen(QColorConstants::Red, 3));
 		painter.drawRect(m_page_picture->transformation().image_rect);
+		painter.restore();
 	}
 }
 
