@@ -10,9 +10,11 @@
 
 #include <QColor>
 #include <QString>
-#include <QDataStream>
-#include <QTimer>
-#include <QDebug>
+#include <QObject>
+
+class QTimer;
+struct _PopplerDocument;
+struct _PopplerPage;
 
 class Color {
 public:
@@ -240,17 +242,8 @@ public:
 	    m_value(w.m_value) {
 		w.m_value = nullptr;
 	}
-	void reset(T* value) {
-		if (m_value == value)
-			return;
-		if (m_value)
-			g_object_unref(m_value);
-		m_value = value;
-	}
-	~GObjectWrapper() {
-		if (m_value)
-			g_object_unref(m_value);
-	}
+	void reset(T* value);
+	~GObjectWrapper();
 	operator bool() const {
 		return m_value;
 	}
@@ -286,7 +279,7 @@ public:
 	QByteArray contents() const {
 		return m_contents;
 	}
-	PopplerDocument* document() const {
+	_PopplerDocument* document() const {
 		return m_document.get();
 	}
 	auto pages() const {
@@ -296,8 +289,8 @@ public:
 private:
 	QString m_name;
 	QByteArray m_contents;
-	GObjectWrapper<PopplerDocument> m_document;
-	std::vector<GObjectWrapper<PopplerPage> > m_pages;  // Destructed before m_document
+	GObjectWrapper<_PopplerDocument> m_document;
+	std::vector<GObjectWrapper<_PopplerPage> > m_pages;  // Destructed before m_document
 };
 
 class PDFLayer : public QObject {
@@ -313,9 +306,11 @@ public:
 	int page_number() const {
 		return m_page_number;
 	}
-	PopplerPage* page() const {
+	_PopplerPage* page() const {
 		return m_pdf->pages()[m_page_number];
 	}
+	// Size of the page (in our unit).
+	std::pair<int, int> size() const;
 
 private:
 	EmbeddedPDF* m_pdf;

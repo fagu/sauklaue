@@ -1,6 +1,13 @@
 #include "renderer.h"
 
+#include "cairo-helpers.h"
+
 #include <QDebug>
+
+// The header poppler.h defines a variable called signals, which is a qt keyword.
+#undef signals
+#include <poppler.h>
+#define signals Q_SIGNALS
 
 PictureTransformation::PictureTransformation(SPage* page, int widget_width, int widget_height) {
 	assert(page);

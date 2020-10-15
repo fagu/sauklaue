@@ -1,21 +1,20 @@
 #ifndef SETTINGS_H
 #define SETTINGS_H
 
-#include "util.h"
 #include "config.h"
 
 #include <QString>
 #include <QDialog>
-#include <QGridLayout>
-#include <QCheckBox>
-#include <QLabel>
-#include <QDoubleSpinBox>
-#include <QPushButton>
 
 #include <map>
 #include <optional>
 
 class TabletHandler;
+class QGridLayout;
+class QCheckBox;
+class QLabel;
+class QDoubleSpinBox;
+class QPushButton;
 
 class TabletSettings {
 public:

@@ -2,7 +2,11 @@
 
 #include "tablet.h"
 
-#include <QtWidgets>
+#include <QGridLayout>
+#include <QCheckBox>
+#include <QLabel>
+#include <QDoubleSpinBox>
+#include <QPushButton>
 
 #include <set>
 

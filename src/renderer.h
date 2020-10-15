@@ -11,6 +11,23 @@
 
 class PagePicture;
 
+// RAII for the cairo context: Saves the current state on construction and restores it on deletion.
+class CairoGroup {
+public:
+	CairoGroup(Cairo::RefPtr<Cairo::Context> cr) :
+	    _cr(cr) {
+		_cr->save();
+	}
+	CairoGroup(const CairoGroup&) = delete;
+	CairoGroup& operator=(const CairoGroup&) = delete;
+	~CairoGroup() {
+		_cr->restore();
+	}
+
+private:
+	Cairo::RefPtr<Cairo::Context> _cr;
+};
+
 // For each layer, we generate an image whose size agrees with the size of the page on screen.
 // TODO Support zooming. Note that when zooming in, we should only generate an image for part of the page.
 

@@ -1,6 +1,6 @@
 #include "serializer.h"
 
-#include "util.h"
+#include "document.h"
 
 #include "src/file4.capnp.h"
 #include <capnp/message.h>
@@ -11,6 +11,7 @@
 #include <QDebug>
 #include <QElapsedTimer>
 #include <QCoreApplication>
+#include <QDataStream>
 
 const uint32_t FILE_FORMAT_VERSION = 5;
 constexpr std::string_view magic_string("sauklaue_9NyB3wiHcGwA1dPGoadQJry");

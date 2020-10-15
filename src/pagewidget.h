@@ -5,12 +5,9 @@
 #include "renderer.h"
 
 #include <functional>
-#include <memory>
+#include <optional>
 
 #include <QWidget>
-
-#include <cairomm/context.h>
-#include <cairomm/surface.h>
 
 class MainWindow;
 

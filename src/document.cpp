@@ -1,11 +1,14 @@
 #include "document.h"
 
-#include "util.h"
-
 #include <cassert>
 #include <iostream>
 
-#include <QDebug>
+#include <QTimer>
+
+// The header poppler.h defines a variable called signals, which is a qt keyword.
+#undef signals
+#include <poppler.h>
+#define signals Q_SIGNALS
 
 const Color Color::BLACK = Color::color(0, 0, 0, 255);
 
@@ -38,6 +41,27 @@ NormalLayer::NormalLayer(const NormalLayer& a) {
 		        },
 		        s));
 	}
+}
+
+template <class T>
+GObjectWrapper<T>::~GObjectWrapper<T>() {
+	if (m_value)
+		g_object_unref(m_value);
+}
+
+template <class T>
+void GObjectWrapper<T>::reset(T* value) {
+	if (m_value == value)
+		return;
+	if (m_value)
+		g_object_unref(m_value);
+	m_value = value;
+}
+
+std::pair<int, int> PDFLayer::size() const {
+	double width, height;
+	poppler_page_get_size(page(), &width, &height);
+	return {width * POINT_TO_UNIT, height * POINT_TO_UNIT};
 }
 
 // Page::Page(const Page& a) : Page(a.m_width, a.m_height)

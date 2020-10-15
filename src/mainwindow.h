@@ -1,19 +1,14 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
-#include <memory>
-
-#include "util.h"
-
 #include <QMainWindow>
-#include <KRecentFilesAction>
+class KRecentFilesAction;
 class QSpinBox;
 class QLabel;
 class QSessionManager;
 class QUndoStack;
-
-#include "pagewidget.h"
-#include "tablet.h"
+class PageWidget;
+class Document;
 
 class MainWindow : public QMainWindow {
 	Q_OBJECT

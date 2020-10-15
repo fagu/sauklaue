@@ -2,12 +2,12 @@
 
 #include "mainwindow.h"
 
-#include "util.h"
 #include "commands.h"
 #include "serializer.h"
-#include "renderer.h"
 #include "tablet.h"
 #include "settings.h"
+#include "pagewidget.h"
+#include "document.h"
 
 #include <QHBoxLayout>
 #include <QStatusBar>
@@ -30,7 +30,9 @@
 #include <QLabel>
 #include <QPainter>
 #include <QInputDialog>
+#include <QTimer>
 
+#include <KRecentFilesAction>
 #include <KCursorSaver>
 
 // Some helper functions for assigning pages to views.
@@ -739,13 +741,10 @@ void MainWindow::insertPDF() {
 					qDebug() << "Number of pages:" << p_pdf->pages().size();
 					std::vector<std::unique_ptr<SPage> > pages;
 					for (int page_number = 0; page_number < (int)p_pdf->pages().size(); page_number++) {
-						PopplerPage* p_page = p_pdf->pages()[page_number];
-						double width, height;
-						poppler_page_get_size(p_page, &width, &height);
-						width *= POINT_TO_UNIT;
-						height *= POINT_TO_UNIT;
-						auto page = std::make_unique<SPage>(width, height);
-						page->add_layer(0, std::make_unique<PDFLayer>(p_pdf, page_number));
+						auto p_pdf_layer = std::make_unique<PDFLayer>(p_pdf, page_number);
+						std::pair<int, int> size = p_pdf_layer->size();
+						auto page = std::make_unique<SPage>(size.first, size.second);
+						page->add_layer(0, std::move(p_pdf_layer));
 						page->add_layer(1);  // NormalLayer
 						pages.push_back(std::move(page));
 					}

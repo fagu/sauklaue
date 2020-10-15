@@ -8,14 +8,6 @@
 #include <variant>
 #include <vector>
 
-// The header poppler.h defines a variable called signals, which is a qt keyword.
-// We therefore have to include it before all qt headers.
-#include <poppler.h>
-
-#include <QRectF>
-
-#include <cairomm/context.h>
-
 // helper type for the visitor #4
 template <class... Ts>
 struct overloaded : Ts... { using Ts::operator()...; };
@@ -119,45 +111,6 @@ VectorView<unique_to_ptr_helper<T> > vector_unique_to_pointer(const std::vector<
 template <class T>
 ListView<unique_to_ptr_helper<T> > list_unique_to_pointer(const std::list<std::unique_ptr<T> >& v) {
 	return ListView<unique_to_ptr_helper<T> >(v);
-}
-
-// RAII for the cairo context: Saves the current state on construction and restores it on deletion.
-class CairoGroup {
-public:
-	CairoGroup(Cairo::RefPtr<Cairo::Context> cr) :
-	    _cr(cr) {
-		_cr->save();
-	}
-	CairoGroup(const CairoGroup&) = delete;
-	CairoGroup& operator=(const CairoGroup&) = delete;
-	~CairoGroup() {
-		_cr->restore();
-	}
-
-private:
-	Cairo::RefPtr<Cairo::Context> _cr;
-};
-
-inline void bounding_rect_helper(Cairo::Matrix mat, double x, double y, double& minx, double& maxx, double& miny, double& maxy) {
-	mat.transform_point(x, y);
-	if (minx > x)
-		minx = x;
-	if (maxx < x)
-		maxx = x;
-	if (miny > y)
-		miny = y;
-	if (maxy < y)
-		maxy = y;
-}
-
-// Apply the matrix to the rectangle. Then return the (axis-parallel) bounding rectangle of the result.
-inline QRectF bounding_rect(Cairo::Matrix mat, QRectF rect) {
-	double minx = std::numeric_limits<double>::infinity(), maxx = -std::numeric_limits<double>::infinity(), miny = std::numeric_limits<double>::infinity(), maxy = -std::numeric_limits<double>::infinity();
-	bounding_rect_helper(mat, rect.left(), rect.top(), minx, maxx, miny, maxy);
-	bounding_rect_helper(mat, rect.left(), rect.bottom(), minx, maxx, miny, maxy);
-	bounding_rect_helper(mat, rect.right(), rect.top(), minx, maxx, miny, maxy);
-	bounding_rect_helper(mat, rect.right(), rect.bottom(), minx, maxx, miny, maxy);
-	return QRectF(QPointF(minx, miny), QPointF(maxx, maxy));
 }
 
 #endif

@@ -1,12 +1,10 @@
 #include "pagewidget.h"
 
-#include "util.h"
 #include "mainwindow.h"
 #include "commands.h"
 #include "tablet.h"
 
 #include <QScreen>
-#include <QDebug>
 #include <QPaintEvent>
 #include <QPainter>
 #include <QPen>

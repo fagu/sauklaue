@@ -1,11 +1,12 @@
 #include "tablet.h"
 
+#include "cairo-helpers.h"
 #include "settings.h"
 
 #include <cmath>
 
 #include <QDebug>
-#include <QProcess>
+#include <QTimer>
 #include <X11/extensions/XInput2.h>
 // #include <QtX11Extras/QX11Info>
 

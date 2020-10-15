@@ -2,6 +2,7 @@
 
 #include "serializer.h"
 #include "settings.h"
+#include "renderer.h"
 
 #include <iostream>
 

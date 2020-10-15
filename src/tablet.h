@@ -1,15 +1,13 @@
 #ifndef TABLET_H
 #define TABLET_H
 
-#include "util.h"
-
 #include <QObject>
-#include <QTimer>
 #include <QRectF>
 #include <QSize>
 
 #include <cairomm/matrix.h>
 
+class QTimer;
 struct _XDisplay;
 
 class TabletSettings;
