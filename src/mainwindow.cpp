@@ -79,7 +79,7 @@ MainWindow::MainWindow(QWidget* parent) :
 	createActions();
 	statusBar()->show();
 
-	readSettings();
+	readGeometrySettings();
 
 	connect(m_tool_state->undoStack(), &QUndoStack::cleanChanged, this, &MainWindow::documentWasModified);
 
@@ -94,117 +94,6 @@ MainWindow::MainWindow(QWidget* parent) :
 	setDocument(std::make_unique<Document>());
 	setCurrentFile(QString());
 	setUnifiedTitleAndToolBarOnMac(true);
-}
-
-void MainWindow::setDocument(std::unique_ptr<Document> _doc) {
-	if (doc)
-		disconnect(doc.get(), 0, this, 0);
-	doc = std::move(_doc);
-	assert(doc);
-	connect(doc.get(), &Document::pages_added, this, &MainWindow::pages_added);
-	connect(doc.get(), &Document::pages_deleted, this, &MainWindow::pages_deleted);
-	gotoPage(doc->pages().size() - 1);
-}
-
-void MainWindow::loadFile(const QString& fileName) {
-	QFile file(fileName);
-	if (!file.open(QFile::ReadOnly)) {
-		QMessageBox::warning(this, tr("Application"), tr("Cannot read file %1:\n%2.").arg(QDir::toNativeSeparators(fileName), file.errorString()));
-		return;
-	}
-
-	QDataStream in(&file);
-	try {
-		KCursorSaver cursor(Qt::WaitCursor);
-		setDocument(Serializer::load(in));
-	} catch (const SauklaueReadException& e) {
-		QMessageBox::warning(this, tr("Application"), tr("Cannot read file %1:\n%2").arg(QDir::toNativeSeparators(fileName), e.reason()));
-		return;
-	}
-
-	setCurrentFile(fileName);
-	statusBar()->showMessage(tr("File loaded"), 2000);
-}
-
-void MainWindow::loadUrl(const QUrl& url) {
-	if (!url.isValid() || !url.isLocalFile()) {
-		QMessageBox::warning(this, tr("Application"), tr("Cannot open url %1").arg(url.toString()));
-		return;
-	}
-	loadFile(url.toLocalFile());
-}
-
-void MainWindow::closeEvent(QCloseEvent* event) {
-	if (maybeSave()) {
-		writeSettings();
-		event->accept();
-	} else {
-		event->ignore();
-	}
-}
-
-void MainWindow::moveEvent(QMoveEvent*) {
-	if (focused_view != -1)
-		pagewidgets[focused_view]->update_tablet_map();
-}
-
-void MainWindow::newFile() {
-	if (maybeSave()) {
-		setDocument(std::make_unique<Document>());
-		setCurrentFile(QString());
-		m_tool_state->undoStack()->clear();
-	}
-}
-
-void MainWindow::open() {
-	if (maybeSave()) {
-		QStringList mimeTypeFilters({"application/x-sauklaue", "application/octet-stream"});
-		QFileDialog dialog(this, tr("Open File"));
-		dialog.setMimeTypeFilters(mimeTypeFilters);
-		dialog.setFileMode(QFileDialog::ExistingFile);
-		if (dialog.exec()) {
-			QStringList fileNames = dialog.selectedFiles();
-			if (fileNames.size() == 1) {
-				QString fileName = fileNames[0];
-				if (!fileName.isEmpty()) {
-					loadFile(fileName);
-					m_tool_state->undoStack()->clear();
-				}
-			}
-		}
-	}
-}
-
-bool MainWindow::save() {
-	if (curFile.isEmpty()) {
-		return saveAs();
-	} else {
-		return saveFile(curFile);
-	}
-}
-
-bool MainWindow::saveAs() {
-	QStringList mimeTypeFilters({"application/x-sauklaue", "application/octet-stream"});
-	QFileDialog dialog(this, tr("Save File"));
-	dialog.setMimeTypeFilters(mimeTypeFilters);
-	dialog.setAcceptMode(QFileDialog::AcceptSave);
-	if (!dialog.exec())
-		return false;
-	return saveFile(dialog.selectedFiles().first());
-}
-
-// TODO Do autosaving in a different thread to avoid interruptions?
-// Question: Is copying a Document fast enough to make a separate copy for the autosave thread?
-// Otherwise, we could perhaps always keep two copies of the Document, one for the view, one for the autosave thread. While the autosave thread is saving, its Document doesn't update but instead keeps track of the edits it's currently missing. The edits are applied as soon as the autosave is complete.
-void MainWindow::autoSave() {
-	if (doc && !curFile.isEmpty()) {
-		qDebug() << "Autosaving...";
-		save();
-	}
-}
-
-void MainWindow::documentWasModified() {
-	setWindowModified(!m_tool_state->undoStack()->isClean());
 }
 
 void MainWindow::createActions() {
@@ -499,7 +388,48 @@ void MainWindow::createActions() {
 	}
 }
 
-void MainWindow::readSettings() {
+void MainWindow::updatePageNavigation() {
+	deletePageAction->setEnabled(focused_view != -1);
+	bool can_next = false, can_prev = false;
+	if (focused_view != -1) {
+		if (m_views_linked) {
+			can_next = page_numbers[0] + 2 < (int)doc->pages().size();
+			can_prev = page_numbers[0] > 0;
+		} else {
+			can_next = page_numbers[focused_view] + 1 < (int)doc->pages().size();
+			can_prev = page_numbers[focused_view] > 0;
+		}
+	}
+	nextPageAction->setEnabled(can_next);
+	previousPageAction->setEnabled(can_prev);
+	for (int i = 0; i < 2; i++) {
+		if (m_views_linked) {
+			nextPageInViewAction[i]->setEnabled(can_next);
+			previousPageInViewAction[i]->setEnabled(can_prev);
+		} else {
+			nextPageInViewAction[i]->setEnabled(page_numbers[i] + 1 < (int)doc->pages().size());
+			previousPageInViewAction[i]->setEnabled(page_numbers[i] > 0);
+		}
+	}
+	firstPageAction->setEnabled(doc->pages().size() > 1);
+	lastPageAction->setEnabled(doc->pages().size() > 1);
+	gotoPageAction->setEnabled(doc->pages().size() > 1);
+	int number_of_active_views = 0;
+	for (int i = 0; i < 2; i++)
+		if (page_numbers[i] != -1)
+			number_of_active_views++;
+	previousViewAction->setEnabled(number_of_active_views > 1);
+	nextViewAction->setEnabled(number_of_active_views > 1);
+	for (size_t i = 0; i < 2; i++) {
+		if (page_numbers[i] != -1)
+			currentPageLabel[i]->setText(QString::number(page_numbers[i] + 1));
+		else
+			currentPageLabel[i]->setText("-");
+		pageCountLabel[i]->setText(QString::number(doc->pages().size()));
+	}
+}
+
+void MainWindow::readGeometrySettings() {
 	QSettings settings;
 	const QByteArray geometry = settings.value("geometry", QByteArray()).toByteArray();
 	if (geometry.isEmpty()) {
@@ -513,10 +443,121 @@ void MainWindow::readSettings() {
 	recentFilesAction->loadEntries(Settings::self()->config()->group("Recent Files"));
 }
 
-void MainWindow::writeSettings() {
+void MainWindow::writeGeometrySettings() {
 	QSettings settings;
 	settings.setValue("geometry", saveGeometry());
 	recentFilesAction->saveEntries(Settings::self()->config()->group("Recent Files"));
+}
+
+void MainWindow::setDocument(std::unique_ptr<Document> _doc) {
+	if (doc)
+		disconnect(doc.get(), 0, this, 0);
+	doc = std::move(_doc);
+	assert(doc);
+	connect(doc.get(), &Document::pages_added, this, &MainWindow::pages_added);
+	connect(doc.get(), &Document::pages_deleted, this, &MainWindow::pages_deleted);
+	gotoPage(doc->pages().size() - 1);
+}
+
+void MainWindow::loadFile(const QString& fileName) {
+	QFile file(fileName);
+	if (!file.open(QFile::ReadOnly)) {
+		QMessageBox::warning(this, tr("Application"), tr("Cannot read file %1:\n%2.").arg(QDir::toNativeSeparators(fileName), file.errorString()));
+		return;
+	}
+
+	QDataStream in(&file);
+	try {
+		KCursorSaver cursor(Qt::WaitCursor);
+		setDocument(Serializer::load(in));
+	} catch (const SauklaueReadException& e) {
+		QMessageBox::warning(this, tr("Application"), tr("Cannot read file %1:\n%2").arg(QDir::toNativeSeparators(fileName), e.reason()));
+		return;
+	}
+
+	setCurrentFile(fileName);
+	statusBar()->showMessage(tr("File loaded"), 2000);
+}
+
+void MainWindow::loadUrl(const QUrl& url) {
+	if (!url.isValid() || !url.isLocalFile()) {
+		QMessageBox::warning(this, tr("Application"), tr("Cannot open url %1").arg(url.toString()));
+		return;
+	}
+	loadFile(url.toLocalFile());
+}
+
+void MainWindow::closeEvent(QCloseEvent* event) {
+	if (maybeSave()) {
+		writeGeometrySettings();
+		event->accept();
+	} else {
+		event->ignore();
+	}
+}
+
+void MainWindow::moveEvent(QMoveEvent*) {
+	if (focused_view != -1)
+		pagewidgets[focused_view]->update_tablet_map();
+}
+
+void MainWindow::newFile() {
+	if (maybeSave()) {
+		setDocument(std::make_unique<Document>());
+		setCurrentFile(QString());
+		m_tool_state->undoStack()->clear();
+	}
+}
+
+void MainWindow::open() {
+	if (maybeSave()) {
+		QStringList mimeTypeFilters({"application/x-sauklaue", "application/octet-stream"});
+		QFileDialog dialog(this, tr("Open File"));
+		dialog.setMimeTypeFilters(mimeTypeFilters);
+		dialog.setFileMode(QFileDialog::ExistingFile);
+		if (dialog.exec()) {
+			QStringList fileNames = dialog.selectedFiles();
+			if (fileNames.size() == 1) {
+				QString fileName = fileNames[0];
+				if (!fileName.isEmpty()) {
+					loadFile(fileName);
+					m_tool_state->undoStack()->clear();
+				}
+			}
+		}
+	}
+}
+
+bool MainWindow::save() {
+	if (curFile.isEmpty()) {
+		return saveAs();
+	} else {
+		return saveFile(curFile);
+	}
+}
+
+bool MainWindow::saveAs() {
+	QStringList mimeTypeFilters({"application/x-sauklaue", "application/octet-stream"});
+	QFileDialog dialog(this, tr("Save File"));
+	dialog.setMimeTypeFilters(mimeTypeFilters);
+	dialog.setAcceptMode(QFileDialog::AcceptSave);
+	if (!dialog.exec())
+		return false;
+	return saveFile(dialog.selectedFiles().first());
+}
+
+// TODO Do autosaving in a different thread to avoid interruptions?
+// Question: Is copying a Document fast enough to make a separate copy for the autosave thread?
+// Otherwise, we could perhaps always keep two copies of the Document, one for the view, one for the autosave thread. While the autosave thread is saving, its Document doesn't update but instead keeps track of the edits it's currently missing. The edits are applied as soon as the autosave is complete.
+void MainWindow::autoSave() {
+	if (doc && !curFile.isEmpty()) {
+		qDebug() << "Autosaving...";
+		save();
+	}
+}
+
+void MainWindow::documentWasModified() {
+	setWindowModified(!m_tool_state->undoStack()->isClean());
 }
 
 bool MainWindow::maybeSave() {
@@ -810,47 +851,6 @@ void MainWindow::pages_added(int first_page, int number_of_pages) {
 
 void MainWindow::pages_deleted(int first_page, [[maybe_unused]] int number_of_pages) {
 	gotoPage(first_page);
-}
-
-void MainWindow::updatePageNavigation() {
-	deletePageAction->setEnabled(focused_view != -1);
-	bool can_next = false, can_prev = false;
-	if (focused_view != -1) {
-		if (m_views_linked) {
-			can_next = page_numbers[0] + 2 < (int)doc->pages().size();
-			can_prev = page_numbers[0] > 0;
-		} else {
-			can_next = page_numbers[focused_view] + 1 < (int)doc->pages().size();
-			can_prev = page_numbers[focused_view] > 0;
-		}
-	}
-	nextPageAction->setEnabled(can_next);
-	previousPageAction->setEnabled(can_prev);
-	for (int i = 0; i < 2; i++) {
-		if (m_views_linked) {
-			nextPageInViewAction[i]->setEnabled(can_next);
-			previousPageInViewAction[i]->setEnabled(can_prev);
-		} else {
-			nextPageInViewAction[i]->setEnabled(page_numbers[i] + 1 < (int)doc->pages().size());
-			previousPageInViewAction[i]->setEnabled(page_numbers[i] > 0);
-		}
-	}
-	firstPageAction->setEnabled(doc->pages().size() > 1);
-	lastPageAction->setEnabled(doc->pages().size() > 1);
-	gotoPageAction->setEnabled(doc->pages().size() > 1);
-	int number_of_active_views = 0;
-	for (int i = 0; i < 2; i++)
-		if (page_numbers[i] != -1)
-			number_of_active_views++;
-	previousViewAction->setEnabled(number_of_active_views > 1);
-	nextViewAction->setEnabled(number_of_active_views > 1);
-	for (size_t i = 0; i < 2; i++) {
-		if (page_numbers[i] != -1)
-			currentPageLabel[i]->setText(QString::number(page_numbers[i] + 1));
-		else
-			currentPageLabel[i]->setText("-");
-		pageCountLabel[i]->setText(QString::number(doc->pages().size()));
-	}
 }
 
 void MainWindow::setLinkedPages(bool on) {

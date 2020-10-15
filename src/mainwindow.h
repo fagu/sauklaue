@@ -17,6 +17,12 @@ class MainWindow : public QMainWindow {
 public:
 	explicit MainWindow(QWidget* parent = nullptr);
 
+private:
+	void createActions();
+	void updatePageNavigation();
+	void readGeometrySettings();
+	void writeGeometrySettings();
+
 private slots:
 	void documentWasModified();
 
@@ -70,7 +76,6 @@ private:
 	// 	QSpinBox *currentPageBox;
 	std::array<QLabel*, 2> currentPageLabel;
 	std::array<QLabel*, 2> pageCountLabel;
-	void updatePageNavigation();
 
 public:
 	void gotoPage(int index);
@@ -113,12 +118,6 @@ private slots:
 
 public:
 	void focusView(int view_index);
-
-private:
-	void createActions();
-
-	void readSettings();
-	void writeSettings();
 
 protected:
 	void closeEvent(QCloseEvent* event) override;
