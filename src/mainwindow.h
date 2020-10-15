@@ -26,16 +26,14 @@ private:
 private slots:
 	void documentWasModified();
 
+	/* Opening documents */
 public:
-	std::unique_ptr<Document> doc;
+	void loadFile(const QString& fileName);
 
 private:
-	int focused_view = -1;  // Index of the focused PageWidget. Should be -1 if and only if the document has no pages.
-	std::array<int, 2> page_numbers;  // Should be -1 if and only if the document has no pages.
-	std::array<PageWidget*, 2> pagewidgets;  // owned and deleted by the QMainWindow
-	QString curFile;
-
-	/* Opening documents */
+	void loadUrl(const QUrl& url);
+	void setCurrentFile(const QString& fileName);
+	void setDocument(std::unique_ptr<Document> _doc);
 private slots:
 	void newFile();
 	void open();
@@ -43,41 +41,22 @@ private slots:
 private:
 	KRecentFilesAction* recentFilesAction;
 
-public:
-	void loadFile(const QString& fileName);
-	void loadUrl(const QUrl& url);
-
-private:
-	void setCurrentFile(const QString& fileName);
-	void setDocument(std::unique_ptr<Document> _doc);
-
 	/* Saving documents */
-private slots:
-	bool save();
-	bool saveAs();
-	void autoSave();
-
 private:
 	bool maybeSave();
 	bool saveFile(const QString& fileName);
 private slots:
+	bool save();
+	bool saveAs();
+	void autoSave();
 	void exportPDF();
+
+	/* Exit */
+protected:
+	void closeEvent(QCloseEvent* event) override;
 
 	/* Pages */
 private:
-	QAction* deletePageAction;
-	QAction* previousPageAction;
-	std::array<QAction*, 2> previousPageInViewAction;
-	QAction* nextPageAction;
-	std::array<QAction*, 2> nextPageInViewAction;
-	QAction* firstPageAction;
-	QAction* lastPageAction;
-	QAction* gotoPageAction;
-	// 	QSpinBox *currentPageBox;
-	std::array<QLabel*, 2> currentPageLabel;
-	std::array<QLabel*, 2> pageCountLabel;
-
-public:
 	void gotoPage(int index);
 	void showPages(std::array<int, 2> new_page_numbers, int new_focused_view);
 private slots:
@@ -92,14 +71,30 @@ private slots:
 	void lastPage();
 	void actionGotoPage();
 	void insertPDF();
+	void setLinkedPages(bool on);
+
+private:
+	QAction* deletePageAction;
+	QAction* previousPageAction;
+	std::array<QAction*, 2> previousPageInViewAction;
+	QAction* nextPageAction;
+	std::array<QAction*, 2> nextPageInViewAction;
+	QAction* firstPageAction;
+	QAction* lastPageAction;
+	QAction* gotoPageAction;
+	std::array<QLabel*, 2> currentPageLabel;
+	std::array<QLabel*, 2> pageCountLabel;
 
 	/* Views */
 private:
-	QAction* previousViewAction;
-	QAction* nextViewAction;
+	void focusView(int view_index);
 private slots:
 	void previousView();
 	void nextView();
+
+private:
+	QAction* previousViewAction;
+	QAction* nextViewAction;
 
 	/* Settings */
 private slots:
@@ -111,20 +106,20 @@ private slots:
 	void pages_added(int first_page, int number_of_pages);
 	void pages_deleted(int first_page, int number_of_pages);
 
-private:
-	bool m_views_linked = true;  // Whether the page widgets should always display consecutive pages.
-private slots:
-	void setLinkedPages(bool on);
-
-public:
-	void focusView(int view_index);
-
 protected:
-	void closeEvent(QCloseEvent* event) override;
 	void moveEvent(QMoveEvent* event) override;
 
 private:
+	std::array<PageWidget*, 2> pagewidgets;  // owned and deleted by the QMainWindow
+
 	ToolState* m_tool_state;
+	bool m_views_linked = true;  // Whether the page widgets should always display consecutive pages.
+
+	std::unique_ptr<Document> doc;
+	QString curFile;
+
+	int focused_view = -1;  // Index of the focused PageWidget. Should be -1 if and only if the document has no pages.
+	std::array<int, 2> page_numbers;  // Should be -1 if and only if the document has no pages.
 };
 
 #endif  // MAINWINDOW_H

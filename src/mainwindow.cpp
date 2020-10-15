@@ -449,14 +449,8 @@ void MainWindow::writeGeometrySettings() {
 	recentFilesAction->saveEntries(Settings::self()->config()->group("Recent Files"));
 }
 
-void MainWindow::setDocument(std::unique_ptr<Document> _doc) {
-	if (doc)
-		disconnect(doc.get(), 0, this, 0);
-	doc = std::move(_doc);
-	assert(doc);
-	connect(doc.get(), &Document::pages_added, this, &MainWindow::pages_added);
-	connect(doc.get(), &Document::pages_deleted, this, &MainWindow::pages_deleted);
-	gotoPage(doc->pages().size() - 1);
+void MainWindow::documentWasModified() {
+	setWindowModified(!m_tool_state->undoStack()->isClean());
 }
 
 void MainWindow::loadFile(const QString& fileName) {
@@ -487,18 +481,27 @@ void MainWindow::loadUrl(const QUrl& url) {
 	loadFile(url.toLocalFile());
 }
 
-void MainWindow::closeEvent(QCloseEvent* event) {
-	if (maybeSave()) {
-		writeGeometrySettings();
-		event->accept();
-	} else {
-		event->ignore();
-	}
+void MainWindow::setCurrentFile(const QString& fileName) {
+	curFile = fileName;
+	setWindowModified(false);
+
+	if (!fileName.isEmpty())
+		recentFilesAction->addUrl(QUrl::fromLocalFile(fileName));
+
+	QString shownName = curFile;
+	if (curFile.isEmpty())
+		shownName = "untitled.sau";
+	setWindowFilePath(shownName);
 }
 
-void MainWindow::moveEvent(QMoveEvent*) {
-	if (focused_view != -1)
-		pagewidgets[focused_view]->update_tablet_map();
+void MainWindow::setDocument(std::unique_ptr<Document> _doc) {
+	if (doc)
+		disconnect(doc.get(), 0, this, 0);
+	doc = std::move(_doc);
+	assert(doc);
+	connect(doc.get(), &Document::pages_added, this, &MainWindow::pages_added);
+	connect(doc.get(), &Document::pages_deleted, this, &MainWindow::pages_deleted);
+	gotoPage(doc->pages().size() - 1);
 }
 
 void MainWindow::newFile() {
@@ -526,38 +529,6 @@ void MainWindow::open() {
 			}
 		}
 	}
-}
-
-bool MainWindow::save() {
-	if (curFile.isEmpty()) {
-		return saveAs();
-	} else {
-		return saveFile(curFile);
-	}
-}
-
-bool MainWindow::saveAs() {
-	QStringList mimeTypeFilters({"application/x-sauklaue", "application/octet-stream"});
-	QFileDialog dialog(this, tr("Save File"));
-	dialog.setMimeTypeFilters(mimeTypeFilters);
-	dialog.setAcceptMode(QFileDialog::AcceptSave);
-	if (!dialog.exec())
-		return false;
-	return saveFile(dialog.selectedFiles().first());
-}
-
-// TODO Do autosaving in a different thread to avoid interruptions?
-// Question: Is copying a Document fast enough to make a separate copy for the autosave thread?
-// Otherwise, we could perhaps always keep two copies of the Document, one for the view, one for the autosave thread. While the autosave thread is saving, its Document doesn't update but instead keeps track of the edits it's currently missing. The edits are applied as soon as the autosave is complete.
-void MainWindow::autoSave() {
-	if (doc && !curFile.isEmpty()) {
-		qDebug() << "Autosaving...";
-		save();
-	}
-}
-
-void MainWindow::documentWasModified() {
-	setWindowModified(!m_tool_state->undoStack()->isClean());
 }
 
 bool MainWindow::maybeSave() {
@@ -611,88 +582,53 @@ bool MainWindow::saveFile(const QString& fileName) {
 	return true;
 }
 
-void MainWindow::setCurrentFile(const QString& fileName) {
-	curFile = fileName;
-	setWindowModified(false);
-
-	if (!fileName.isEmpty())
-		recentFilesAction->addUrl(QUrl::fromLocalFile(fileName));
-
-	QString shownName = curFile;
-	if (curFile.isEmpty())
-		shownName = "untitled.sau";
-	setWindowFilePath(shownName);
+bool MainWindow::save() {
+	if (curFile.isEmpty()) {
+		return saveAs();
+	} else {
+		return saveFile(curFile);
+	}
 }
 
-std::unique_ptr<SPage> new_default_page() {
-	// A4 paper
-	int width = 0.210 * METER_TO_UNIT;
-	int height = 0.297 * METER_TO_UNIT;
-	auto page = std::make_unique<SPage>(width, height);
-	page->add_layer(0);
-	return page;
+bool MainWindow::saveAs() {
+	QStringList mimeTypeFilters({"application/x-sauklaue", "application/octet-stream"});
+	QFileDialog dialog(this, tr("Save File"));
+	dialog.setMimeTypeFilters(mimeTypeFilters);
+	dialog.setAcceptMode(QFileDialog::AcceptSave);
+	if (!dialog.exec())
+		return false;
+	return saveFile(dialog.selectedFiles().first());
 }
 
-void MainWindow::newPageBefore() {
-	m_tool_state->undoStack()->push(new AddPagesCommand(doc.get(), focused_view != -1 ? page_numbers[focused_view] : 0, move_into_vector(new_default_page())));
+// TODO Do autosaving in a different thread to avoid interruptions?
+// Question: Is copying a Document fast enough to make a separate copy for the autosave thread?
+// Otherwise, we could perhaps always keep two copies of the Document, one for the view, one for the autosave thread. While the autosave thread is saving, its Document doesn't update but instead keeps track of the edits it's currently missing. The edits are applied as soon as the autosave is complete.
+void MainWindow::autoSave() {
+	if (doc && !curFile.isEmpty()) {
+		qDebug() << "Autosaving...";
+		save();
+	}
 }
 
-void MainWindow::newPageAfter() {
-	m_tool_state->undoStack()->push(new AddPagesCommand(doc.get(), focused_view != -1 ? page_numbers[focused_view] + 1 : 0, move_into_vector(new_default_page())));
-}
-
-void MainWindow::deletePage() {
-	if (focused_view == -1)
+void MainWindow::exportPDF() {
+	if (!maybeSave())
 		return;
-	m_tool_state->undoStack()->push(new DeletePagesCommand(doc.get(), page_numbers[focused_view], 1));
+	if (curFile.isEmpty())
+		return;
+	QFileInfo info(curFile);
+	QString pdf_file_name = info.path() + "/" + info.baseName() + ".pdf";
+	qDebug() << "Exporting to" << pdf_file_name;
+	KCursorSaver cursor(Qt::WaitCursor);
+	PDFExporter::save(doc.get(), pdf_file_name.toStdString());
 }
 
-void MainWindow::nextPage() {
-	assert(focused_view != -1);
-	gotoPage(page_numbers[focused_view] + 1);
-}
-
-void MainWindow::nextPageInView(int view) {
-	if (m_views_linked)
-		nextPage();
-	else {
-		// Try to keep everything as is, but change the given view.
-		std::array<int, 2> res = page_numbers;
-		res[view]++;
-		showPages(res, focused_view);
+void MainWindow::closeEvent(QCloseEvent* event) {
+	if (maybeSave()) {
+		writeGeometrySettings();
+		event->accept();
+	} else {
+		event->ignore();
 	}
-}
-
-void MainWindow::previousPage() {
-	assert(focused_view != -1);
-	gotoPage(page_numbers[focused_view] - 1);
-}
-
-void MainWindow::previousPageInView(int view) {
-	if (m_views_linked)
-		previousPage();
-	else {
-		// Try to keep everything as is, but change the given view.
-		std::array<int, 2> res = page_numbers;
-		res[view]--;
-		showPages(res, focused_view);
-	}
-}
-
-void MainWindow::firstPage() {
-	gotoPage(0);
-}
-
-void MainWindow::lastPage() {
-	gotoPage(doc->pages().size() - 1);
-}
-
-void MainWindow::actionGotoPage() {
-	assert(focused_view != -1);
-	bool ok;
-	int page = QInputDialog::getInt(this, tr("Go to Page"), tr("Page:"), page_numbers[focused_view] + 1, 1, doc->pages().size(), 1, &ok);
-	if (ok)
-		gotoPage(page - 1);
 }
 
 void MainWindow::gotoPage(int index) {
@@ -756,6 +692,77 @@ void MainWindow::showPages(std::array<int, 2> new_page_numbers, int new_focused_
 	updatePageNavigation();
 }
 
+std::unique_ptr<SPage> new_default_page() {
+	// A4 paper
+	int width = 0.210 * METER_TO_UNIT;
+	int height = 0.297 * METER_TO_UNIT;
+	auto page = std::make_unique<SPage>(width, height);
+	page->add_layer(0);
+	return page;
+}
+
+void MainWindow::newPageBefore() {
+	m_tool_state->undoStack()->push(new AddPagesCommand(doc.get(), focused_view != -1 ? page_numbers[focused_view] : 0, move_into_vector(new_default_page())));
+}
+
+void MainWindow::newPageAfter() {
+	m_tool_state->undoStack()->push(new AddPagesCommand(doc.get(), focused_view != -1 ? page_numbers[focused_view] + 1 : 0, move_into_vector(new_default_page())));
+}
+
+void MainWindow::deletePage() {
+	if (focused_view == -1)
+		return;
+	m_tool_state->undoStack()->push(new DeletePagesCommand(doc.get(), page_numbers[focused_view], 1));
+}
+
+void MainWindow::previousPage() {
+	assert(focused_view != -1);
+	gotoPage(page_numbers[focused_view] - 1);
+}
+
+void MainWindow::previousPageInView(int view) {
+	if (m_views_linked)
+		previousPage();
+	else {
+		// Try to keep everything as is, but change the given view.
+		std::array<int, 2> res = page_numbers;
+		res[view]--;
+		showPages(res, focused_view);
+	}
+}
+
+void MainWindow::nextPage() {
+	assert(focused_view != -1);
+	gotoPage(page_numbers[focused_view] + 1);
+}
+
+void MainWindow::nextPageInView(int view) {
+	if (m_views_linked)
+		nextPage();
+	else {
+		// Try to keep everything as is, but change the given view.
+		std::array<int, 2> res = page_numbers;
+		res[view]++;
+		showPages(res, focused_view);
+	}
+}
+
+void MainWindow::firstPage() {
+	gotoPage(0);
+}
+
+void MainWindow::lastPage() {
+	gotoPage(doc->pages().size() - 1);
+}
+
+void MainWindow::actionGotoPage() {
+	assert(focused_view != -1);
+	bool ok;
+	int page = QInputDialog::getInt(this, tr("Go to Page"), tr("Page:"), page_numbers[focused_view] + 1, 1, doc->pages().size(), 1, &ok);
+	if (ok)
+		gotoPage(page - 1);
+}
+
 void MainWindow::insertPDF() {
 	QStringList mimeTypeFilters({"application/pdf", "application/octet-stream"});
 	QFileDialog dialog(this, tr("Import PDF file"));
@@ -802,6 +809,38 @@ void MainWindow::insertPDF() {
 				}
 			}
 		}
+	}
+}
+
+void MainWindow::setLinkedPages(bool on) {
+	if (m_views_linked != !on) {
+		m_views_linked = !on;
+		if (m_views_linked) {
+			// Try to keep the focused view the same and change other views.
+			// This might be impossible if there are too few pages before or after the focused page.
+			showPages(assign_pages_linked_fixing_one_view(doc->pages().size(), focused_view, page_numbers[focused_view]), focused_view);
+		} else {
+			// Try to keep everything as is, but display the last page in all empty views, assuming the document is nonempty.
+			std::array<int, 2> res = page_numbers;
+			for (size_t i = 0; i < 2; i++) {
+				if (res[i] == -1)
+					res[i] = (int)doc->pages().size() - 1;
+			}
+			showPages(res, focused_view);
+		}
+	}
+}
+
+void MainWindow::focusView(int view_index) {
+	if (focused_view != view_index) {
+		if (focused_view != -1)
+			pagewidgets[focused_view]->unfocusPage();
+		focused_view = view_index;
+		if (focused_view != -1) {
+			assert(page_numbers[focused_view] != -1);
+			pagewidgets[focused_view]->focusPage();
+		}
+		updatePageNavigation();
 	}
 }
 
@@ -853,46 +892,7 @@ void MainWindow::pages_deleted(int first_page, [[maybe_unused]] int number_of_pa
 	gotoPage(first_page);
 }
 
-void MainWindow::setLinkedPages(bool on) {
-	if (m_views_linked != !on) {
-		m_views_linked = !on;
-		if (m_views_linked) {
-			// Try to keep the focused view the same and change other views.
-			// This might be impossible if there are too few pages before or after the focused page.
-			showPages(assign_pages_linked_fixing_one_view(doc->pages().size(), focused_view, page_numbers[focused_view]), focused_view);
-		} else {
-			// Try to keep everything as is, but display the last page in all empty views, assuming the document is nonempty.
-			std::array<int, 2> res = page_numbers;
-			for (size_t i = 0; i < 2; i++) {
-				if (res[i] == -1)
-					res[i] = (int)doc->pages().size() - 1;
-			}
-			showPages(res, focused_view);
-		}
-	}
-}
-
-void MainWindow::focusView(int view_index) {
-	if (focused_view != view_index) {
-		if (focused_view != -1)
-			pagewidgets[focused_view]->unfocusPage();
-		focused_view = view_index;
-		if (focused_view != -1) {
-			assert(page_numbers[focused_view] != -1);
-			pagewidgets[focused_view]->focusPage();
-		}
-		updatePageNavigation();
-	}
-}
-
-void MainWindow::exportPDF() {
-	if (!maybeSave())
-		return;
-	if (curFile.isEmpty())
-		return;
-	QFileInfo info(curFile);
-	QString pdf_file_name = info.path() + "/" + info.baseName() + ".pdf";
-	qDebug() << "Exporting to" << pdf_file_name;
-	KCursorSaver cursor(Qt::WaitCursor);
-	PDFExporter::save(doc.get(), pdf_file_name.toStdString());
+void MainWindow::moveEvent(QMoveEvent*) {
+	if (focused_view != -1)
+		pagewidgets[focused_view]->update_tablet_map();
 }
