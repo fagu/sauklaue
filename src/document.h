@@ -121,12 +121,12 @@ public:
 	}
 
 private:
+	void timeout();
+
 	TemporaryLayer* m_layer;
 	unique_ptr_Stroke m_stroke;
 	QTimer* m_timer;
 	std::list<FadingStroke>::iterator m_it;
-private slots:
-	void timeout();
 };
 
 struct temporary_stroke_to_ptr {

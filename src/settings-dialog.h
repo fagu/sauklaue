@@ -18,12 +18,12 @@ class TabletRow : public QObject {
 public:
 	TabletRow(const TabletSettings& tablet, QGridLayout* tabletGrid, int i, bool connected);
 	TabletSettings get() const;
-private slots:
+
+private:
 	void update();
 	void rotateRight();
 	void rotateLeft();
 
-private:
 	QString m_name;
 	QCheckBox* m_enabled;
 	QLabel* m_orientation;
@@ -38,13 +38,13 @@ class SettingsDialog : public QDialog {
 	Q_OBJECT
 public:
 	SettingsDialog(QWidget* parent = nullptr);
-private slots:
+
+private:
 	void reload();
 	void ok();
 	void apply();
 	void cancel();
 
-private:
 	QGridLayout* tabletGrid;
 	std::vector<std::unique_ptr<TabletRow> > m_rows;
 };

@@ -60,11 +60,10 @@ protected:
 
 	void tabletEvent(QTabletEvent* event) override;
 
-private slots:
+private:
 	void update_page(const QRect& rect);
 	void removing_layer_picture(ptr_LayerPicture layer_picture);
 
-private:
 	void setupPicture();
 
 	enum struct StrokeType {

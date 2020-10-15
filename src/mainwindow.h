@@ -23,7 +23,6 @@ private:
 	void readGeometrySettings();
 	void writeGeometrySettings();
 
-private slots:
 	void documentWasModified();
 
 	/* Opening documents */
@@ -34,18 +33,15 @@ private:
 	void loadUrl(const QUrl& url);
 	void setCurrentFile(const QString& fileName);
 	void setDocument(std::unique_ptr<Document> _doc);
-private slots:
 	void newFile();
 	void open();
 
-private:
 	KRecentFilesAction* recentFilesAction;
 
 	/* Saving documents */
 private:
 	bool maybeSave();
 	bool saveFile(const QString& fileName);
-private slots:
 	bool save();
 	bool saveAs();
 	void autoSave();
@@ -59,7 +55,6 @@ protected:
 private:
 	void gotoPage(int index);
 	void showPages(std::array<int, 2> new_page_numbers, int new_focused_view);
-private slots:
 	void newPageBefore();
 	void newPageAfter();
 	void deletePage();
@@ -73,7 +68,6 @@ private slots:
 	void insertPDF();
 	void setLinkedPages(bool on);
 
-private:
 	QAction* deletePageAction;
 	QAction* previousPageAction;
 	std::array<QAction*, 2> previousPageInViewAction;
@@ -88,19 +82,16 @@ private:
 	/* Views */
 private:
 	void focusView(int view_index);
-private slots:
 	void previousView();
 	void nextView();
 
-private:
 	QAction* previousViewAction;
 	QAction* nextViewAction;
 
 	/* Settings */
-private slots:
+private:
 	void showSettings();
 
-private slots:
 	void commitData(QSessionManager&);
 
 	void pages_added(int first_page, int number_of_pages);

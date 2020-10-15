@@ -41,7 +41,6 @@ public:
 	bool blackboardMode() {
 		return m_blackboard;
 	}
-public slots:
 	void setBlackboardMode(bool on);
 signals:
 	void blackboardModeToggled(bool on);

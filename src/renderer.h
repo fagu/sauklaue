@@ -86,11 +86,10 @@ public:
 		m_current_stroke.reset();
 	}
 
-private slots:
+private:
 	void stroke_added(ptr_Stroke stroke);
 	void stroke_deleted(ptr_Stroke stroke);
 
-private:
 	std::variant<NormalLayer*, TemporaryLayer*> m_layer;
 	std::optional<ptr_Stroke> m_current_stroke;  // This is drawn after all the strokes in m_layer. When the stroke is extended, you must call draw_line. When it is finished, add it to m_layer. The current_stroke is then automatically reset to nullptr.
 
@@ -138,7 +137,6 @@ private:
 	std::vector<unique_ptr_LayerPicture> m_layers;
 	std::unique_ptr<DrawingLayerPicture> m_temporary_layer;
 
-private slots:
 	void register_layer(int index);
 	void unregister_layer(int index);
 

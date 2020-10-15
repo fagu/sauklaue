@@ -28,10 +28,9 @@ public:
 	// Maps tablets to the given region in screen coordinates (px).
 	void set_active_region(QRectF rect, QSize screen_size);
 
-private slots:
+private:
 	void update_matrices_now();
 
-private:
 	Cairo::Matrix matrix(const TabletSettings& tablet) const;
 
 	// The screen area the tablet should be mapped to.
