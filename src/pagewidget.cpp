@@ -153,6 +153,8 @@ void PageWidget::mousePressEvent(QMouseEvent* event) {
 		start_path(event->pos(), StrokeType::Eraser);
 	else if (event->button() == Qt::MiddleButton)
 		start_path(event->pos(), StrokeType::LaserPointer);
+	if (m_page)
+		emit focus();
 }
 
 void PageWidget::mouseMoveEvent(QMouseEvent* event) {
@@ -161,11 +163,6 @@ void PageWidget::mouseMoveEvent(QMouseEvent* event) {
 
 void PageWidget::mouseReleaseEvent(QMouseEvent*) {
 	finish_path();
-}
-
-void PageWidget::mouseDoubleClickEvent(QMouseEvent* event) {
-	if (m_page && event->button() == Qt::LeftButton)
-		emit focus();
 }
 
 void PageWidget::tabletEvent(QTabletEvent* event) {
