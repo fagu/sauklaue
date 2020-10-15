@@ -58,6 +58,9 @@ void GObjectWrapper<T>::reset(T* value) {
 	m_value = value;
 }
 
+template class GObjectWrapper<_PopplerDocument>;
+template class GObjectWrapper<_PopplerPage>;
+
 std::pair<int, int> PDFLayer::size() const {
 	double width, height;
 	poppler_page_get_size(page(), &width, &height);
