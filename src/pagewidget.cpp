@@ -5,6 +5,7 @@
 #include "tablet.h"
 #include "document.h"
 #include "renderer.h"
+#include "tool-state.h"
 
 #include <QScreen>
 #include <QPaintEvent>
@@ -40,11 +41,11 @@ void StrokeCreator::add_point(Point p) {
 	m_pic->draw_line(old, p, get(m_stroke));
 }
 
-PageWidget::PageWidget(MainWindow* view) :
+PageWidget::PageWidget(ToolState* toolState) :
     QWidget(nullptr),
-    m_view(view) {
+    m_tool_state(toolState) {
 	setMinimumSize(20, 20);
-	connect(view, &MainWindow::blackboardModeToggled, this, qOverload<>(&QWidget::update));
+	connect(m_tool_state, &ToolState::blackboardModeToggled, this, qOverload<>(&QWidget::update));
 }
 
 void PageWidget::setPage(SPage* page) {
@@ -116,7 +117,7 @@ void PageWidget::paintEvent([[maybe_unused]] QPaintEvent* event) {
 	if (!m_page)
 		return;
 	// Page background color
-	painter.fillRect(m_page_picture->transformation().image_rect, m_view->blackboardMode() ? QColorConstants::Black : QColorConstants::White);
+	painter.fillRect(m_page_picture->transformation().image_rect, m_tool_state->blackboardMode() ? QColorConstants::Black : QColorConstants::White);
 	// Draw ordinary layers.
 	for (auto layer_picture : m_page_picture->layers()) {
 		LayerPicture* base_layer_picture = convert_variant<LayerPicture*>(layer_picture);
@@ -204,14 +205,14 @@ void PageWidget::start_path(QPointF pp, StrokeType type) {
 		unique_ptr_Stroke stroke;
 		int timeout;
 		if (type == StrokeType::Pen) {
-			stroke = std::make_unique<PenStroke>(m_view->penSize(), m_view->penColor());
+			stroke = std::make_unique<PenStroke>(m_tool_state->penSize(), m_tool_state->penColor());
 			timeout = -1;
 		} else if (type == StrokeType::Eraser) {
 			stroke = std::make_unique<EraserStroke>(DEFAULT_ERASER_WIDTH);
 			timeout = -1;
 		} else if (type == StrokeType::LaserPointer) {
 			QColor color = QColorConstants::Red;
-			stroke = std::make_unique<PenStroke>(m_view->penSize() * 4, color);
+			stroke = std::make_unique<PenStroke>(m_tool_state->penSize() * 4, color);
 			timeout = 3000;  // 3 second timeout
 		} else {
 			assert(false);
@@ -230,7 +231,7 @@ void PageWidget::start_path(QPointF pp, StrokeType type) {
 			auto layer = std::get<NormalLayer*>(m_page->layers()[layer_index]);
 			m_current_stroke.emplace(
 			        std::move(stroke), [this, layer](unique_ptr_Stroke st) {
-				        m_view->undoStack->push(new AddStrokeCommand(layer, std::move(st)));
+				        m_tool_state->undoStack()->push(new AddStrokeCommand(layer, std::move(st)));
 			        },
 			        layer_picture);
 		} else {

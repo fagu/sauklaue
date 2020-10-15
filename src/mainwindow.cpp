@@ -10,6 +10,7 @@
 #include "pagewidget.h"
 #include "document.h"
 #include "renderer.h"
+#include "tool-state.h"
 
 #include <QHBoxLayout>
 #include <QStatusBar>
@@ -62,15 +63,15 @@ std::array<int, 2> assign_pages_linked_fixing_one_view(int number_of_pages, int 
 }
 
 MainWindow::MainWindow(QWidget* parent) :
-    QMainWindow(parent) {
-	undoStack = new QUndoStack(this);
+    QMainWindow(parent),
+    m_tool_state(new ToolState(this)) {
 	QWidget* mainArea = new QWidget();
 	setCentralWidget(mainArea);
 	QHBoxLayout* layout = new QHBoxLayout();
 	mainArea->setLayout(layout);
 	for (int i = 0; i < 2; i++) {
 		page_numbers[i] = -1;
-		pagewidgets[i] = new PageWidget(this);
+		pagewidgets[i] = new PageWidget(m_tool_state);
 		connect(pagewidgets[i], &PageWidget::focus, this, [this, i]() { focusView(i); });
 		layout->addWidget(pagewidgets[i]);
 	}
@@ -80,7 +81,7 @@ MainWindow::MainWindow(QWidget* parent) :
 
 	readSettings();
 
-	connect(undoStack, &QUndoStack::cleanChanged, this, &MainWindow::documentWasModified);
+	connect(m_tool_state->undoStack(), &QUndoStack::cleanChanged, this, &MainWindow::documentWasModified);
 
 	{
 		QTimer* timer = new QTimer(this);
@@ -151,7 +152,7 @@ void MainWindow::newFile() {
 	if (maybeSave()) {
 		setDocument(std::make_unique<Document>());
 		setCurrentFile(QString());
-		undoStack->clear();
+		m_tool_state->undoStack()->clear();
 	}
 }
 
@@ -167,7 +168,7 @@ void MainWindow::open() {
 				QString fileName = fileNames[0];
 				if (!fileName.isEmpty()) {
 					loadFile(fileName);
-					undoStack->clear();
+					m_tool_state->undoStack()->clear();
 				}
 			}
 		}
@@ -203,7 +204,7 @@ void MainWindow::autoSave() {
 }
 
 void MainWindow::documentWasModified() {
-	setWindowModified(!undoStack->isClean());
+	setWindowModified(!m_tool_state->undoStack()->isClean());
 }
 
 void MainWindow::createActions() {
@@ -274,13 +275,13 @@ void MainWindow::createActions() {
 	}
 	QMenu* editMenu = menuBar()->addMenu(tr("&Edit"));
 	{
-		QAction* action = undoStack->createUndoAction(this, tr("&Undo"));
+		QAction* action = m_tool_state->undoStack()->createUndoAction(this, tr("&Undo"));
 		action->setIcon(QIcon::fromTheme("edit-undo"));
 		action->setShortcuts(QKeySequence::Undo);
 		editMenu->addAction(action);
 	}
 	{
-		QAction* action = undoStack->createRedoAction(this, tr("&Redo"));
+		QAction* action = m_tool_state->undoStack()->createRedoAction(this, tr("&Redo"));
 		action->setIcon(QIcon::fromTheme("edit-redo"));
 		action->setShortcuts(QKeySequence::Redo);
 		editMenu->addAction(action);
@@ -433,7 +434,7 @@ void MainWindow::createActions() {
 			painter.drawEllipse(QRect(0, 0, 64, 64));
 			QAction* action = new QAction(pixmap, name, this);
 			action->setCheckable(true);
-			connect(action, &QAction::triggered, this, [this, color](bool on) {if (on) setPenColor(color); });
+			connect(action, &QAction::triggered, this, [this, color](bool on) {if (on) m_tool_state->setPenColor(color); });
 			for (QToolBar* tb : toolbars)
 				tb->addAction(action);
 			group->addAction(action);
@@ -460,7 +461,7 @@ void MainWindow::createActions() {
 			painter.drawEllipse(QPoint(32, 32), icon_size, icon_size);
 			QAction* action = new QAction(pixmap, name, this);
 			action->setCheckable(true);
-			connect(action, &QAction::triggered, this, [this, pen_size](bool on) {if (on) setPenSize(pen_size); });
+			connect(action, &QAction::triggered, this, [this, pen_size](bool on) {if (on) m_tool_state->setPenSize(pen_size); });
 			for (QToolBar* tb : toolbars)
 				tb->addAction(action);
 			group->addAction(action);
@@ -484,7 +485,7 @@ void MainWindow::createActions() {
 		QAction* action = new QAction(pixmap, tr("Blackboard mode"), this);
 		action->setCheckable(true);
 		action->setStatusTip(tr("Blackboard mode"));
-		connect(action, &QAction::triggered, this, &MainWindow::setBlackboardMode);
+		connect(action, &QAction::triggered, m_tool_state, &ToolState::setBlackboardMode);
 		for (QToolBar* tb : toolbars)
 			tb->addAction(action);
 	}
@@ -519,7 +520,7 @@ void MainWindow::writeSettings() {
 }
 
 bool MainWindow::maybeSave() {
-	if (undoStack->isClean())
+	if (m_tool_state->undoStack()->isClean())
 		return true;
 	const QMessageBox::StandardButton ret = QMessageBox::warning(this, tr("Application"), tr("The document has been modified.\n"
 	                                                                                         "Do you want to save your changes?"),
@@ -564,7 +565,7 @@ bool MainWindow::saveFile(const QString& fileName) {
 	}
 
 	setCurrentFile(fileName);
-	undoStack->setClean();
+	m_tool_state->undoStack()->setClean();
 	statusBar()->showMessage(tr("File saved"), 2000);
 	return true;
 }
@@ -592,17 +593,17 @@ std::unique_ptr<SPage> new_default_page() {
 }
 
 void MainWindow::newPageBefore() {
-	undoStack->push(new AddPagesCommand(doc.get(), focused_view != -1 ? page_numbers[focused_view] : 0, move_into_vector(new_default_page())));
+	m_tool_state->undoStack()->push(new AddPagesCommand(doc.get(), focused_view != -1 ? page_numbers[focused_view] : 0, move_into_vector(new_default_page())));
 }
 
 void MainWindow::newPageAfter() {
-	undoStack->push(new AddPagesCommand(doc.get(), focused_view != -1 ? page_numbers[focused_view] + 1 : 0, move_into_vector(new_default_page())));
+	m_tool_state->undoStack()->push(new AddPagesCommand(doc.get(), focused_view != -1 ? page_numbers[focused_view] + 1 : 0, move_into_vector(new_default_page())));
 }
 
 void MainWindow::deletePage() {
 	if (focused_view == -1)
 		return;
-	undoStack->push(new DeletePagesCommand(doc.get(), page_numbers[focused_view], 1));
+	m_tool_state->undoStack()->push(new DeletePagesCommand(doc.get(), page_numbers[focused_view], 1));
 }
 
 void MainWindow::nextPage() {
@@ -753,7 +754,7 @@ void MainWindow::insertPDF() {
 					// 2) Add the pdf's pages.
 					new AddPagesCommand(doc.get(), focused_view != -1 ? page_numbers[focused_view] + 1 : 0, std::move(pages), cmd);
 					// Run the command macro.
-					undoStack->push(cmd);
+					m_tool_state->undoStack()->push(cmd);
 				} catch (const PDFReadException& e) {
 					QMessageBox::warning(this, tr("Application"), tr("Cannot read pdf file %1:\n%2").arg(QDir::toNativeSeparators(fileName), e.reason()));
 					return;
@@ -798,7 +799,7 @@ void MainWindow::commitData(QSessionManager& manager) {
 			manager.cancel();
 	} else {
 		// Non-interactive: save without asking
-		if (!undoStack->isClean())
+		if (!m_tool_state->undoStack()->isClean())
 			save();
 	}
 }
@@ -849,21 +850,6 @@ void MainWindow::updatePageNavigation() {
 		else
 			currentPageLabel[i]->setText("-");
 		pageCountLabel[i]->setText(QString::number(doc->pages().size()));
-	}
-}
-
-void MainWindow::setPenColor(QColor pen_color) {
-	m_pen_color = pen_color;
-}
-
-void MainWindow::setPenSize(int pen_size) {
-	m_pen_size = pen_size;
-}
-
-void MainWindow::setBlackboardMode(bool on) {
-	if (m_blackboard != on) {
-		m_blackboard = on;
-		emit blackboardModeToggled(on);
 	}
 }
 

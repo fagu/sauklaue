@@ -8,6 +8,8 @@
 
 #include <QWidget>
 
+class ToolState;
+
 class StrokeCreator {
 public:
 	StrokeCreator(unique_ptr_Stroke stroke, std::function<void(unique_ptr_Stroke)> committer, DrawingLayerPicture* pic);
@@ -28,7 +30,7 @@ class PageWidget : public QWidget {
 	Q_OBJECT
 
 public:
-	explicit PageWidget(MainWindow* view);
+	explicit PageWidget(ToolState* toolState);
 
 	void setPage(SPage* page);
 
@@ -75,7 +77,7 @@ private:
 	void finish_path();
 
 private:
-	MainWindow* m_view;
+	ToolState* m_tool_state;
 	// The following are equivalent:
 	//  a) !m_page
 	//  b) !m_page_picture

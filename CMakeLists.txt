@@ -70,6 +70,7 @@ set(sauklaue_SRC
 	src/tablet.cpp
 	src/settings.cpp
 	src/settings-dialog.cpp
+	src/tool-state.cpp
 )
 
 add_executable(sauklaue ${sauklaue_SRC} ${CAPNP_SRCS} ${CONFIG_SRCS})

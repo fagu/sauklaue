@@ -9,6 +9,7 @@ class QSpinBox;
 class QLabel;
 class QSessionManager;
 class QUndoStack;
+class ToolState;
 
 class MainWindow : public QMainWindow {
 	Q_OBJECT
@@ -105,36 +106,6 @@ private slots:
 	void pages_added(int first_page, int number_of_pages);
 	void pages_deleted(int first_page, int number_of_pages);
 
-public:
-	void setPenColor(QColor pen_color);
-	QColor penColor() {
-		return m_pen_color;
-	}
-
-private:
-	QColor m_pen_color;
-
-public:
-	void setPenSize(int pen_size);
-	int penSize() {
-		return m_pen_size;
-	}
-
-private:
-	int m_pen_size;
-
-private:
-	bool m_blackboard = false;
-private slots:
-	void setBlackboardMode(bool on);
-signals:
-	void blackboardModeToggled(bool on);
-
-public:
-	bool blackboardMode() {
-		return m_blackboard;
-	}
-
 private:
 	bool m_views_linked = true;  // Whether the page widgets should always display consecutive pages.
 private slots:
@@ -153,8 +124,8 @@ protected:
 	void closeEvent(QCloseEvent* event) override;
 	void moveEvent(QMoveEvent* event) override;
 
-public:
-	QUndoStack* undoStack;
+private:
+	ToolState* m_tool_state;
 };
 
 #endif  // MAINWINDOW_H
