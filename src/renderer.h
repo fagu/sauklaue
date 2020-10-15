@@ -36,8 +36,8 @@ public:
 	QRect image_rect;  // The rectangle occupied by the image on screen.
 	QSize image_size;  // Size of the image on screen. ( = image_rect.size())
 	QPoint topLeft;  // Top left corner of the image in the widget. Add this to turn a point in the image into a point in the widget. ( = image_rect.topLeft())
-	QSize widget_size;  // Size of the widget displaying the page. This could includes some space around the image.
-	Cairo::Matrix page2image, image2page;  // Transformation sending a point on the page to a point in the image.
+	QSize widget_size;  // Size of the widget displaying the page. This generally includes some space around the image.
+	Cairo::Matrix page2image, image2page;  // Transformations sending a point on the page to a point in the image and vice-versa.
 	Point widget2page(QPointF point) const {
 		point -= topLeft;
 		double x = point.x(), y = point.y();
