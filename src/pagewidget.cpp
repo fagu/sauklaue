@@ -82,20 +82,10 @@ void PageWidget::removing_layer_picture(ptr_LayerPicture layer_picture) {
 	           layer_picture);
 }
 
-Cairo::Matrix PageWidget::page_to_pixels() {
-	assert(m_page);
-	// We assume here that mapToGlobal is always a translation.
-	// TODO Find out if that assumption is correct.
-	QPoint translation = mapToGlobal(QPoint(0, 0));
-	return m_page_picture->transformation().page2widget * Cairo::translation_matrix(translation.x(), translation.y());
-}
-
 QRectF PageWidget::minimum_rect_in_pixels() {
-	Cairo::Matrix p2s = page_to_pixels();
-	// Compute the bounding rectangle of the page in screen coordinates.
-	QRectF rect = bounding_rect(p2s, QRectF(QPointF(0, 0), QPointF(m_page->width(), m_page->height())));
 	static const int MARGIN = 50;
-	return QRectF(QPointF(rect.left() - MARGIN, rect.top() - MARGIN), QPointF(rect.right() + MARGIN, rect.bottom() + MARGIN));
+	QPoint delta(MARGIN, MARGIN);
+	return QRectF(mapToGlobal(frameGeometry().topLeft()) - delta, mapToGlobal(geometry().bottomRight()) + delta);
 }
 
 void PageWidget::update_tablet_map() {

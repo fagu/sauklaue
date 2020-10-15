@@ -39,7 +39,6 @@ public:
 	void setPage(SPage* page);
 
 private:
-	Cairo::Matrix page_to_pixels();
 	QRectF minimum_rect_in_pixels();
 
 public:
