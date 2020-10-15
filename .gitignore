@@ -2,3 +2,4 @@ build
 arch
 *.sau
 *.sau.pdf
+.clangd
