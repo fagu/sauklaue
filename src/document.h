@@ -16,24 +16,28 @@
 
 class Color {
 public:
-	constexpr Color(uint32_t _x) : x(_x) {}
-	Color(QColor c) : Color(color(c.red(),c.green(),c.blue(),c.alpha())) {}
-	
+	constexpr Color(uint32_t _x) :
+	    x(_x) {
+	}
+	Color(QColor c) :
+	    Color(color(c.red(), c.green(), c.blue(), c.alpha())) {
+	}
+
 	uint32_t x;
-	
+
 	static constexpr uint32_t MASK = 255;
-	
+
 	double r() const {
-		return (double)((x>>24)&MASK)/MASK;
+		return (double)((x >> 24) & MASK) / MASK;
 	}
 	double g() const {
-		return (double)((x>>16)&MASK)/MASK;
+		return (double)((x >> 16) & MASK) / MASK;
 	}
 	double b() const {
-		return (double)((x>>8)&MASK)/MASK;
+		return (double)((x >> 8) & MASK) / MASK;
 	}
 	double a() const {
-		return (double)(x&MASK)/MASK;
+		return (double)(x & MASK) / MASK;
 	}
 	static constexpr Color color(int r, int g, int b, int a) {
 		uint32_t res = r;
@@ -50,20 +54,23 @@ public:
 
 // TODO It might be better to choose a different unit so that both pt and mm are an integral number of units.
 const double POINT_TO_UNIT = 1000;
-const double UNIT_TO_POINT = 1/POINT_TO_UNIT;
-const double INCH_TO_UNIT = 72*POINT_TO_UNIT;
-const double UNIT_TO_INCH = 1/INCH_TO_UNIT;
-const double METER_TO_UNIT = INCH_TO_UNIT/0.0254;
+const double UNIT_TO_POINT = 1 / POINT_TO_UNIT;
+const double INCH_TO_UNIT = 72 * POINT_TO_UNIT;
+const double UNIT_TO_INCH = 1 / INCH_TO_UNIT;
+const double METER_TO_UNIT = INCH_TO_UNIT / 0.0254;
 
 struct Point {
 	int x, y;
-	Point(int _x, int _y) : x(_x), y(_y) {}
+	Point(int _x, int _y) :
+	    x(_x), y(_y) {
+	}
 };
 
 class PathStroke {
 public:
-	PathStroke() {}
-	const std::vector<Point> &points() const {
+	PathStroke() {
+	}
+	const std::vector<Point>& points() const {
 		return m_points;
 	}
 	void push_back(Point point) {
@@ -72,15 +79,23 @@ public:
 	void reserve_points(size_t n) {
 		m_points.reserve(n);
 	}
+
 private:
 	std::vector<Point> m_points;
 };
 
 class PenStroke : public PathStroke {
 public:
-	PenStroke(int w, Color color) : m_width(w), m_color(color) {}
-	int width() const {return m_width;}
-	Color color() const {return m_color;}
+	PenStroke(int w, Color color) :
+	    m_width(w), m_color(color) {
+	}
+	int width() const {
+		return m_width;
+	}
+	Color color() const {
+		return m_color;
+	}
+
 private:
 	int m_width;
 	Color m_color;
@@ -88,8 +103,13 @@ private:
 
 class EraserStroke : public PathStroke {
 public:
-	EraserStroke(int w) : m_width(w) {}
-	int width() const {return m_width;}
+	EraserStroke(int w) :
+	    m_width(w) {
+	}
+	int width() const {
+		return m_width;
+	}
+
 private:
 	int m_width;
 };
@@ -100,7 +120,7 @@ typedef variant_unique<PenStroke, EraserStroke> unique_ptr_Stroke;
 struct stroke_unique_to_ptr_helper {
 	typedef unique_ptr_Stroke in_type;
 	typedef ptr_Stroke out_type;
-	out_type operator()(const in_type &p) {
+	out_type operator()(const in_type& p) {
 		return get(p);
 	}
 };
@@ -118,10 +138,11 @@ public:
 	ptr_Stroke stroke() const {
 		return get(m_stroke);
 	}
+
 private:
-	TemporaryLayer *m_layer;
+	TemporaryLayer* m_layer;
 	unique_ptr_Stroke m_stroke;
-	QTimer *m_timer;
+	QTimer* m_timer;
 	std::list<FadingStroke>::iterator m_it;
 private slots:
 	void timeout();
@@ -130,7 +151,7 @@ private slots:
 struct temporary_stroke_to_ptr {
 	typedef FadingStroke in_type;
 	typedef ptr_Stroke out_type;
-	out_type operator()(const in_type &p) {
+	out_type operator()(const in_type& p) {
 		return p.stroke();
 	}
 };
@@ -138,14 +159,15 @@ struct temporary_stroke_to_ptr {
 class DrawingLayer : public QObject {
 	Q_OBJECT
 signals:
-	void stroke_added(ptr_Stroke stroke); // Emitted after adding a stroke (permanent or temporary).
-	void stroke_deleted(ptr_Stroke stroke); // Emitted after deleting a stroke (permanent or temporary). Of course, the stroke is not destructed before emitting this signal.
+	void stroke_added(ptr_Stroke stroke);  // Emitted after adding a stroke (permanent or temporary).
+	void stroke_deleted(ptr_Stroke stroke);  // Emitted after deleting a stroke (permanent or temporary). Of course, the stroke is not destructed before emitting this signal.
 };
 
 class NormalLayer : public DrawingLayer {
 	Q_OBJECT
 public:
-	NormalLayer() {}
+	NormalLayer() {
+	}
 	explicit NormalLayer(const NormalLayer& a);
 	auto strokes() const {
 		return VectorView<stroke_unique_to_ptr_helper>(m_strokes);
@@ -163,6 +185,7 @@ public:
 	void reserve_strokes(size_t n) {
 		m_strokes.reserve(n);
 	}
+
 private:
 	std::vector<unique_ptr_Stroke> m_strokes;
 };
@@ -176,13 +199,14 @@ public:
 	void add_stroke(unique_ptr_Stroke stroke, int timeout) {
 		std::list<FadingStroke>::iterator it = m_strokes.emplace(m_strokes.end(), this, std::move(stroke));
 		it->start(it, timeout);
-		emit stroke_added(it->stroke()); // We can't call get(stroke) here, because stroke has been moved.
+		emit stroke_added(it->stroke());  // We can't call get(stroke) here, because stroke has been moved.
 	}
 	void delete_stroke(std::list<FadingStroke>::iterator it, unique_ptr_Stroke stroke) {
 		m_strokes.erase(it);
 		emit stroke_deleted(get(stroke));
 		// At this point, the stroke is destructed.
 	}
+
 private:
 	// Any temporary stroke comes with a timer that deletes the stroke after a certain amount of time.
 	// Temporary strokes are not saved or exported to PDF files. They do not participate in the undo mechanism.
@@ -191,21 +215,29 @@ private:
 
 class PDFReadException : public std::exception {
 public:
-	PDFReadException(QString reason) : m_reason(reason) {}
+	PDFReadException(QString reason) :
+	    m_reason(reason) {
+	}
 	QString reason() const {
 		return m_reason;
 	}
+
 private:
 	QString m_reason;
 };
 
-template<class T>
+template <class T>
 class GObjectWrapper {
 public:
-	GObjectWrapper() : m_value(nullptr) {}
-	explicit GObjectWrapper(T* value) : m_value(value) {}
+	GObjectWrapper() :
+	    m_value(nullptr) {
+	}
+	explicit GObjectWrapper(T* value) :
+	    m_value(value) {
+	}
 	GObjectWrapper(const GObjectWrapper&) = delete;
-	GObjectWrapper(GObjectWrapper&& w) : m_value(w.m_value) {
+	GObjectWrapper(GObjectWrapper&& w) :
+	    m_value(w.m_value) {
 		w.m_value = nullptr;
 	}
 	void reset(T* value) {
@@ -228,25 +260,26 @@ public:
 	T* operator->() const {
 		return m_value;
 	}
+
 private:
 	T* m_value;
 };
-template<class T>
+template <class T>
 struct wrapper_to_ptr_helper {
 	typedef GObjectWrapper<T> in_type;
 	typedef T* out_type;
-	out_type operator()(const in_type &p) {
+	out_type operator()(const in_type& p) {
 		return p.get();
 	}
 };
-template<class T>
-VectorView<wrapper_to_ptr_helper<T> > vector_wrapper_to_pointer(const std::vector<GObjectWrapper<T> > &v) {
+template <class T>
+VectorView<wrapper_to_ptr_helper<T> > vector_wrapper_to_pointer(const std::vector<GObjectWrapper<T> >& v) {
 	return VectorView<wrapper_to_ptr_helper<T> >(v);
 }
 
 class EmbeddedPDF {
 public:
-	EmbeddedPDF(const QString &name, const QByteArray &contents); // May throw PDFReadException
+	EmbeddedPDF(const QString& name, const QByteArray& contents);  // May throw PDFReadException
 	QString name() const {
 		return m_name;
 	}
@@ -259,17 +292,19 @@ public:
 	auto pages() const {
 		return vector_wrapper_to_pointer(m_pages);
 	}
+
 private:
 	QString m_name;
 	QByteArray m_contents;
 	GObjectWrapper<PopplerDocument> m_document;
-	std::vector<GObjectWrapper<PopplerPage> > m_pages; // Destructed before m_document
+	std::vector<GObjectWrapper<PopplerPage> > m_pages;  // Destructed before m_document
 };
 
 class PDFLayer : public QObject {
 	Q_OBJECT
 public:
-	PDFLayer(EmbeddedPDF *pdf, int page_number) : m_pdf(pdf), m_page_number(page_number) {
+	PDFLayer(EmbeddedPDF* pdf, int page_number) :
+	    m_pdf(pdf), m_page_number(page_number) {
 		assert(0 <= page_number && page_number < (int)m_pdf->pages().size());
 	}
 	EmbeddedPDF* pdf() const {
@@ -281,8 +316,9 @@ public:
 	PopplerPage* page() const {
 		return m_pdf->pages()[m_page_number];
 	}
+
 private:
-	EmbeddedPDF *m_pdf;
+	EmbeddedPDF* m_pdf;
 	int m_page_number;
 };
 
@@ -292,7 +328,7 @@ typedef variant_unique<NormalLayer, PDFLayer> unique_ptr_Layer;
 struct layer_unique_to_ptr_helper {
 	typedef unique_ptr_Layer in_type;
 	typedef ptr_Layer out_type;
-	out_type operator()(const in_type &p) {
+	out_type operator()(const in_type& p) {
 		return get(p);
 	}
 };
@@ -301,10 +337,11 @@ struct layer_unique_to_ptr_helper {
 class SPage : public QObject {
 	Q_OBJECT
 public:
-	SPage(int w, int h) : m_width(w), m_height(h), m_temporary_layer(std::make_unique<TemporaryLayer>()) {
+	SPage(int w, int h) :
+	    m_width(w), m_height(h), m_temporary_layer(std::make_unique<TemporaryLayer>()) {
 		assert(m_width >= 1 && m_height >= 1);
 	}
-// 	explicit Page(const Page& a); // Note: The copy constructor does not copy the temporary layer!
+	// 	explicit Page(const Page& a); // Note: The copy constructor does not copy the temporary layer!
 	int width() const {
 		return m_width;
 	}
@@ -327,18 +364,19 @@ public:
 signals:
 	void layer_added(int index);
 	void layer_deleted(int index);
+
 private:
 	int m_width, m_height;
 	std::vector<unique_ptr_Layer> m_layers;
 	std::unique_ptr<TemporaryLayer> m_temporary_layer;
 };
 
-class Document : public QObject
-{
+class Document : public QObject {
 	Q_OBJECT
 public:
-	Document() {}
-// 	explicit Document(const Document& a);
+	Document() {
+	}
+	// 	explicit Document(const Document& a);
 	auto pages() const {
 		return vector_unique_to_pointer(m_pages);
 	}
@@ -373,11 +411,12 @@ public:
 signals:
 	void pages_added(int first_page, int number_of_pages);
 	void pages_deleted(int first_page, int number_of_pages);
+
 private:
-	std::vector<std::unique_ptr<SPage> > m_pages; // TODO Use a data structure that is better suited for insertion?
+	std::vector<std::unique_ptr<SPage> > m_pages;  // TODO Use a data structure that is better suited for insertion?
 	std::list<std::unique_ptr<EmbeddedPDF> > m_embedded_pdfs;
-// public:
-// 	static std::unique_ptr<Document> concatenate(const std::vector<std::unique_ptr<Document> > &in_docs);
+	// public:
+	// 	static std::unique_ptr<Document> concatenate(const std::vector<std::unique_ptr<Document> > &in_docs);
 };
 
-#endif // DOCUMENT_H
+#endif  // DOCUMENT_H

@@ -5,19 +5,21 @@
 
 class SauklaueReadException : public std::exception {
 public:
-	SauklaueReadException(QString reason) : m_reason(reason) {}
+	SauklaueReadException(QString reason) :
+	    m_reason(reason) {
+	}
 	QString reason() const {
 		return m_reason;
 	}
+
 private:
 	QString m_reason;
 };
 
-class Serializer
-{
+class Serializer {
 public:
-	static void save(Document* doc, QDataStream &stream);
-	static std::unique_ptr<Document> load(QDataStream &stream); // May throw SauklaueReadException
+	static void save(Document* doc, QDataStream& stream);
+	static std::unique_ptr<Document> load(QDataStream& stream);  // May throw SauklaueReadException
 };
 
-#endif // SERIALIZER_H
+#endif  // SERIALIZER_H

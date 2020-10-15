@@ -15,7 +15,7 @@
 const uint32_t FILE_FORMAT_VERSION = 5;
 constexpr std::string_view magic_string("sauklaue_9NyB3wiHcGwA1dPGoadQJry");
 
-void write_path(file4::Path::Builder s_path, const std::vector<Point> &points) {
+void write_path(file4::Path::Builder s_path, const std::vector<Point>& points) {
 	auto s_points = s_path.initPoints(points.size());
 	for (size_t i_point = 0; i_point < points.size(); i_point++) {
 		auto point = points[i_point];
@@ -25,8 +25,7 @@ void write_path(file4::Path::Builder s_path, const std::vector<Point> &points) {
 	}
 }
 
-void Serializer::save(Document *doc, QDataStream &stream)
-{
+void Serializer::save(Document* doc, QDataStream& stream) {
 	/*QElapsedTimer copy_timer; copy_timer.start();
 	auto cop = std::make_unique<Document>(*this);
 	qDebug() << "copy" << copy_timer.elapsed();
@@ -39,7 +38,8 @@ void Serializer::save(Document *doc, QDataStream &stream)
 	stream << FILE_FORMAT_VERSION;
 	stream.setVersion(QDataStream::Qt_5_15);
 	capnp::MallocMessageBuilder message;
-	QElapsedTimer construct_timer; construct_timer.start();
+	QElapsedTimer construct_timer;
+	construct_timer.start();
 	auto s_file = message.initRoot<file4::File>();
 	auto s_pdfs = s_file.initEmbeddedPDFs(doc->embedded_pdfs().size());
 	std::map<EmbeddedPDF*, int> embedded_pdf_index;
@@ -64,49 +64,49 @@ void Serializer::save(Document *doc, QDataStream &stream)
 		for (size_t i_layer = 0; i_layer < page->layers().size(); i_layer++) {
 			auto layer = page->layers()[i_layer];
 			auto s_layer = s_layers[i_layer];
-			std::visit(overloaded {
-				[&](NormalLayer* layer) {
-					auto s_normal_layer = s_layer.initNormal();
-					auto s_strokes = s_normal_layer.initStrokes(layer->strokes().size());
-					for (size_t i_stroke = 0; i_stroke < layer->strokes().size(); i_stroke++) {
-						auto stroke = layer->strokes()[i_stroke];
-						auto s_stroke = s_strokes[i_stroke];
-						std::visit(overloaded {
-							[&](const PenStroke* st) {
-								auto s_special_stroke = s_stroke.initPen();
-								s_special_stroke.setWidth(st->width());
-								s_special_stroke.setColor(st->color().x);
-								auto s_path = s_special_stroke.initPath();
-								write_path(s_path, st->points());
-							},
-							[&](const EraserStroke* st) {
-								auto s_special_stroke = s_stroke.initEraser();
-								s_special_stroke.setWidth(st->width());
-								auto s_path = s_special_stroke.initPath();
-								write_path(s_path, st->points());
-							}
-						}, stroke);
-					}
-				},
-				[&](PDFLayer* layer) {
-					auto s_pdf_layer = s_layer.initPdf();
-					s_pdf_layer.setIndex(embedded_pdf_index[layer->pdf()]);
-					s_pdf_layer.setPage(layer->page_number());
-				}
-			}, layer);
+			std::visit(overloaded{[&](NormalLayer* layer) {
+				                      auto s_normal_layer = s_layer.initNormal();
+				                      auto s_strokes = s_normal_layer.initStrokes(layer->strokes().size());
+				                      for (size_t i_stroke = 0; i_stroke < layer->strokes().size(); i_stroke++) {
+					                      auto stroke = layer->strokes()[i_stroke];
+					                      auto s_stroke = s_strokes[i_stroke];
+					                      std::visit(overloaded{[&](const PenStroke* st) {
+						                                            auto s_special_stroke = s_stroke.initPen();
+						                                            s_special_stroke.setWidth(st->width());
+						                                            s_special_stroke.setColor(st->color().x);
+						                                            auto s_path = s_special_stroke.initPath();
+						                                            write_path(s_path, st->points());
+					                                            },
+					                                            [&](const EraserStroke* st) {
+						                                            auto s_special_stroke = s_stroke.initEraser();
+						                                            s_special_stroke.setWidth(st->width());
+						                                            auto s_path = s_special_stroke.initPath();
+						                                            write_path(s_path, st->points());
+					                                            }},
+					                                 stroke);
+				                      }
+			                      },
+			                      [&](PDFLayer* layer) {
+				                      auto s_pdf_layer = s_layer.initPdf();
+				                      s_pdf_layer.setIndex(embedded_pdf_index[layer->pdf()]);
+				                      s_pdf_layer.setPage(layer->page_number());
+			                      }},
+			           layer);
 		}
 	}
 	qDebug() << "Construct capnp" << construct_timer.elapsed();
 	kj::VectorOutputStream out;
-	QElapsedTimer write_packed_timer; write_packed_timer.start();
+	QElapsedTimer write_packed_timer;
+	write_packed_timer.start();
 	capnp::writePackedMessage(out, message);
 	qDebug() << "writePackedMessage" << write_packed_timer.elapsed();
-	QElapsedTimer write_bytes_timer; write_bytes_timer.start();
+	QElapsedTimer write_bytes_timer;
+	write_bytes_timer.start();
 	stream.writeBytes(out.getArray().asChars().begin(), out.getArray().size());
 	qDebug() << "writeBytes" << write_bytes_timer.elapsed();
 }
 
-void load_path_4(file4::Path::Reader s_path, PathStroke *path) {
+void load_path_4(file4::Path::Reader s_path, PathStroke* path) {
 	auto s_points = s_path.getPoints();
 	if (s_points.size() == 0)
 		throw SauklaueReadException(QCoreApplication::tr("Invalid Sauklaue file: Empty path."));
@@ -117,9 +117,8 @@ void load_path_4(file4::Path::Reader s_path, PathStroke *path) {
 	}
 }
 
-std::unique_ptr<Document> Serializer::load(QDataStream& stream)
-{
-	char magic_string_in[magic_string.size()+10];
+std::unique_ptr<Document> Serializer::load(QDataStream& stream) {
+	char magic_string_in[magic_string.size() + 10];
 	if (stream.readRawData(magic_string_in, magic_string.size()) != magic_string.size())
 		throw SauklaueReadException(QCoreApplication::tr("Not a Sauklaue file."));
 	if (std::string_view(magic_string_in, magic_string.size()) != magic_string)
@@ -134,7 +133,8 @@ std::unique_ptr<Document> Serializer::load(QDataStream& stream)
 	if (file_format_version < 4)
 		throw SauklaueReadException(QCoreApplication::tr("Not a Sauklaue file."));
 	stream.setVersion(QDataStream::Qt_5_15);
-	char* c_data; uint len;
+	char* c_data;
+	uint len;
 	stream.readBytes(c_data, len);
 	std::string data(c_data, len);
 	delete[] c_data;
@@ -157,13 +157,13 @@ std::unique_ptr<Document> Serializer::load(QDataStream& stream)
 				pdfs.push_back(pdf.get());
 				doc->add_embedded_pdf(std::move(pdf));
 			}
-		} catch (const PDFReadException &e) {
+		} catch (const PDFReadException& e) {
 			throw SauklaueReadException(QCoreApplication::tr("Invalid embedded pdf file: %1").arg(e.reason()));
 		}
 		for (auto s_page : s_file.getPages()) {
 			auto page = std::make_unique<SPage>(s_page.getWidth(), s_page.getHeight());
 			for (auto s_layer : s_page.getLayers()) {
-				switch(s_layer.which()) {
+				switch (s_layer.which()) {
 				case file4::Layer::NORMAL: {
 					auto s_normal_layer = s_layer.getNormal();
 					auto layer = std::make_unique<NormalLayer>();
@@ -171,7 +171,7 @@ std::unique_ptr<Document> Serializer::load(QDataStream& stream)
 					layer->reserve_strokes(s_strokes.size());
 					for (auto s_stroke : s_strokes) {
 						unique_ptr_Stroke stroke;
-						switch(s_stroke.which()) {
+						switch (s_stroke.which()) {
 						case file4::Stroke::PEN: {
 							auto s_special_stroke = s_stroke.getPen();
 							auto special_stroke = std::make_unique<PenStroke>(s_special_stroke.getWidth(), s_special_stroke.getColor());
@@ -212,20 +212,18 @@ std::unique_ptr<Document> Serializer::load(QDataStream& stream)
 	int num_strokes = 0, num_points = 0;
 	for (auto page : doc->pages()) {
 		for (auto layer : page->layers()) {
-			std::visit(overloaded {
-				[&](NormalLayer* layer) {
-					for (auto stroke : layer->strokes()) {
-						num_strokes++;
-						std::visit(overloaded {
-							[&](PathStroke* st) {
-								num_points += st->points().size();
-							}
-						}, stroke);
-					}
-				},
-				[&](PDFLayer* ) {
-				}
-			}, layer);
+			std::visit(overloaded{[&](NormalLayer* layer) {
+				                      for (auto stroke : layer->strokes()) {
+					                      num_strokes++;
+					                      std::visit(overloaded{[&](PathStroke* st) {
+						                                 num_points += st->points().size();
+					                                 }},
+					                                 stroke);
+				                      }
+			                      },
+			                      [&](PDFLayer*) {
+			                      }},
+			           layer);
 		}
 	}
 	qDebug() << "Number of strokes:" << num_strokes;

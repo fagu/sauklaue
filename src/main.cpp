@@ -19,13 +19,13 @@ std::unique_ptr<Document> read_document(QString infile) {
 	QDataStream in(&file);
 	try {
 		return Serializer::load(in);
-	} catch(const SauklaueReadException & e) {
+	} catch (const SauklaueReadException& e) {
 		std::cerr << "Error: Cannot read file " << infile.toStdString() << ": " << e.reason().toStdString() << std::endl;
 		exit(1);
 	}
 }
 
-int gui_command(int argc, char **argv) {
+int gui_command(int argc, char** argv) {
 	QApplication app(argc, argv);
 	Settings::self()->load();
 	app.setWindowIcon(QIcon::fromTheme("application-x-sauklaue"));
@@ -45,7 +45,7 @@ int gui_command(int argc, char **argv) {
 	return app.exec();
 }
 
-int export_command(int argc, char **argv) {
+int export_command(int argc, char** argv) {
 	QCoreApplication app(argc, argv);
 	Settings::self()->load();
 	QCommandLineParser parser;
@@ -112,7 +112,7 @@ int export_command(int argc, char **argv) {
 	return 0;
 }*/
 
-int save_command(int argc, char **argv) {
+int save_command(int argc, char** argv) {
 	QCoreApplication app(argc, argv);
 	Settings::self()->load();
 	QCommandLineParser parser;
@@ -147,38 +147,38 @@ int save_command(int argc, char **argv) {
 	return 0;
 }
 
-int main(int argc, char **argv)
-{
+int main(int argc, char** argv) {
 	QCoreApplication::setApplicationName("sauklaue");
 	QCoreApplication::setOrganizationName("sauklaue");
 	int res;
 	if (argc >= 2) {
 		// Remove argv[1].
-		int argcs = argc-1;
-		char **argvs = new char*[argcs];
+		int argcs = argc - 1;
+		char** argvs = new char*[argcs];
 		argvs[0] = argv[0];
 		for (int i = 1; i < argcs; i++)
-			argvs[i] = argv[i+1];
+			argvs[i] = argv[i + 1];
 		if (!strcmp(argv[1], "gui")) {
 			res = gui_command(argcs, argvs);
 		} else if (!strcmp(argv[1], "export")) {
 			res = export_command(argcs, argvs);
 		} /*else if (!strcmp(argv[1], "concatenate")) {
 			res = concatenate_command(argcs, argvs);
-		} */else if (!strcmp(argv[1], "save")) {
+		} */
+		else if (!strcmp(argv[1], "save")) {
 			res = save_command(argcs, argvs);
 		} else {
 			std::cerr << "Available commands:\n"
-				<< "    " << argv[0] << " gui\n"
-				<< "    " << argv[0] << " export\n"
-// 				<< "    " << argv[0] << " concatenate\n"
-				<< "    " << argv[0] << " save\n";
+			          << "    " << argv[0] << " gui\n"
+			          << "    " << argv[0] << " export\n"
+			          // 				<< "    " << argv[0] << " concatenate\n"
+			          << "    " << argv[0] << " save\n";
 			res = 1;
 		}
 		delete[] argvs;
 	} else {
 		res = gui_command(argc, argv);
 	}
-	
+
 	return res;
 }

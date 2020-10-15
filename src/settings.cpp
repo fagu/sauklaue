@@ -6,29 +6,26 @@
 
 #include <set>
 
+Settings* settings_singleton = nullptr;
 
-
-Settings * settings_singleton = nullptr;
-
-Settings * Settings::self()
-{
+Settings* Settings::self() {
 	if (!settings_singleton)
 		settings_singleton = new Settings;
 	return settings_singleton;
 }
 
-
-Settings::Settings() : ConfigGenerated() {
+Settings::Settings() :
+    ConfigGenerated() {
 }
 
 std::vector<TabletSettings> Settings::tablets() const {
 	return m_tabletsvec;
 }
 
-void Settings::set_tablets(const std::vector<TabletSettings> &tablets) {
+void Settings::set_tablets(const std::vector<TabletSettings>& tablets) {
 	m_tablets.clear();
 	m_tabletsvec.clear();
-	for (const TabletSettings &tablet : tablets) {
+	for (const TabletSettings& tablet : tablets) {
 		if (!m_tablets.count(tablet.name)) {
 			m_tablets.emplace(tablet.name, tablet);
 			m_tabletsvec.push_back(tablet);
@@ -43,8 +40,7 @@ std::optional<TabletSettings> Settings::tablet(const QString name) const {
 		return std::nullopt;
 }
 
-void Settings::usrRead()
-{
+void Settings::usrRead() {
 	ConfigGenerated::usrRead();
 	m_tablets.clear();
 	KConfigGroup grp = config()->group("Tablets");
@@ -76,42 +72,40 @@ bool Settings::usrSave() {
 	return true;
 }
 
-TabletRow::TabletRow(const TabletSettings& tablet, QGridLayout* tabletGrid, int i, bool connected)
-{
+TabletRow::TabletRow(const TabletSettings& tablet, QGridLayout* tabletGrid, int i, bool connected) {
 	m_name = tablet.name;
 	m_orientation_degrees = tablet.orientation;
 	m_enabled = new QCheckBox;
 	m_enabled->setChecked(tablet.enabled);
-	m_enabled->setIconSize(QSize(32,32));
+	m_enabled->setIconSize(QSize(32, 32));
 	m_enabled->setIcon(QIcon::fromTheme(connected ? "network-connect" : "network-disconnect"));
 	m_enabled->setText(tablet.name);
 	connect(m_enabled, &QCheckBox::toggled, this, &TabletRow::update);
-	tabletGrid->addWidget(m_enabled, i+1, 0);
+	tabletGrid->addWidget(m_enabled, i + 1, 0);
 	m_rotate_left = new QPushButton(QIcon::fromTheme("object-rotate-left"), "");
 	connect(m_rotate_left, &QPushButton::clicked, this, &TabletRow::rotateLeft);
-	tabletGrid->addWidget(m_rotate_left, i+1, 1);
+	tabletGrid->addWidget(m_rotate_left, i + 1, 1);
 	m_orientation = new QLabel;
 	m_orientation->setMinimumWidth(45);
 	m_orientation->setAlignment(Qt::AlignRight);
-	tabletGrid->addWidget(m_orientation, i+1, 2);
+	tabletGrid->addWidget(m_orientation, i + 1, 2);
 	m_rotate_right = new QPushButton(QIcon::fromTheme("object-rotate-right"), "");
 	connect(m_rotate_right, &QPushButton::clicked, this, &TabletRow::rotateRight);
-	tabletGrid->addWidget(m_rotate_right, i+1, 3);
+	tabletGrid->addWidget(m_rotate_right, i + 1, 3);
 	m_width = new QDoubleSpinBox;
 	m_width->setDecimals(1);
 	m_width->setMinimum(0.1);
-	m_width->setValue(0.1*tablet.width);
-	tabletGrid->addWidget(m_width, i+1, 4);
+	m_width->setValue(0.1 * tablet.width);
+	tabletGrid->addWidget(m_width, i + 1, 4);
 	m_height = new QDoubleSpinBox;
 	m_height->setDecimals(1);
 	m_height->setMinimum(0.1);
-	m_height->setValue(0.1*tablet.height);
-	tabletGrid->addWidget(m_height, i+1, 5);
+	m_height->setValue(0.1 * tablet.height);
+	tabletGrid->addWidget(m_height, i + 1, 5);
 	update();
 }
 
-void TabletRow::update()
-{
+void TabletRow::update() {
 	m_orientation->setText(QString::number(m_orientation_degrees) + "°");
 	m_orientation->setEnabled(m_enabled->isChecked());
 	m_rotate_left->setEnabled(m_enabled->isChecked());
@@ -120,59 +114,53 @@ void TabletRow::update()
 	m_height->setEnabled(m_enabled->isChecked());
 }
 
-void TabletRow::rotateLeft()
-{
-	m_orientation_degrees = (m_orientation_degrees + 270)%360;
+void TabletRow::rotateLeft() {
+	m_orientation_degrees = (m_orientation_degrees + 270) % 360;
 	update();
 }
 
-void TabletRow::rotateRight()
-{
-	m_orientation_degrees = (m_orientation_degrees + 90)%360;
+void TabletRow::rotateRight() {
+	m_orientation_degrees = (m_orientation_degrees + 90) % 360;
 	update();
 }
 
-TabletSettings TabletRow::get() const
-{
+TabletSettings TabletRow::get() const {
 	TabletSettings res(m_name);
 	res.enabled = m_enabled->isChecked();
 	res.orientation = m_orientation_degrees;
-	res.width = qRound(m_width->value()*10);
-	res.height = qRound(m_height->value()*10);
+	res.width = qRound(m_width->value() * 10);
+	res.height = qRound(m_height->value() * 10);
 	return res;
 }
 
-
-
-
-SettingsDialog::SettingsDialog(QWidget *parent) : QDialog(parent)
-{
+SettingsDialog::SettingsDialog(QWidget* parent) :
+    QDialog(parent) {
 	setWindowTitle(tr("Settings"));
-	
+
 	// It can be convenient to try out a setup with the preferences window open.
 	// We therefore don't make the window modal.
-	
-	QVBoxLayout *layout = new QVBoxLayout;
+
+	QVBoxLayout* layout = new QVBoxLayout;
 	setLayout(layout);
-	
+
 	{
-		QLabel *label = new QLabel(tr("Check the external tablet/pen device(s) whose writing area should be mapped only onto the current page. Also input the orientation of the tablet and the correct width/height ratio (before rotation)."));
+		QLabel* label = new QLabel(tr("Check the external tablet/pen device(s) whose writing area should be mapped only onto the current page. Also input the orientation of the tablet and the correct width/height ratio (before rotation)."));
 		label->setWordWrap(true);
 		layout->addWidget(label);
 	}
-	
+
 	tabletGrid = new QGridLayout;
 	layout->addLayout(tabletGrid);
-	
+
 	{
-		QLabel *label = new QLabel(tr("Device"));
+		QLabel* label = new QLabel(tr("Device"));
 		QFont font = label->font();
 		font.setBold(true);
 		label->setFont(font);
 		tabletGrid->addWidget(label, 0, 0);
 	}
 	{
-		QLabel *label = new QLabel(tr("Rotation"));
+		QLabel* label = new QLabel(tr("Rotation"));
 		label->setAlignment(Qt::AlignCenter);
 		QFont font = label->font();
 		font.setBold(true);
@@ -180,7 +168,7 @@ SettingsDialog::SettingsDialog(QWidget *parent) : QDialog(parent)
 		tabletGrid->addWidget(label, 0, 1, 1, 3);
 	}
 	{
-		QLabel *label = new QLabel(tr("Width"));
+		QLabel* label = new QLabel(tr("Width"));
 		label->setAlignment(Qt::AlignCenter);
 		QFont font = label->font();
 		font.setBold(true);
@@ -188,74 +176,71 @@ SettingsDialog::SettingsDialog(QWidget *parent) : QDialog(parent)
 		tabletGrid->addWidget(label, 0, 4);
 	}
 	{
-		QLabel *label = new QLabel(tr("Height"));
+		QLabel* label = new QLabel(tr("Height"));
 		label->setAlignment(Qt::AlignCenter);
 		QFont font = label->font();
 		font.setBold(true);
 		label->setFont(font);
 		tabletGrid->addWidget(label, 0, 5);
 	}
-	
-	QHBoxLayout *bottom = new QHBoxLayout;
+
+	QHBoxLayout* bottom = new QHBoxLayout;
 	{
-		QPushButton *button = new QPushButton(QIcon::fromTheme("view-refresh"), tr("Reload"));
+		QPushButton* button = new QPushButton(QIcon::fromTheme("view-refresh"), tr("Reload"));
 		connect(button, &QPushButton::clicked, this, &SettingsDialog::reload);
 		bottom->addWidget(button);
 	}
 	bottom->addStretch();
 	layout->addLayout(bottom);
 	{
-		QPushButton *button = new QPushButton(QIcon::fromTheme("dialog-ok-apply"), tr("OK"));
+		QPushButton* button = new QPushButton(QIcon::fromTheme("dialog-ok-apply"), tr("OK"));
 		connect(button, &QPushButton::clicked, this, &SettingsDialog::ok);
 		bottom->addWidget(button);
 	}
 	{
-		QPushButton *button = new QPushButton(QIcon::fromTheme("dialog-ok-apply"), tr("Apply"));
+		QPushButton* button = new QPushButton(QIcon::fromTheme("dialog-ok-apply"), tr("Apply"));
 		connect(button, &QPushButton::clicked, this, &SettingsDialog::apply);
 		bottom->addWidget(button);
 	}
 	{
-		QPushButton *button = new QPushButton(QIcon::fromTheme("dialog-cancel"), tr("Cancel"));
+		QPushButton* button = new QPushButton(QIcon::fromTheme("dialog-cancel"), tr("Cancel"));
 		connect(button, &QPushButton::clicked, this, &SettingsDialog::cancel);
 		bottom->addWidget(button);
 	}
-	
+
 	reload();
 }
 
-void SettingsDialog::reload()
-{
-	while (QLayoutItem *child = tabletGrid->takeAt(6)) {
-		delete child->widget(); // delete the widget
-		delete child;   // delete the layout item
+void SettingsDialog::reload() {
+	while (QLayoutItem* child = tabletGrid->takeAt(6)) {
+		delete child->widget();  // delete the widget
+		delete child;  // delete the layout item
 	}
 	std::set<QString> tablet_names;
 	std::vector<TabletSettings> tablet_settings = Settings::self()->tablets();
-	for (const TabletSettings &tablet : tablet_settings)
+	for (const TabletSettings& tablet : tablet_settings)
 		tablet_names.insert(tablet.name);
 	m_rows.clear();
 	std::set<QString> connected_tablets;
-	for (const QString &tablet_name : TabletHandler::self()->device_list()) {
+	for (const QString& tablet_name : TabletHandler::self()->device_list()) {
 		connected_tablets.insert(tablet_name);
 		if (!tablet_names.count(tablet_name)) {
 			tablet_settings.emplace_back(tablet_name);
 			tablet_names.insert(tablet_name);
 		}
 	}
-	std::sort(tablet_settings.begin(), tablet_settings.end(), [](const TabletSettings &a, const TabletSettings &b) {return a.name < b.name;});
+	std::sort(tablet_settings.begin(), tablet_settings.end(), [](const TabletSettings& a, const TabletSettings& b) { return a.name < b.name; });
 	for (int i = 0; i < (int)tablet_settings.size(); i++) {
-		m_rows.push_back(std::make_unique<TabletRow>(tablet_settings[i], tabletGrid, i+1, connected_tablets.count(tablet_settings[i].name)));
+		m_rows.push_back(std::make_unique<TabletRow>(tablet_settings[i], tabletGrid, i + 1, connected_tablets.count(tablet_settings[i].name)));
 	}
 }
 
-void SettingsDialog::ok()
-{
+void SettingsDialog::ok() {
 	apply();
 	close();
 }
 
-void SettingsDialog::apply()
-{
+void SettingsDialog::apply() {
 	std::vector<TabletSettings> tablets;
 	for (const auto& row : m_rows)
 		tablets.push_back(row->get());
@@ -263,7 +248,6 @@ void SettingsDialog::apply()
 	Settings::self()->save();
 }
 
-void SettingsDialog::cancel()
-{
+void SettingsDialog::cancel() {
 	close();
 }
