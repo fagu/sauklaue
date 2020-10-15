@@ -1,15 +1,13 @@
 #ifndef RENDERER_H
 #define RENDERER_H
 
-#include "document.h"
+#include "all-types.h"
 
 #include <QObject>
 #include <QImage>
 
 #include <cairomm/context.h>
 #include <cairomm/surface.h>
-
-class PagePicture;
 
 // RAII for the cairo context: Saves the current state on construction and restores it on deletion.
 class CairoGroup {
@@ -117,17 +115,6 @@ public:
 private:
 	PDFLayer* m_layer;
 	Cairo::RefPtr<Cairo::ImageSurface> cairo_surface;
-};
-
-typedef std::variant<DrawingLayerPicture*, PDFLayerPicture*> ptr_LayerPicture;
-typedef variant_unique<DrawingLayerPicture, PDFLayerPicture> unique_ptr_LayerPicture;
-
-struct layer_picture_unique_to_ptr_helper {
-	typedef unique_ptr_LayerPicture in_type;
-	typedef ptr_LayerPicture out_type;
-	out_type operator()(const in_type& p) {
-		return get(p);
-	}
 };
 
 class PagePicture : public QObject {

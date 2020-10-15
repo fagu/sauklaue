@@ -1,12 +1,10 @@
 #ifndef SERIALIZER_H
 #define SERIALIZER_H
 
-#include <memory>
+#include "all-types.h"
 
 #include <QString>
 #include <QDataStream>
-
-class Document;
 
 class SauklaueReadException : public std::exception {
 public:

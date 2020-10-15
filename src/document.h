@@ -2,6 +2,7 @@
 #define DOCUMENT_H
 
 #include "util.h"
+#include "all-types.h"
 
 #include <list>
 #include <memory>
@@ -13,8 +14,6 @@
 #include <QObject>
 
 class QTimer;
-struct _PopplerDocument;
-struct _PopplerPage;
 
 class Color {
 public:
@@ -60,13 +59,6 @@ const double UNIT_TO_POINT = 1 / POINT_TO_UNIT;
 const double INCH_TO_UNIT = 72 * POINT_TO_UNIT;
 const double UNIT_TO_INCH = 1 / INCH_TO_UNIT;
 const double METER_TO_UNIT = INCH_TO_UNIT / 0.0254;
-
-struct Point {
-	int x, y;
-	Point(int _x, int _y) :
-	    x(_x), y(_y) {
-	}
-};
 
 class PathStroke {
 public:
@@ -115,19 +107,6 @@ public:
 private:
 	int m_width;
 };
-
-typedef std::variant<PenStroke*, EraserStroke*> ptr_Stroke;
-typedef variant_unique<PenStroke, EraserStroke> unique_ptr_Stroke;
-
-struct stroke_unique_to_ptr_helper {
-	typedef unique_ptr_Stroke in_type;
-	typedef ptr_Stroke out_type;
-	out_type operator()(const in_type& p) {
-		return get(p);
-	}
-};
-
-class TemporaryLayer;
 
 class FadingStroke : public QObject {
 	Q_OBJECT
@@ -315,17 +294,6 @@ public:
 private:
 	EmbeddedPDF* m_pdf;
 	int m_page_number;
-};
-
-typedef std::variant<NormalLayer*, PDFLayer*> ptr_Layer;
-typedef variant_unique<NormalLayer, PDFLayer> unique_ptr_Layer;
-
-struct layer_unique_to_ptr_helper {
-	typedef unique_ptr_Layer in_type;
-	typedef ptr_Layer out_type;
-	out_type operator()(const in_type& p) {
-		return get(p);
-	}
 };
 
 // We call this class SPage instead of Page to avoid a collision with the class Page in the poppler library. Ridiculously, this name clash causes the destructor of our Page to be called instead of the destructor of poppler's Page, so the program crashes.^^

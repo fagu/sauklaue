@@ -1,5 +1,7 @@
 #include "commands.h"
 
+#include "document.h"
+
 AddPagesCommand::AddPagesCommand(Document* _doc, int _first_page, std::vector<std::unique_ptr<SPage> > _pages, QUndoCommand* parent) :
     QUndoCommand(parent),
     doc(_doc),

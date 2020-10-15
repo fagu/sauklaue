@@ -1,7 +1,7 @@
 #ifndef COMMANDS_H
 #define COMMANDS_H
 
-#include "document.h"
+#include "all-types.h"
 
 #include <QUndoCommand>
 

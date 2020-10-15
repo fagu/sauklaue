@@ -1,15 +1,12 @@
 #ifndef PAGEWIDGET_H
 #define PAGEWIDGET_H
 
-#include "document.h"
-#include "renderer.h"
+#include "all-types.h"
 
 #include <functional>
 #include <optional>
 
 #include <QWidget>
-
-class MainWindow;
 
 class StrokeCreator {
 public:

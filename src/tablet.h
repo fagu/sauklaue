@@ -1,6 +1,8 @@
 #ifndef TABLET_H
 #define TABLET_H
 
+#include "all-types.h"
+
 #include <QObject>
 #include <QRectF>
 #include <QSize>
@@ -9,8 +11,6 @@
 
 class QTimer;
 struct _XDisplay;
-
-class TabletSettings;
 
 class TabletHandler : public QObject {
 	Q_OBJECT

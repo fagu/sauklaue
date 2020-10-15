@@ -1,6 +1,8 @@
 #include "renderer.h"
 
 #include "cairo-helpers.h"
+#include "all-types.h"
+#include "document.h"
 
 #include <QDebug>
 

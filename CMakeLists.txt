@@ -69,6 +69,7 @@ set(sauklaue_SRC
 	src/renderer.cpp
 	src/tablet.cpp
 	src/settings.cpp
+	src/settings-dialog.cpp
 )
 
 add_executable(sauklaue ${sauklaue_SRC} ${CAPNP_SRCS} ${CONFIG_SRCS})

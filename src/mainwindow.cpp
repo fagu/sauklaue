@@ -6,8 +6,10 @@
 #include "serializer.h"
 #include "tablet.h"
 #include "settings.h"
+#include "settings-dialog.h"
 #include "pagewidget.h"
 #include "document.h"
+#include "renderer.h"
 
 #include <QHBoxLayout>
 #include <QStatusBar>

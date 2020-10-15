@@ -3,6 +3,8 @@
 #include "mainwindow.h"
 #include "commands.h"
 #include "tablet.h"
+#include "document.h"
+#include "renderer.h"
 
 #include <QScreen>
 #include <QPaintEvent>

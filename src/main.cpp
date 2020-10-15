@@ -3,6 +3,7 @@
 #include "serializer.h"
 #include "settings.h"
 #include "renderer.h"
+#include "document.h"
 
 #include <iostream>
 
