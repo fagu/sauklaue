@@ -25,8 +25,6 @@ PictureTransformation::PictureTransformation(SPage* page, int widget_width, int 
 	image2page = page2image;
 	image2page.invert();
 	page2widget = page2image * Cairo::translation_matrix(topLeft.x(), topLeft.y());
-	qDebug() << "image_rect" << image_rect;
-	qDebug() << "widget size" << QSize(widget_width, widget_height);
 }
 
 DrawingLayerPicture::DrawingLayerPicture(std::variant<NormalLayer*, TemporaryLayer*> layer, const PictureTransformation& transformation) :

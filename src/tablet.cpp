@@ -51,10 +51,8 @@ TabletHandler::~TabletHandler() {
 }
 
 std::vector<QString> TabletHandler::device_list() {
-	if (!display) {
-		qDebug() << "No X11 display!";
+	if (!display)
 		return {};
-	}
 	std::vector<QString> tablet_names;
 	// Print a list of all devices.
 	// See list_xi2() in https://cgit.freedesktop.org/xorg/app/xinput/tree/src/list.c
@@ -94,17 +92,15 @@ Cairo::Matrix TabletHandler::matrix(const TabletSettings& tablet) const {
 }
 
 void TabletHandler::update_matrices_now() {
-	qDebug() << "Setting transformation matrix.";
-	if (!display) {
-		qDebug() << "No X11 display!";
+	// 	qDebug() << "Setting transformation matrix.";
+	if (!display)
 		return;
-	}
 	// See do_set_prop_xi2() in https://cgit.freedesktop.org/xorg/app/xinput/tree/src/property.c
 	static_assert(sizeof(float) == 4);
 	int ndevices;
 	XIDeviceInfo* info;
 	info = XIQueryDevice(display, XIAllDevices, &ndevices);
-	bool found = false;
+	//	bool found = false;
 	for (int i = 0; i < ndevices; i++) {
 		XIDeviceInfo* device = &info[i];
 		std::optional<TabletSettings> tablet = Settings::self()->tablet(device->name);
@@ -119,14 +115,14 @@ void TabletHandler::update_matrices_now() {
 			// 	QProcess::execute("xinput", {"set-prop", "XPPEN Tablet Pen (0)", "--type=float", "Coordinate Transformation Matrix", QString::number(e1x), QString::number(e2x), QString::number(dx), QString::number(e1y), QString::number(e2y), QString::number(dy), "0", "0", "1"});
 			float mat[9] = {(float)e1x, (float)e2x, (float)dx, (float)e1y, (float)e2y, (float)dy, 0, 0, 1};
 			XIChangeProperty(display, device->deviceid, XInternAtom(display, "Coordinate Transformation Matrix", False), XInternAtom(display, "FLOAT", False), 32, PropModeReplace, (unsigned char*)mat, 9);
-			found = true;
+			//			found = true;
 		} else {
 			float mat[9] = {1, 0, 0, 0, 1, 0, 0, 0, 1};
 			XIChangeProperty(display, device->deviceid, XInternAtom(display, "Coordinate Transformation Matrix", False), XInternAtom(display, "FLOAT", False), 32, PropModeReplace, (unsigned char*)mat, 9);
 		}
 	}
-	if (!found)
-		qDebug() << "Couldn't find device.";
+	// 	if (!found)
+	// 		qDebug() << "Couldn't find device.";
 	XIFreeDeviceInfo(info);
 	// I don't understand why, but somehow the changed coordinate transformation matrix is not always applied immediately.
 	// However, it seems to be applied the next time we get a list of all devices, or when we close the display.

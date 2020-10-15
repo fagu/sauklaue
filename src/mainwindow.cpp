@@ -78,10 +78,13 @@ MainWindow::MainWindow(QWidget* parent) :
 
 	createActions();
 	statusBar()->show();
-
+	setUnifiedTitleAndToolBarOnMac(true);
 	readGeometrySettings();
 
 	connect(m_tool_state->undoStack(), &QUndoStack::cleanChanged, this, &MainWindow::documentWasModified);
+
+	setDocument(std::make_unique<Document>());
+	setCurrentFile(QString());
 
 	{
 		QTimer* timer = new QTimer(this);
@@ -91,9 +94,6 @@ MainWindow::MainWindow(QWidget* parent) :
 
 	QGuiApplication::setFallbackSessionManagementEnabled(false);
 	connect(qApp, &QGuiApplication::commitDataRequest, this, &MainWindow::commitData);
-	setDocument(std::make_unique<Document>());
-	setCurrentFile(QString());
-	setUnifiedTitleAndToolBarOnMac(true);
 }
 
 void MainWindow::createActions() {
@@ -431,12 +431,11 @@ void MainWindow::updatePageNavigation() {
 
 void MainWindow::readGeometrySettings() {
 	QSettings settings;
-	const QByteArray geometry = settings.value("geometry", QByteArray()).toByteArray();
+	QByteArray geometry = settings.value("geometry", QByteArray()).toByteArray();
 	if (geometry.isEmpty()) {
-		const QRect availableGeometry = screen()->availableGeometry();
-		resize(availableGeometry.width() / 3, availableGeometry.height() / 2);
-		move((availableGeometry.width() - width()) / 2,
-		     (availableGeometry.height() - height()) / 2);
+		QRect availableGeometry = screen()->availableGeometry();
+		resize(availableGeometry.width() / 2, availableGeometry.height() / 2);
+		showMaximized();
 	} else {
 		restoreGeometry(geometry);
 	}
@@ -485,13 +484,10 @@ void MainWindow::setCurrentFile(const QString& fileName) {
 	curFile = fileName;
 	setWindowModified(false);
 
-	if (!fileName.isEmpty())
-		recentFilesAction->addUrl(QUrl::fromLocalFile(fileName));
+	if (!curFile.isEmpty())
+		recentFilesAction->addUrl(QUrl::fromLocalFile(curFile));
 
-	QString shownName = curFile;
-	if (curFile.isEmpty())
-		shownName = "untitled.sau";
-	setWindowFilePath(shownName);
+	setWindowFilePath(curFile.isEmpty() ? "untitled.sau" : curFile);
 }
 
 void MainWindow::setDocument(std::unique_ptr<Document> _doc) {
@@ -499,36 +495,29 @@ void MainWindow::setDocument(std::unique_ptr<Document> _doc) {
 		disconnect(doc.get(), 0, this, 0);
 	doc = std::move(_doc);
 	assert(doc);
+	m_tool_state->undoStack()->clear();
 	connect(doc.get(), &Document::pages_added, this, &MainWindow::pages_added);
 	connect(doc.get(), &Document::pages_deleted, this, &MainWindow::pages_deleted);
-	gotoPage(doc->pages().size() - 1);
+	gotoPage((int)doc->pages().size() - 1);
 }
 
 void MainWindow::newFile() {
-	if (maybeSave()) {
-		setDocument(std::make_unique<Document>());
-		setCurrentFile(QString());
-		m_tool_state->undoStack()->clear();
-	}
+	if (!maybeSave())
+		return;
+	setDocument(std::make_unique<Document>());
+	setCurrentFile(QString());
 }
 
 void MainWindow::open() {
-	if (maybeSave()) {
-		QStringList mimeTypeFilters({"application/x-sauklaue", "application/octet-stream"});
-		QFileDialog dialog(this, tr("Open File"));
-		dialog.setMimeTypeFilters(mimeTypeFilters);
-		dialog.setFileMode(QFileDialog::ExistingFile);
-		if (dialog.exec()) {
-			QStringList fileNames = dialog.selectedFiles();
-			if (fileNames.size() == 1) {
-				QString fileName = fileNames[0];
-				if (!fileName.isEmpty()) {
-					loadFile(fileName);
-					m_tool_state->undoStack()->clear();
-				}
-			}
-		}
-	}
+	if (!maybeSave())
+		return;
+	QStringList mimeTypeFilters({"application/x-sauklaue", "application/octet-stream"});
+	QFileDialog dialog(this, tr("Open File"));
+	dialog.setMimeTypeFilters(mimeTypeFilters);
+	dialog.setFileMode(QFileDialog::ExistingFile);
+	if (!dialog.exec())
+		return;
+	loadFile(dialog.selectedFiles().first());
 }
 
 bool MainWindow::maybeSave() {
@@ -549,8 +538,6 @@ bool MainWindow::maybeSave() {
 }
 
 bool MainWindow::saveFile(const QString& fileName) {
-	QString errorMessage;
-
 	QSaveFile file(fileName);
 	if (file.open(QFile::WriteOnly)) {
 		KCursorSaver cursor(Qt::WaitCursor);
@@ -562,17 +549,14 @@ bool MainWindow::saveFile(const QString& fileName) {
 		QElapsedTimer commit_timer;
 		commit_timer.start();
 		if (!file.commit()) {
-			errorMessage = tr("Cannot write file %1:\n%2.")
-			                       .arg(QDir::toNativeSeparators(fileName), file.errorString());
+			QMessageBox::warning(
+			        this, tr("Application"), tr("Cannot write file %1:\n%2.").arg(QDir::toNativeSeparators(fileName), file.errorString()));
+			return false;
 		}
 		qDebug() << "file.commit()" << commit_timer.elapsed();
 	} else {
-		errorMessage = tr("Cannot open file %1 for writing:\n%2.")
-		                       .arg(QDir::toNativeSeparators(fileName), file.errorString());
-	}
-
-	if (!errorMessage.isEmpty()) {
-		QMessageBox::warning(this, tr("Application"), errorMessage);
+		QMessageBox::warning(
+		        this, tr("Application"), tr("Cannot open file %1 for writing:\n%2.").arg(QDir::toNativeSeparators(fileName), file.errorString()));
 		return false;
 	}
 
@@ -604,7 +588,7 @@ bool MainWindow::saveAs() {
 // Question: Is copying a Document fast enough to make a separate copy for the autosave thread?
 // Otherwise, we could perhaps always keep two copies of the Document, one for the view, one for the autosave thread. While the autosave thread is saving, its Document doesn't update but instead keeps track of the edits it's currently missing. The edits are applied as soon as the autosave is complete.
 void MainWindow::autoSave() {
-	if (doc && !curFile.isEmpty()) {
+	if (!curFile.isEmpty()) {
 		qDebug() << "Autosaving...";
 		save();
 	}
@@ -710,8 +694,7 @@ void MainWindow::newPageAfter() {
 }
 
 void MainWindow::deletePage() {
-	if (focused_view == -1)
-		return;
+	assert(focused_view != -1);
 	m_tool_state->undoStack()->push(new DeletePagesCommand(doc.get(), page_numbers[focused_view], 1));
 }
 
@@ -768,48 +751,48 @@ void MainWindow::insertPDF() {
 	QFileDialog dialog(this, tr("Import PDF file"));
 	dialog.setMimeTypeFilters(mimeTypeFilters);
 	dialog.setFileMode(QFileDialog::ExistingFile);
-	if (dialog.exec()) {
-		QStringList fileNames = dialog.selectedFiles();
-		if (fileNames.size() == 1) {
-			QString fileName = fileNames[0];
-			if (!fileName.isEmpty()) {
-				QFileInfo info(fileName);
-				QFile file(fileName);
-				if (!file.open(QIODevice::ReadOnly))
-					return;
-				QByteArray contents = file.readAll();
-				try {
-					auto pdf = std::make_unique<EmbeddedPDF>(info.fileName(), contents);
-					EmbeddedPDF* p_pdf = pdf.get();
-					// Command macro consisting of two steps: 1) Embed the pdf file. 2) Add the pdf's pages.
-					QUndoCommand* cmd = new QUndoCommand(tr("Insert PDF"));
-					// 1) Embed the pdf file.
-					new AddEmbeddedPDFCommand(doc.get(), std::move(pdf), cmd);
-					if (p_pdf->pages().empty()) {
-						qDebug() << "Zero pages => skipping";
-						return;
-					}
-					qDebug() << "Number of pages:" << p_pdf->pages().size();
-					std::vector<std::unique_ptr<SPage> > pages;
-					for (int page_number = 0; page_number < (int)p_pdf->pages().size(); page_number++) {
-						auto p_pdf_layer = std::make_unique<PDFLayer>(p_pdf, page_number);
-						std::pair<int, int> size = p_pdf_layer->size();
-						auto page = std::make_unique<SPage>(size.first, size.second);
-						page->add_layer(0, std::move(p_pdf_layer));
-						page->add_layer(1);  // NormalLayer
-						pages.push_back(std::move(page));
-					}
-					// 2) Add the pdf's pages.
-					new AddPagesCommand(doc.get(), focused_view != -1 ? page_numbers[focused_view] + 1 : 0, std::move(pages), cmd);
-					// Run the command macro.
-					m_tool_state->undoStack()->push(cmd);
-				} catch (const PDFReadException& e) {
-					QMessageBox::warning(this, tr("Application"), tr("Cannot read pdf file %1:\n%2").arg(QDir::toNativeSeparators(fileName), e.reason()));
-					return;
-				}
-			}
-		}
+	if (!dialog.exec())
+		return;
+	QString fileName = dialog.selectedFiles().first();
+	KCursorSaver cursor(Qt::WaitCursor);
+	QFileInfo info(fileName);
+	QFile file(fileName);
+	if (!file.open(QIODevice::ReadOnly))
+		return;
+	QByteArray contents = file.readAll();
+	std::unique_ptr<EmbeddedPDF> pdf;
+	try {
+		pdf = std::make_unique<EmbeddedPDF>(info.fileName(), contents);
+	} catch (const PDFReadException& e) {
+		QMessageBox::warning(this, tr("Application"), tr("Cannot read pdf file %1:\n%2").arg(QDir::toNativeSeparators(fileName), e.reason()));
+		return;
 	}
+	if (pdf->pages().empty()) {
+		qDebug() << "Zero pages => skipping";
+		statusBar()->showMessage(tr("PDF file is empty"), 2000);
+		return;
+	}
+	EmbeddedPDF* p_pdf = pdf.get();
+	// Command macro consisting of two steps: 1) Embed the pdf file. 2) Add the pdf's pages.
+	QUndoCommand* cmd = new QUndoCommand(tr("Insert PDF"));
+	// 1) Embed the pdf file.
+	new AddEmbeddedPDFCommand(doc.get(), std::move(pdf), cmd);
+	int number_of_pages = p_pdf->pages().size();
+	qDebug() << "Number of pages:" << number_of_pages;
+	std::vector<std::unique_ptr<SPage> > pages;
+	for (int page_number = 0; page_number < number_of_pages; page_number++) {
+		auto p_pdf_layer = std::make_unique<PDFLayer>(p_pdf, page_number);
+		std::pair<int, int> size = p_pdf_layer->size();
+		auto page = std::make_unique<SPage>(size.first, size.second);
+		page->add_layer(0, std::move(p_pdf_layer));
+		page->add_layer(1);  // NormalLayer
+		pages.push_back(std::move(page));
+	}
+	// 2) Add the pdf's pages.
+	new AddPagesCommand(doc.get(), focused_view != -1 ? page_numbers[focused_view] + 1 : 0, std::move(pages), cmd);
+	// Run the command macro.
+	m_tool_state->undoStack()->push(cmd);
+	statusBar()->showMessage(tr("Inserted %1 pages").arg(number_of_pages), 2000);
 }
 
 void MainWindow::setLinkedPages(bool on) {
@@ -845,9 +828,8 @@ void MainWindow::focusView(int view_index) {
 }
 
 void MainWindow::previousView() {
+	assert(focused_view != -1);
 	int view = focused_view;
-	if (view == -1)
-		return;
 	do {
 		view++;
 		if (view == 2)
@@ -857,9 +839,8 @@ void MainWindow::previousView() {
 }
 
 void MainWindow::nextView() {
+	assert(focused_view != -1);
 	int view = focused_view;
-	if (view == -1)
-		return;
 	do {
 		view--;
 		if (view == -1)
