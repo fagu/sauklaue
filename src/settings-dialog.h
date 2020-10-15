@@ -11,7 +11,7 @@ class QGridLayout;
 class QCheckBox;
 class QLabel;
 class QDoubleSpinBox;
-class QPushButton;
+class QToolButton;
 
 class TabletRow : public QObject {
 	Q_OBJECT
@@ -28,8 +28,8 @@ private:
 	QCheckBox* m_enabled;
 	QLabel* m_orientation;
 	int m_orientation_degrees;
-	QPushButton* m_rotate_left;
-	QPushButton* m_rotate_right;
+	QToolButton* m_rotate_left;
+	QToolButton* m_rotate_right;
 	QDoubleSpinBox* m_width;
 	QDoubleSpinBox* m_height;
 };

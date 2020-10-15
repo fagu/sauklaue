@@ -8,12 +8,14 @@
 #include <QLabel>
 #include <QDoubleSpinBox>
 #include <QPushButton>
+#include <QToolButton>
 
 #include <set>
 
 TabletRow::TabletRow(const TabletSettings& tablet, QGridLayout* tabletGrid, int i, bool connected) {
 	m_name = tablet.name;
 	m_orientation_degrees = tablet.orientation;
+
 	m_enabled = new QCheckBox;
 	m_enabled->setChecked(tablet.enabled);
 	m_enabled->setIconSize(QSize(32, 32));
@@ -21,26 +23,36 @@ TabletRow::TabletRow(const TabletSettings& tablet, QGridLayout* tabletGrid, int 
 	m_enabled->setText(tablet.name);
 	connect(m_enabled, &QCheckBox::toggled, this, &TabletRow::update);
 	tabletGrid->addWidget(m_enabled, i + 1, 0);
-	m_rotate_left = new QPushButton(QIcon::fromTheme("object-rotate-left"), "");
+
+	m_rotate_left = new QToolButton;
+	m_rotate_left->setIcon(QIcon::fromTheme("object-rotate-left"));
+	m_rotate_left->setToolTip(tr("Rotate left"));
 	connect(m_rotate_left, &QPushButton::clicked, this, &TabletRow::rotateLeft);
 	tabletGrid->addWidget(m_rotate_left, i + 1, 1);
+
 	m_orientation = new QLabel;
 	m_orientation->setMinimumWidth(45);
 	m_orientation->setAlignment(Qt::AlignRight);
 	tabletGrid->addWidget(m_orientation, i + 1, 2);
-	m_rotate_right = new QPushButton(QIcon::fromTheme("object-rotate-right"), "");
+
+	m_rotate_right = new QToolButton;
+	m_rotate_right->setIcon(QIcon::fromTheme("object-rotate-right"));
+	m_rotate_right->setToolTip(tr("Rotate right"));
 	connect(m_rotate_right, &QPushButton::clicked, this, &TabletRow::rotateRight);
 	tabletGrid->addWidget(m_rotate_right, i + 1, 3);
+
 	m_width = new QDoubleSpinBox;
 	m_width->setDecimals(1);
 	m_width->setMinimum(0.1);
 	m_width->setValue(0.1 * tablet.width);
 	tabletGrid->addWidget(m_width, i + 1, 4);
+
 	m_height = new QDoubleSpinBox;
 	m_height->setDecimals(1);
 	m_height->setMinimum(0.1);
 	m_height->setValue(0.1 * tablet.height);
 	tabletGrid->addWidget(m_height, i + 1, 5);
+
 	update();
 }
 
@@ -79,11 +91,10 @@ SettingsDialog::SettingsDialog(QWidget* parent) :
 	// It can be convenient to try out a setup with the preferences window open.
 	// We therefore don't make the window modal.
 
-	QVBoxLayout* layout = new QVBoxLayout;
-	setLayout(layout);
+	QVBoxLayout* layout = new QVBoxLayout(this);
 
 	{
-		QLabel* label = new QLabel(tr("Check the external tablet/pen device(s) whose writing area should be mapped only onto the current page. Also input the orientation of the tablet and the correct width/height ratio (before rotation)."));
+		QLabel* label = new QLabel(tr("Check the external tablet/pen device(s) whose writing area should be mapped only onto the current page. Also input the orientation of the tablet and its width/height ratio (before rotation)."));
 		label->setWordWrap(true);
 		layout->addWidget(label);
 	}
@@ -91,6 +102,39 @@ SettingsDialog::SettingsDialog(QWidget* parent) :
 	tabletGrid = new QGridLayout;
 	layout->addLayout(tabletGrid);
 
+	QHBoxLayout* bottom = new QHBoxLayout;
+	layout->addLayout(bottom);
+	{
+		QPushButton* button = new QPushButton(QIcon::fromTheme("view-refresh"), tr("Reload"));
+		connect(button, &QPushButton::clicked, this, &SettingsDialog::reload);
+		bottom->addWidget(button);
+	}
+	bottom->addStretch();
+	{
+		QPushButton* button = new QPushButton(QIcon::fromTheme("dialog-ok-apply"), tr("OK"));
+		connect(button, &QPushButton::clicked, this, &SettingsDialog::ok);
+		button->setDefault(true);
+		bottom->addWidget(button);
+	}
+	{
+		QPushButton* button = new QPushButton(QIcon::fromTheme("dialog-ok-apply"), tr("Apply"));
+		connect(button, &QPushButton::clicked, this, &SettingsDialog::apply);
+		bottom->addWidget(button);
+	}
+	{
+		QPushButton* button = new QPushButton(QIcon::fromTheme("dialog-cancel"), tr("Cancel"));
+		connect(button, &QPushButton::clicked, this, &SettingsDialog::cancel);
+		bottom->addWidget(button);
+	}
+
+	reload();
+}
+
+void SettingsDialog::reload() {
+	while (QLayoutItem* child = tabletGrid->takeAt(0)) {
+		delete child->widget();
+		delete child;
+	}
 	{
 		QLabel* label = new QLabel(tr("Device"));
 		QFont font = label->font();
@@ -123,38 +167,6 @@ SettingsDialog::SettingsDialog(QWidget* parent) :
 		tabletGrid->addWidget(label, 0, 5);
 	}
 
-	QHBoxLayout* bottom = new QHBoxLayout;
-	{
-		QPushButton* button = new QPushButton(QIcon::fromTheme("view-refresh"), tr("Reload"));
-		connect(button, &QPushButton::clicked, this, &SettingsDialog::reload);
-		bottom->addWidget(button);
-	}
-	bottom->addStretch();
-	layout->addLayout(bottom);
-	{
-		QPushButton* button = new QPushButton(QIcon::fromTheme("dialog-ok-apply"), tr("OK"));
-		connect(button, &QPushButton::clicked, this, &SettingsDialog::ok);
-		bottom->addWidget(button);
-	}
-	{
-		QPushButton* button = new QPushButton(QIcon::fromTheme("dialog-ok-apply"), tr("Apply"));
-		connect(button, &QPushButton::clicked, this, &SettingsDialog::apply);
-		bottom->addWidget(button);
-	}
-	{
-		QPushButton* button = new QPushButton(QIcon::fromTheme("dialog-cancel"), tr("Cancel"));
-		connect(button, &QPushButton::clicked, this, &SettingsDialog::cancel);
-		bottom->addWidget(button);
-	}
-
-	reload();
-}
-
-void SettingsDialog::reload() {
-	while (QLayoutItem* child = tabletGrid->takeAt(6)) {
-		delete child->widget();  // delete the widget
-		delete child;  // delete the layout item
-	}
 	std::set<QString> tablet_names;
 	std::vector<TabletSettings> tablet_settings = Settings::self()->tablets();
 	for (const TabletSettings& tablet : tablet_settings)

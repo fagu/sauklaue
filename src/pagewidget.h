@@ -141,6 +141,7 @@ private:
 	void start_path(QPointF p, StrokeType type);
 	void continue_path(QPointF p);
 	void finish_path();
+
 	void set_tool_cursor(std::unique_ptr<ToolCursor> tool_cursor);
 	void move_tool_cursor(QPointF pos);
 
@@ -152,6 +153,7 @@ private:
 	// They imply:
 	//  c) !has_focus
 	//  d) !m_current_stroke
+	//  e) !m_tool_cursor
 	SPage* m_page = nullptr;
 	std::unique_ptr<PagePicture> m_page_picture;
 	bool has_focus = false;

@@ -24,7 +24,6 @@
 #include <QToolBar>
 #include <QAction>
 #include <QDebug>
-#include <QSettings>
 #include <QSaveFile>
 #include <QElapsedTimer>
 #include <QScreen>
@@ -430,8 +429,8 @@ void MainWindow::updatePageNavigation() {
 }
 
 void MainWindow::readGeometrySettings() {
-	QSettings settings;
-	QByteArray geometry = settings.value("geometry", QByteArray()).toByteArray();
+	KConfig* config = Settings::self()->config();
+	QByteArray geometry = config->group("Window").readEntry("geometry", QByteArray());
 	if (geometry.isEmpty()) {
 		QRect availableGeometry = screen()->availableGeometry();
 		resize(availableGeometry.width() / 2, availableGeometry.height() / 2);
@@ -439,13 +438,13 @@ void MainWindow::readGeometrySettings() {
 	} else {
 		restoreGeometry(geometry);
 	}
-	recentFilesAction->loadEntries(Settings::self()->config()->group("Recent Files"));
+	recentFilesAction->loadEntries(config->group("Recent Files"));
 }
 
 void MainWindow::writeGeometrySettings() {
-	QSettings settings;
-	settings.setValue("geometry", saveGeometry());
-	recentFilesAction->saveEntries(Settings::self()->config()->group("Recent Files"));
+	KConfig* config = Settings::self()->config();
+	config->group("Window").writeEntry("geometry", saveGeometry());
+	recentFilesAction->saveEntries(config->group("Recent Files"));
 }
 
 void MainWindow::documentWasModified() {

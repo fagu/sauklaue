@@ -19,6 +19,9 @@ public:
 	    name(_name), enabled(false), orientation(0), width(100), height(100) {
 	}
 	TabletSettings(const TabletSettings&) = default;
+	bool isDefault() const {
+		return !enabled && orientation == 0 && width == 100 && height == 100;
+	}
 };
 
 class Settings : public ConfigGenerated {

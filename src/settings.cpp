@@ -59,11 +59,15 @@ bool Settings::usrSave() {
 		return false;
 	KConfigGroup grp = config()->group("Tablets");
 	for (const TabletSettings& tablet : m_tabletsvec) {
-		KConfigGroup tgrp = grp.group(tablet.name);
-		tgrp.writeEntry("Enabled", tablet.enabled);
-		tgrp.writeEntry("Orientation", tablet.orientation);
-		tgrp.writeEntry("Width", tablet.width);
-		tgrp.writeEntry("Height", tablet.height);
+		if (tablet.isDefault()) {
+			grp.deleteGroup(tablet.name);
+		} else {
+			KConfigGroup tgrp = grp.group(tablet.name);
+			tgrp.writeEntry("Enabled", tablet.enabled);
+			tgrp.writeEntry("Orientation", tablet.orientation);
+			tgrp.writeEntry("Width", tablet.width);
+			tgrp.writeEntry("Height", tablet.height);
+		}
 	}
 	return true;
 }
