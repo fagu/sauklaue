@@ -86,7 +86,7 @@ void PageWidget::removing_layer_picture(ptr_LayerPicture layer_picture) {
 QRectF PageWidget::minimum_rect_in_pixels() {
 	static const int MARGIN = 50;
 	QPoint delta(MARGIN, MARGIN);
-	return QRectF(mapToGlobal(frameGeometry().topLeft()) - delta, mapToGlobal(geometry().bottomRight()) + delta);
+	return QRectF(mapToGlobal(QPoint(0,0)) - delta, mapToGlobal(QPoint(width(), height())) + delta);
 }
 
 void PageWidget::update_tablet_map() {
