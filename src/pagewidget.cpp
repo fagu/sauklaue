@@ -47,11 +47,12 @@ double EraserCursor::radius() const {
 
 QRect EraserCursor::rect() const {
 	double r = radius();
-	return QRect((pos() - QPointF(r+1,r+1)).toPoint(), (pos() + QPointF(r+1,r+1)).toPoint());
+	return QRect((pos() - QPointF(r + 1, r + 1)).toPoint(), (pos() + QPointF(r + 1, r + 1)).toPoint());
 }
 
 void EraserCursor::paint(QPainter& painter) const {
 	painter.save();
+	painter.setRenderHint(QPainter::Antialiasing, true);
 	painter.setClipRegion(transformation()->image_rect);
 	painter.setPen(QPen(Qt::black, 1));
 	painter.setBrush(Qt::white);
@@ -107,7 +108,7 @@ void PageWidget::removing_layer_picture(ptr_LayerPicture layer_picture) {
 QRectF PageWidget::minimum_rect_in_pixels() {
 	static const int MARGIN = 50;
 	QPoint delta(MARGIN, MARGIN);
-	return QRectF(mapToGlobal(QPoint(0,0)) - delta, mapToGlobal(QPoint(width(), height())) + delta);
+	return QRectF(mapToGlobal(QPoint(0, 0)) - delta, mapToGlobal(QPoint(width(), height())) + delta);
 }
 
 void PageWidget::update_tablet_map() {
@@ -292,15 +293,10 @@ void PageWidget::finish_path() {
 }
 
 void PageWidget::set_tool_cursor(std::unique_ptr<ToolCursor> tool_cursor) {
-	std::optional<QRect> old;
-	if (m_tool_cursor)
-		old = m_tool_cursor->rect();
 	m_tool_cursor = std::move(tool_cursor);
-	if (old)
-		update(old.value());
 	if (m_tool_cursor) {
 		connect(m_tool_cursor.get(), &ToolCursor::update, this, qOverload<const QRect&>(&PageWidget::update));
-		update(m_tool_cursor->rect());
+		m_tool_cursor->init();
 	}
 }
 

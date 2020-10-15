@@ -30,37 +30,66 @@ private:
 class ToolCursor : public QObject {
 	Q_OBJECT
 public:
-	ToolCursor(QPointF pos, const PictureTransformation* transformation) : m_pos(pos), m_transformation(transformation) {}
+	ToolCursor(QPointF pos, const PictureTransformation* transformation) :
+	    m_pos(pos), m_transformation(transformation) {
+	}
+	~ToolCursor() {
+		emit update(m_rect);
+	}
+	// Call this after connecting to the update signal.
+	void init() {
+		m_rect = rect();
+		emit update(m_rect);
+	}
+
+private:
+	// Updates the rectangle and notifies the signal.
+	void setRect() {
+		emit update(m_rect);
+		m_rect = rect();
+		emit update(m_rect);
+	}
+
+public:
+	// Move the cursor to the given point (in widget coordinates).
 	void move(QPointF pos) {
-		QRect old = rect();
 		m_pos = pos;
-		emit update(old);
-		emit update(rect());
+		setRect();
 	}
 	QPointF pos() const {
 		return m_pos;
 	}
+
 protected:
 	const PictureTransformation* transformation() const {
 		return m_transformation;
 	}
+
 public:
+	// A bounding rectangle for the cursor.
 	virtual QRect rect() const = 0;
-	virtual void paint(QPainter &painter) const = 0;
+	// Draw the cursor.
+	virtual void paint(QPainter& painter) const = 0;
 signals:
-	// Notification that the given rectangle needs to be updated.
+	// Notification that the given rectangle needs to be re-drawn.
 	void update(const QRect& rect);
+
 private:
 	QPointF m_pos;
+	QRect m_rect;
 	const PictureTransformation* m_transformation;
 };
 
 class EraserCursor : public ToolCursor {
 public:
-	EraserCursor(QPointF pos, const PictureTransformation* transformation, int width) : ToolCursor(pos, transformation), m_width(width) {}
+	EraserCursor(QPointF pos, const PictureTransformation* transformation, int width) :
+	    ToolCursor(pos, transformation), m_width(width) {
+	}
+
 public:
 	QRect rect() const override;
 	void paint(QPainter& painter) const override;
+
 private:
 	double radius() const;
 	int m_width;
