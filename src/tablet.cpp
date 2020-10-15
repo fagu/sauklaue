@@ -51,6 +51,10 @@ TabletHandler::~TabletHandler() {
 }
 
 std::vector<QString> TabletHandler::device_list() {
+	if (!display) {
+		qDebug() << "No X11 display!";
+		return {};
+	}
 	std::vector<QString> tablet_names;
 	// Print a list of all devices.
 	// See list_xi2() in https://cgit.freedesktop.org/xorg/app/xinput/tree/src/list.c
