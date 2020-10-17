@@ -19,7 +19,7 @@ TabletHandler* TabletHandler::self() {
 }
 
 TabletHandler::TabletHandler() {
-	m_rect = m_rect_both = QRectF(0, 0, 1, 1);  // TODO
+	m_rect_one = m_rect_both = QRectF(0, 0, 1, 1);  // TODO
 	m_screen_size = QSize(1, 1);  // TODO
 	on_demand_timer = new QTimer(this);
 	on_demand_timer->setSingleShot(true);
@@ -44,7 +44,7 @@ TabletHandler::TabletHandler() {
 
 TabletHandler::~TabletHandler() {
 	// Immediately reset the transformation matrix to the identity matrix.
-	m_rect = m_rect_both = QRectF(0, 0, 1, 1);  // TODO
+	m_rect_one = m_rect_both = QRectF(0, 0, 1, 1);  // TODO
 	m_screen_size = QSize(1, 1);  // TODO
 	update_matrices_now();
 	XCloseDisplay(display);
@@ -69,10 +69,10 @@ std::vector<QString> TabletHandler::device_list() {
 	return tablet_names;
 }
 
-void TabletHandler::set_active_region(QRectF rect, QRectF rect_both, QSize screen_size) {
-	if (m_rect == rect && m_rect_both == rect_both && m_screen_size == screen_size)
+void TabletHandler::set_active_region(QRectF rect_one, QRectF rect_both, QSize screen_size) {
+	if (m_rect_one == rect_one && m_rect_both == rect_both && m_screen_size == screen_size)
 		return;
-	m_rect = rect;
+	m_rect_one = rect_one;
 	m_rect_both = rect_both;
 	m_screen_size = screen_size;
 	on_demand_timer->start(10);
@@ -86,9 +86,9 @@ Cairo::Matrix TabletHandler::matrix(const TabletSettings& tablet) const {
 	Cairo::Matrix t2r = tablet_to_reality(tablet);
 	Cairo::Matrix r2t = t2r;
 	r2t.invert();
-	QRectF minrect2 = bounding_rect(r2t, tablet.bothSides ? m_rect_both : m_rect);
-	double scale = std::max(minrect2.width(), minrect2.height());
-	double dx = (minrect2.left() + minrect2.right() - scale) / 2, dy = (minrect2.top() + minrect2.bottom() - scale) / 2;
+	QRectF rect = bounding_rect(r2t, tablet.bothSides ? m_rect_both : m_rect_one);
+	double scale = std::max(rect.width(), rect.height());
+	double dx = (rect.left() + rect.right() - scale) / 2, dy = (rect.top() + rect.bottom() - scale) / 2;
 	return Cairo::scaling_matrix(scale, scale) * Cairo::translation_matrix(dx, dy) * t2r * Cairo::scaling_matrix(1. / m_screen_size.width(), 1. / m_screen_size.height());
 }
 

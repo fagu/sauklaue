@@ -1,7 +1,5 @@
 #include "settings.h"
 
-#include "tablet.h"
-
 Settings* settings_singleton = nullptr;
 
 Settings* Settings::self() {
