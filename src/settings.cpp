@@ -49,6 +49,7 @@ void Settings::usrRead() {
 		tablet.orientation = tgrp.readEntry("Orientation", 0);
 		tablet.width = tgrp.readEntry("Width", 0);
 		tablet.height = tgrp.readEntry("Height", 0);
+		tablet.bothSides = tgrp.readEntry("BothSides", false);
 		m_tablets.emplace(name, tablet);
 		m_tabletsvec.push_back(tablet);
 	}
@@ -67,6 +68,7 @@ bool Settings::usrSave() {
 			tgrp.writeEntry("Orientation", tablet.orientation);
 			tgrp.writeEntry("Width", tablet.width);
 			tgrp.writeEntry("Height", tablet.height);
+			tgrp.writeEntry("BothSides", tablet.bothSides);
 		}
 	}
 	return true;

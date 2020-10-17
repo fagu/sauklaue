@@ -32,6 +32,7 @@ private:
 	QToolButton* m_rotate_right;
 	QDoubleSpinBox* m_width;
 	QDoubleSpinBox* m_height;
+	QCheckBox* m_both_sides;
 };
 
 class SettingsDialog : public QDialog {

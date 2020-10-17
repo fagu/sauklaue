@@ -96,7 +96,7 @@ private:
 
 	void pages_added(int first_page, int number_of_pages);
 	void pages_deleted(int first_page, int number_of_pages);
-	
+
 	/* Tablet */
 	void updateTabletMap();
 

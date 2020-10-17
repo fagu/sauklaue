@@ -873,11 +873,11 @@ void MainWindow::pages_deleted(int first_page, [[maybe_unused]] int number_of_pa
 }
 
 void MainWindow::updateTabletMap() {
-	if (focused_view == -1) {
-		TabletHandler::self()->set_active_region(screen()->virtualGeometry(), screen()->virtualSize());
-	} else {
-		TabletHandler::self()->set_active_region(pagewidgets[focused_view]->minimum_rect_in_pixels(), screen()->virtualSize());
-	}
+	QRectF rect_both;
+	for (PageWidget* p : pagewidgets)
+		rect_both = rect_both.united(p->minimum_rect_in_pixels());
+	QRectF rect = focused_view == -1 ? rect_both : pagewidgets[focused_view]->minimum_rect_in_pixels();
+	TabletHandler::self()->set_active_region(rect, rect_both, screen()->virtualSize());
 }
 
 void MainWindow::moveEvent(QMoveEvent*) {

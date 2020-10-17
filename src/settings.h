@@ -15,12 +15,13 @@ public:
 	bool enabled;  // Whether the input device coordinates should be transformed
 	int orientation;  // Real rotation of the input device in degrees (clockwise)
 	int width, height;  // Real width and height of the input device (before rotation)
+	bool bothSides;  // Whether to map to both pages (not just the currently focused one).
 	TabletSettings(QString _name) :
-	    name(_name), enabled(false), orientation(0), width(100), height(100) {
+	    name(_name), enabled(false), orientation(0), width(100), height(100), bothSides(false) {
 	}
 	TabletSettings(const TabletSettings&) = default;
 	bool isDefault() const {
-		return !enabled && orientation == 0 && width == 100 && height == 100;
+		return !enabled && orientation == 0 && width == 100 && height == 100 && !bothSides;
 	}
 };
 

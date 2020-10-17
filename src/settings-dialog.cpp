@@ -53,6 +53,12 @@ TabletRow::TabletRow(const TabletSettings& tablet, QGridLayout* tabletGrid, int 
 	m_height->setValue(0.1 * tablet.height);
 	tabletGrid->addWidget(m_height, i + 1, 5);
 
+	m_both_sides = new QCheckBox;
+	m_both_sides->setChecked(tablet.bothSides);
+	m_both_sides->setIcon(QIcon::fromTheme("page-2sides"));
+	m_both_sides->setText(tr("Both pages"));
+	tabletGrid->addWidget(m_both_sides, i + 1, 6);
+
 	update();
 }
 
@@ -63,6 +69,7 @@ void TabletRow::update() {
 	m_rotate_right->setEnabled(m_enabled->isChecked());
 	m_width->setEnabled(m_enabled->isChecked());
 	m_height->setEnabled(m_enabled->isChecked());
+	m_both_sides->setEnabled(m_enabled->isChecked());
 }
 
 void TabletRow::rotateLeft() {
@@ -81,6 +88,7 @@ TabletSettings TabletRow::get() const {
 	res.orientation = m_orientation_degrees;
 	res.width = qRound(m_width->value() * 10);
 	res.height = qRound(m_height->value() * 10);
+	res.bothSides = m_both_sides->isChecked();
 	return res;
 }
 
@@ -94,7 +102,7 @@ SettingsDialog::SettingsDialog(QWidget* parent) :
 	QVBoxLayout* layout = new QVBoxLayout(this);
 
 	{
-		QLabel* label = new QLabel(tr("Check the external tablet/pen device(s) whose writing area should be mapped only onto the current page. Also input the orientation of the tablet and its width/height ratio (before rotation)."));
+		QLabel* label = new QLabel(tr("Check the external tablet/pen device(s) whose writing area should be mapped onto either just the current page or both pages. Also input the orientation of the tablet and its width/height ratio (before rotation)."));
 		label->setWordWrap(true);
 		layout->addWidget(label);
 	}
