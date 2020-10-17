@@ -103,11 +103,12 @@ public:
 
 	void setPage(SPage* page);
 
-private:
-	QRectF minimum_rect_in_pixels();
-
 public:
-	void update_tablet_map();
+	// The rectangle encompassing this page in global screen coordinates. This is used for tablet mapping.
+	QRectF minimum_rect_in_pixels();
+signals:
+	// Notification that the minimum_rect_in_pixels has changed.
+	void update_minimum_rect_in_pixels();
 
 public:
 	void focusPage();

@@ -2,7 +2,6 @@
 
 #include "mainwindow.h"
 #include "commands.h"
-#include "tablet.h"
 #include "document.h"
 #include "renderer.h"
 #include "tool-state.h"
@@ -87,7 +86,7 @@ void PageWidget::setupPicture() {
 	} else {
 		m_page_picture = nullptr;
 	}
-	update_tablet_map();
+	emit update_minimum_rect_in_pixels();
 	update();
 }
 
@@ -111,22 +110,13 @@ QRectF PageWidget::minimum_rect_in_pixels() {
 	return QRectF(mapToGlobal(QPoint(0, 0)) - delta, mapToGlobal(QPoint(width(), height())) + delta);
 }
 
-void PageWidget::update_tablet_map() {
-	if (!has_focus)
-		return;
-	assert(m_page);
-	TabletHandler::self()->set_active_region(minimum_rect_in_pixels(), screen()->virtualSize());
-}
-
 void PageWidget::focusPage() {
 	has_focus = true;
-	update_tablet_map();
 	update();
 }
 
 void PageWidget::unfocusPage() {
 	has_focus = false;
-	update_tablet_map();
 	update();
 }
 
@@ -171,7 +161,7 @@ void PageWidget::resizeEvent(QResizeEvent*) {
 }
 
 void PageWidget::moveEvent(QMoveEvent*) {
-	update_tablet_map();
+	emit update_minimum_rect_in_pixels();
 }
 
 void PageWidget::mousePressEvent(QMouseEvent* event) {

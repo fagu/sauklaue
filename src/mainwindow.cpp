@@ -72,6 +72,7 @@ MainWindow::MainWindow(QWidget* parent) :
 		page_numbers[i] = -1;
 		pagewidgets[i] = new PageWidget(m_tool_state);
 		connect(pagewidgets[i], &PageWidget::focus, this, [this, i]() { focusView(i); });
+		connect(pagewidgets[i], &PageWidget::update_minimum_rect_in_pixels, this, &MainWindow::updateTabletMap);
 		layout->addWidget(pagewidgets[i]);
 	}
 
@@ -668,9 +669,7 @@ void MainWindow::showPages(std::array<int, 2> new_page_numbers, int new_focused_
 			assert(page_numbers[focused_view] != -1);
 			pagewidgets[focused_view]->focusPage();
 		}
-		if (focused_view == -1) {
-			TabletHandler::self()->set_active_region(screen()->virtualGeometry(), screen()->virtualSize());
-		}
+		updateTabletMap();
 	}
 	updatePageNavigation();
 }
@@ -823,6 +822,7 @@ void MainWindow::focusView(int view_index) {
 			pagewidgets[focused_view]->focusPage();
 		}
 		updatePageNavigation();
+		updateTabletMap();
 	}
 }
 
@@ -872,7 +872,14 @@ void MainWindow::pages_deleted(int first_page, [[maybe_unused]] int number_of_pa
 	gotoPage(first_page);
 }
 
+void MainWindow::updateTabletMap() {
+	if (focused_view == -1) {
+		TabletHandler::self()->set_active_region(screen()->virtualGeometry(), screen()->virtualSize());
+	} else {
+		TabletHandler::self()->set_active_region(pagewidgets[focused_view]->minimum_rect_in_pixels(), screen()->virtualSize());
+	}
+}
+
 void MainWindow::moveEvent(QMoveEvent*) {
-	if (focused_view != -1)
-		pagewidgets[focused_view]->update_tablet_map();
+	updateTabletMap();
 }
