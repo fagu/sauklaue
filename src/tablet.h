@@ -8,6 +8,8 @@
 #include <QSize>
 #include <QMatrix>
 
+#include <set>
+
 class QTimer;
 struct _XDisplay;
 
@@ -16,7 +18,6 @@ class TabletHandler : public QObject {
 public:
 	static TabletHandler* self();
 
-private:
 	TabletHandler();
 	~TabletHandler();
 
@@ -38,6 +39,13 @@ private:
 	QRectF m_rect_both;
 	// The total (virtual) screen size.
 	QSize m_screen_size;
+
+	// Whether we should currently manage the transformation matrix. (We should stop when the application loses focus. For example, if there are multiple instances of this program running, they should cooperate.)
+	bool m_active = true;
+
+	// Set of tablet ids whose transformation matrix we have changed.
+	// TODO Save and restore the original transformation matrix.
+	std::set<int> m_changed;
 
 	// Update the transformation matrix soon when m_rect_one or m_screen_size changed.
 	QTimer* on_demand_timer;

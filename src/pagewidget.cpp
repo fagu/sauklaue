@@ -72,8 +72,6 @@ void PageWidget::setPage(SPage* page) {
 	if (m_page == page)
 		return;  // Do nothing. In particular, don't clear m_current_stroke.
 	m_page = page;
-	if (!m_page)
-		assert(!has_focus);
 	m_current_stroke.reset();
 	setupPicture();
 }

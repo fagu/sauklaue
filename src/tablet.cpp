@@ -3,17 +3,18 @@
 #include "cairo-helpers.h"
 #include "settings.h"
 
+#include <QApplication>
 #include <QDebug>
 #include <QTimer>
 #include <X11/extensions/XInput2.h>
 // #include <QtX11Extras/QX11Info>
 
-TabletHandler* tablet_singleton = nullptr;
+std::unique_ptr<TabletHandler> tablet_singleton;
 
 TabletHandler* TabletHandler::self() {
 	if (!tablet_singleton)
-		tablet_singleton = new TabletHandler;
-	return tablet_singleton;
+		tablet_singleton = std::make_unique<TabletHandler>();
+	return tablet_singleton.get();
 }
 
 TabletHandler::TabletHandler() {
@@ -42,8 +43,7 @@ TabletHandler::TabletHandler() {
 
 TabletHandler::~TabletHandler() {
 	// Immediately reset the transformation matrix to the identity matrix.
-	m_rect_one = m_rect_both = QRectF(0, 0, 1, 1);  // TODO
-	m_screen_size = QSize(1, 1);  // TODO
+	m_active = false;
 	update_matrices_now();
 	XCloseDisplay(display);
 }
@@ -73,7 +73,8 @@ void TabletHandler::set_active_region(QRectF rect_one, QRectF rect_both, QSize s
 	m_rect_one = rect_one;
 	m_rect_both = rect_both;
 	m_screen_size = screen_size;
-	on_demand_timer->start(10);
+	if (!on_demand_timer->isActive())
+		on_demand_timer->start(10);
 }
 
 QMatrix TabletHandler::matrix(const TabletSettings& tablet) const {
@@ -91,6 +92,7 @@ QMatrix TabletHandler::matrix(const TabletSettings& tablet) const {
 	return QMatrix().scale(scale, scale) * QMatrix().translate(dx, dy) * t2r * QMatrix().scale(1. / m_screen_size.width(), 1. / m_screen_size.height());
 }
 
+// TODO We waste quite a bit of time waiting for the X server to respond. It would be better to do this in a separate thread. We could then perhaps even increase the update frequency.
 void TabletHandler::update_matrices_now() {
 	// 	qDebug() << "Setting transformation matrix.";
 	if (!display)
@@ -100,17 +102,22 @@ void TabletHandler::update_matrices_now() {
 	int ndevices;
 	XIDeviceInfo* info;
 	info = XIQueryDevice(display, XIAllDevices, &ndevices);
+	bool active = m_active && (qApp && qApp->activeWindow() != nullptr);
 	//	bool found = false;
 	for (int i = 0; i < ndevices; i++) {
 		XIDeviceInfo* device = &info[i];
+		if (!(device->use == XIMasterPointer || device->use == XISlavePointer))
+			continue;
 		std::optional<TabletSettings> tablet = Settings::self()->tablet(device->name);
-		if (tablet && tablet->enabled) {
+		if (active && tablet && tablet->enabled) {
+			m_changed.insert(device->deviceid);
 			QMatrix cmat = matrix(*tablet);
 			// 	QProcess::execute("xinput", {"set-prop", "XPPEN Tablet Pen (0)", "--type=float", "Coordinate Transformation Matrix", QString::number(e1x), QString::number(e2x), QString::number(dx), QString::number(e1y), QString::number(e2y), QString::number(dy), "0", "0", "1"});
 			float mat[9] = {(float)cmat.m11(), (float)cmat.m21(), (float)cmat.dx(), (float)cmat.m12(), (float)cmat.m22(), (float)cmat.dy(), 0, 0, 1};
 			XIChangeProperty(display, device->deviceid, XInternAtom(display, "Coordinate Transformation Matrix", False), XInternAtom(display, "FLOAT", False), 32, PropModeReplace, (unsigned char*)mat, 9);
 			//			found = true;
-		} else {
+		} else if (auto it = m_changed.find(device->deviceid); it != m_changed.end()) {
+			m_changed.erase(it);
 			float mat[9] = {1, 0, 0, 0, 1, 0, 0, 0, 1};
 			XIChangeProperty(display, device->deviceid, XInternAtom(display, "Coordinate Transformation Matrix", False), XInternAtom(display, "FLOAT", False), 32, PropModeReplace, (unsigned char*)mat, 9);
 		}
