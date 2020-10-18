@@ -6,8 +6,7 @@
 #include <QObject>
 #include <QRectF>
 #include <QSize>
-
-#include <cairomm/matrix.h>
+#include <QMatrix>
 
 class QTimer;
 struct _XDisplay;
@@ -31,7 +30,7 @@ public:
 private:
 	void update_matrices_now();
 
-	Cairo::Matrix matrix(const TabletSettings& tablet) const;
+	QMatrix matrix(const TabletSettings& tablet) const;
 
 	// A rectangle encompassing the focused page.
 	QRectF m_rect_one;

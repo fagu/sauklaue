@@ -3,8 +3,6 @@
 #include "cairo-helpers.h"
 #include "settings.h"
 
-#include <cmath>
-
 #include <QDebug>
 #include <QTimer>
 #include <X11/extensions/XInput2.h>
@@ -78,18 +76,19 @@ void TabletHandler::set_active_region(QRectF rect_one, QRectF rect_both, QSize s
 	on_demand_timer->start(10);
 }
 
-Cairo::Matrix tablet_to_reality(const TabletSettings& tablet) {
-	return Cairo::scaling_matrix(tablet.width, tablet.height) * Cairo::rotation_matrix(tablet.orientation * M_PI / 180);
-}
-
-Cairo::Matrix TabletHandler::matrix(const TabletSettings& tablet) const {
-	Cairo::Matrix t2r = tablet_to_reality(tablet);
-	Cairo::Matrix r2t = t2r;
-	r2t.invert();
-	QRectF rect = bounding_rect(r2t, tablet.bothSides ? m_rect_both : m_rect_one);
+QMatrix TabletHandler::matrix(const TabletSettings& tablet) const {
+	// Without loss of generality, the unit in reality is 1 pixel.
+	// Tablet -> Reality
+	QMatrix t2r = QMatrix().scale(tablet.width, tablet.height) * QMatrix().rotate(tablet.orientation);
+	// Reality -> Tablet
+	QMatrix r2t = t2r.inverted();
+	// Bounding rectangle for the rectangle to be mapped to in tablet space
+	QRectF rect = r2t.mapRect(tablet.bothSides ? m_rect_both : m_rect_one);
+	// Rescale the tablet so it becomes at least as large as the bounding rectangle.
 	double scale = std::max(rect.width(), rect.height());
+	// Translate the tablet so it contains the bounding rectangle.
 	double dx = (rect.left() + rect.right() - scale) / 2, dy = (rect.top() + rect.bottom() - scale) / 2;
-	return Cairo::scaling_matrix(scale, scale) * Cairo::translation_matrix(dx, dy) * t2r * Cairo::scaling_matrix(1. / m_screen_size.width(), 1. / m_screen_size.height());
+	return QMatrix().scale(scale, scale) * QMatrix().translate(dx, dy) * t2r * QMatrix().scale(1. / m_screen_size.width(), 1. / m_screen_size.height());
 }
 
 void TabletHandler::update_matrices_now() {
@@ -106,15 +105,9 @@ void TabletHandler::update_matrices_now() {
 		XIDeviceInfo* device = &info[i];
 		std::optional<TabletSettings> tablet = Settings::self()->tablet(device->name);
 		if (tablet && tablet->enabled) {
-			Cairo::Matrix cmat = matrix(*tablet);
-			double dx = 0, dy = 0;
-			cmat.transform_point(dx, dy);
-			double e1x = 1, e1y = 0;
-			cmat.transform_distance(e1x, e1y);
-			double e2x = 0, e2y = 1;
-			cmat.transform_distance(e2x, e2y);
+			QMatrix cmat = matrix(*tablet);
 			// 	QProcess::execute("xinput", {"set-prop", "XPPEN Tablet Pen (0)", "--type=float", "Coordinate Transformation Matrix", QString::number(e1x), QString::number(e2x), QString::number(dx), QString::number(e1y), QString::number(e2y), QString::number(dy), "0", "0", "1"});
-			float mat[9] = {(float)e1x, (float)e2x, (float)dx, (float)e1y, (float)e2y, (float)dy, 0, 0, 1};
+			float mat[9] = {(float)cmat.m11(), (float)cmat.m21(), (float)cmat.dx(), (float)cmat.m12(), (float)cmat.m22(), (float)cmat.dy(), 0, 0, 1};
 			XIChangeProperty(display, device->deviceid, XInternAtom(display, "Coordinate Transformation Matrix", False), XInternAtom(display, "FLOAT", False), 32, PropModeReplace, (unsigned char*)mat, 9);
 			//			found = true;
 		} else {
