@@ -21,10 +21,6 @@ PictureTransformation::PictureTransformation(SPage* page, int widget_width, int 
 	image_size = QSize(unit2pixel * page->width(), unit2pixel * page->height());
 	topLeft = QPoint((widget_width - image_size.width()) / 2, (widget_height - image_size.height()) / 2);
 	image_rect = QRect(topLeft, image_size);
-	page2image = Cairo::scaling_matrix(unit2pixel, unit2pixel);
-	image2page = page2image;
-	image2page.invert();
-	page2widget = page2image * Cairo::translation_matrix(topLeft.x(), topLeft.y());
 }
 
 DrawingLayerPicture::DrawingLayerPicture(std::variant<NormalLayer*, TemporaryLayer*> layer, const PictureTransformation& transformation) :
@@ -38,10 +34,7 @@ DrawingLayerPicture::DrawingLayerPicture(std::variant<NormalLayer*, TemporaryLay
 	// 	cr->set_antialias(Cairo::ANTIALIAS_GRAY);
 	cr->set_line_cap(Cairo::LINE_CAP_ROUND);
 	cr->set_line_join(Cairo::LINE_JOIN_ROUND);
-	cr->set_matrix(transformation.page2image);
 	set_transparent();
-	// 	cr->rectangle(0,0,transformation.image_size.width(),transformation.image_size.height());
-	// 	cr->clip();
 	draw_strokes();
 }
 
@@ -62,14 +55,16 @@ void DrawingLayerPicture::draw_strokes() {
 		draw_stroke(m_current_stroke.value());
 }
 
-void construct_path(Cairo::RefPtr<Cairo::Context> cr, const std::vector<Point>& points) {
+// We do not use Cairo's transformation matrix because I don't understand what it does when used together with get_stroke_extents.
+// We really want to know the bounding rectangle to be updated in image coordinates. But we get strange results when resetting the transformation matrix to the identity matrix between constructing the path and calling get_stroke_extents.
+void construct_path(Cairo::RefPtr<Cairo::Context> cr, const std::vector<Point>& points, double unit2pixel) {
 	assert(!points.empty());
-	cr->move_to(points[0].x, points[0].y);
+	cr->move_to(points[0].x * unit2pixel, points[0].y * unit2pixel);
 	if (points.size() == 1) {
-		cr->line_to(points[0].x, points[0].y);
+		cr->line_to(points[0].x * unit2pixel, points[0].y * unit2pixel);
 	} else {
 		for (size_t i = 1; i < points.size(); i++)
-			cr->line_to(points[i].x, points[i].y);
+			cr->line_to(points[i].x * unit2pixel, points[i].y * unit2pixel);
 	}
 }
 
@@ -81,34 +76,31 @@ void DrawingLayerPicture::stroke_added(ptr_Stroke stroke) {
 }
 
 void DrawingLayerPicture::stroke_deleted(ptr_Stroke stroke) {
-	// 	qDebug() << "Delete stroke" << m_layer->strokes().size();
-	// TODO This redraws the entire page!
-	// Since we know the stroke that is about to be deleted, only part of the page would need to be updated.
-	{
-		CairoGroup cg(cr);
-		PathStroke* path_stroke = convert_variant<PathStroke*>(stroke);
-		setup_stroke(stroke);
-		construct_path(cr, path_stroke->points());  // Construct the deleted path to find the area that needs to be redrawn.
-		QRect rect = stroke_extents();
-		cr->begin_new_path();  // Forget the deleted path
-		cr->set_matrix(Cairo::identity_matrix());  // Figure out the bounding rectangle in pixel coordinates
-		cr->rectangle(rect.left(), rect.top(), rect.width(), rect.height());
-		cr->clip();
-		cr->set_matrix(transformation().page2image);
-		set_transparent();
-		draw_strokes();
-	}
-	emit update(QRect(0, 0, transformation().image_size.width(), transformation().image_size.height()));
+	CairoGroup cg(cr);
+	PathStroke* path_stroke = convert_variant<PathStroke*>(stroke);
+	setup_stroke(stroke);
+	// Construct the deleted path to find the area that needs to be redrawn.
+	construct_path(cr, path_stroke->points(), transformation().unit2pixel);
+	QRect rect = stroke_extents();
+	// Forget the deleted path
+	cr->begin_new_path();
+	// Clip to only redraw the bounding rectangle of the deleted stroke.
+	cr->rectangle(rect.left(), rect.top(), rect.width(), rect.height());
+	cr->clip();
+	set_transparent();
+	draw_strokes();
+	emit update(rect);
 }
 
 void DrawingLayerPicture::setup_stroke(ptr_Stroke stroke) {
+	double unit2pixel = transformation().unit2pixel;
 	std::visit(overloaded{[&](const PenStroke* st) {
-		                      cr->set_line_width(st->width());
+		                      cr->set_line_width(st->width() * unit2pixel);
 		                      Color co = st->color();
 		                      cr->set_source_rgba(co.r(), co.g(), co.b(), co.a());
 	                      },
 	                      [&](const EraserStroke* st) {
-		                      cr->set_line_width(st->width());
+		                      cr->set_line_width(st->width() * unit2pixel);
 		                      cr->set_source_rgba(0, 0, 0, 0);  // Transparent
 		                      // Replace layer color by transparent instead of making a transparent drawing on top of the layer.
 		                      cr->set_operator(Cairo::OPERATOR_SOURCE);
@@ -120,7 +112,7 @@ void DrawingLayerPicture::draw_stroke(ptr_Stroke stroke) {
 	CairoGroup cg(cr);
 	setup_stroke(stroke);
 	PathStroke* path_stroke = convert_variant<PathStroke*>(stroke);
-	construct_path(cr, path_stroke->points());
+	construct_path(cr, path_stroke->points(), transformation().unit2pixel);
 	// It might be better to compute the union of the extents of the individual segments.
 	QRect rect = stroke_extents();
 	cr->stroke();
@@ -128,10 +120,11 @@ void DrawingLayerPicture::draw_stroke(ptr_Stroke stroke) {
 }
 
 void DrawingLayerPicture::draw_line(Point a, Point b, ptr_Stroke stroke) {
+	double unit2pixel = transformation().unit2pixel;
 	CairoGroup cg(cr);
 	setup_stroke(stroke);
-	cr->move_to(a.x, a.y);
-	cr->line_to(b.x, b.y);
+	cr->move_to(a.x * unit2pixel, a.y * unit2pixel);
+	cr->line_to(b.x * unit2pixel, b.y * unit2pixel);
 	QRect rect = stroke_extents();
 	cr->stroke();
 	emit update(rect);
@@ -140,8 +133,7 @@ void DrawingLayerPicture::draw_line(Point a, Point b, ptr_Stroke stroke) {
 QRect DrawingLayerPicture::stroke_extents() {
 	double x1, y1, x2, y2;
 	cr->get_stroke_extents(x1, y1, x2, y2);
-	QRectF rect = bounding_rect(transformation().page2image, QRectF(QPointF(x1, y1), QPointF(x2, y2)));
-	return QRect(QPoint((int)rect.left() - 1, (int)rect.top() - 1), QPoint((int)rect.right() + 2, (int)rect.bottom() + 2));
+	return QRect(QPoint((int)x1 - 1, (int)y1 - 1), QPoint((int)x2 + 2, (int)y2 + 2));
 }
 
 PDFLayerPicture::PDFLayerPicture(PDFLayer* layer, const PictureTransformation& transformation) :
@@ -248,7 +240,7 @@ void PDFExporter::save(Document* doc, const std::string& file_name) {
 						                                            cr->set_line_width(st->width());
 						                                            Color co = st->color();
 						                                            cr->set_source_rgba(co.r(), co.g(), co.b(), co.a());
-						                                            construct_path(cr, st->points());
+						                                            construct_path(cr, st->points(), 1.0);
 						                                            cr->stroke();
 					                                            },
 					                                            [&](EraserStroke* st) {
@@ -259,7 +251,7 @@ void PDFExporter::save(Document* doc, const std::string& file_name) {
 						                                            } else {
 							                                            cr->set_source_rgb(1, 1, 1);
 						                                            }
-						                                            construct_path(cr, st->points());
+						                                            construct_path(cr, st->points(), 1.0);
 						                                            cr->stroke();
 					                                            }},
 					                                 stroke);
