@@ -10,6 +10,7 @@
 #include <QPaintEvent>
 #include <QPainter>
 #include <QPen>
+// #include <QDebug>
 
 // const int DEFAULT_LINE_WIDTH = 1500;
 const int DEFAULT_ERASER_WIDTH = 1500 * 20;
