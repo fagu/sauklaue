@@ -276,7 +276,13 @@ void MainWindow::createActions() {
 	{
 		QAction* action = new QAction(QIcon::fromTheme("document-import"), tr("&Insert PDF file"));
 		action->setStatusTip(tr("Insert a PDF file after the current page"));
-		connect(action, &QAction::triggered, this, &MainWindow::insertPDF);
+		connect(action, &QAction::triggered, this, [this]() {insertPDF(false);});
+		pagesMenu->addAction(action);
+	}
+	{
+		QAction* action = new QAction(QIcon::fromTheme("document-import"), tr("&Insert PDF file (first page only)"));
+		action->setStatusTip(tr("Insert the first page of a PDF file after the current page"));
+		connect(action, &QAction::triggered, this, [this]() {insertPDF(true);});
 		pagesMenu->addAction(action);
 	}
 	{
@@ -758,7 +764,7 @@ void MainWindow::actionGotoPage() {
 		gotoPage(page - 1);
 }
 
-void MainWindow::insertPDF() {
+void MainWindow::insertPDF(bool first_page_only) {
 	QStringList mimeTypeFilters({"application/pdf", "application/octet-stream"});
 	QFileDialog dialog(this, tr("Import PDF file"));
 	dialog.setMimeTypeFilters(mimeTypeFilters);
@@ -792,7 +798,7 @@ void MainWindow::insertPDF() {
 	int number_of_pages = p_pdf->pages().size();
 	qDebug() << "Number of pages:" << number_of_pages;
 	std::vector<std::unique_ptr<SPage> > pages;
-	for (int page_number = 0; page_number < number_of_pages; page_number++) {
+	for (int page_number = 0; page_number < number_of_pages && (!first_page_only || page_number == 0); page_number++) {
 		auto p_pdf_layer = std::make_unique<PDFLayer>(p_pdf, page_number);
 		std::pair<int, int> size = p_pdf_layer->size();
 		auto page = std::make_unique<SPage>(size.first, size.second);

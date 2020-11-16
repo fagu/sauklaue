@@ -65,7 +65,7 @@ private:
 	void firstPage();
 	void lastPage();
 	void actionGotoPage();
-	void insertPDF();
+	void insertPDF(bool first_page_only);
 
 private:
 	PDFLayer* currentPDFLayer() const;
