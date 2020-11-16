@@ -109,6 +109,8 @@ public:
 	}
 
 private:
+	void redraw();
+
 	PDFLayer* m_layer;
 	Cairo::RefPtr<Cairo::ImageSurface> cairo_surface;
 };

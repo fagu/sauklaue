@@ -66,6 +66,13 @@ private:
 	void lastPage();
 	void actionGotoPage();
 	void insertPDF();
+
+private:
+	PDFLayer* currentPDFLayer() const;
+
+public:
+	void previousPDFPage();
+	void nextPDFPage();
 	void setLinkedPages(bool on);
 
 	QAction* deletePageAction;

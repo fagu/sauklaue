@@ -279,6 +279,20 @@ void MainWindow::createActions() {
 		connect(action, &QAction::triggered, this, &MainWindow::insertPDF);
 		pagesMenu->addAction(action);
 	}
+	{
+		QAction* action = new QAction(QIcon::fromTheme("go-up"), tr("&Previous PDF page"));
+		action->setStatusTip(tr("Switch PDF background to previous page"));
+		action->setShortcut(QKeySequence(Qt::CTRL + Qt::Key_Up));
+		connect(action, &QAction::triggered, this, &MainWindow::previousPDFPage);
+		pagesMenu->addAction(action);
+	}
+	{
+		QAction* action = new QAction(QIcon::fromTheme("go-down"), tr("&Next PDF page"));
+		action->setStatusTip(tr("Switch PDF background to next page"));
+		action->setShortcut(QKeySequence(Qt::CTRL + Qt::Key_Down));
+		connect(action, &QAction::triggered, this, &MainWindow::nextPDFPage);
+		pagesMenu->addAction(action);
+	}
 	QMenu* viewsMenu = menuBar()->addMenu(tr("&Views"));
 	{
 		QAction* action = new QAction(QIcon::fromTheme("go-previous"), tr("&Previous View"));
@@ -791,6 +805,38 @@ void MainWindow::insertPDF() {
 	// Run the command macro.
 	m_tool_state->undoStack()->push(cmd);
 	statusBar()->showMessage(tr("Inserted %1 pages").arg(number_of_pages), 2000);
+}
+
+PDFLayer* MainWindow::currentPDFLayer() const {
+	if (focused_view == -1)
+		return nullptr;
+	SPage* page = doc->pages()[page_numbers[focused_view]];
+	for (ptr_Layer layer : page->layers()) {
+		PDFLayer* pdf = std::visit(overloaded{[](PDFLayer* layer) -> PDFLayer* {
+			                                      return layer;
+		                                      },
+		                                      [](auto) -> PDFLayer* {
+			                                      return nullptr;
+		                                      }},
+		                           layer);
+		if (pdf)
+			return pdf;
+	}
+	return nullptr;
+}
+
+void MainWindow::previousPDFPage() {
+	PDFLayer* layer = currentPDFLayer();
+	if (layer && layer->page_number() - 1 >= 0) {
+		m_tool_state->undoStack()->push(new GotoPDFPageCommand(layer, layer->page_number() - 1));
+	}
+}
+
+void MainWindow::nextPDFPage() {
+	PDFLayer* layer = currentPDFLayer();
+	if (layer && layer->page_number() + 1 < (int)layer->pdf()->pages().size()) {
+		m_tool_state->undoStack()->push(new GotoPDFPageCommand(layer, layer->page_number() + 1));
+	}
 }
 
 void MainWindow::setLinkedPages(bool on) {

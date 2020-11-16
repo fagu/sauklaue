@@ -72,3 +72,18 @@ void AddEmbeddedPDFCommand::undo() {
 	assert(!m_pdf);
 	m_pdf = m_doc->delete_embedded_pdf(m_it);
 }
+
+GotoPDFPageCommand::GotoPDFPageCommand(PDFLayer* layer, int page, QUndoCommand* parent) :
+    QUndoCommand(parent), m_layer(layer), m_page(page) {
+	setText(QObject::tr("Switch PDF page"));
+}
+
+void GotoPDFPageCommand::redo() {
+	int old_page = m_layer->page_number();
+	m_layer->set_page_number(m_page);
+	m_page = old_page;  // Undo = go to original page
+}
+
+void GotoPDFPageCommand::undo() {
+	redo();
+}

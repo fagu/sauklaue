@@ -54,4 +54,15 @@ private:
 	std::list<std::unique_ptr<EmbeddedPDF> >::iterator m_it;
 };
 
+class GotoPDFPageCommand : public QUndoCommand {
+public:
+	GotoPDFPageCommand(PDFLayer* layer, int page, QUndoCommand* parent = nullptr);
+	void redo() override;
+	void undo() override;
+
+private:
+	PDFLayer* m_layer;
+	int m_page;
+};
+
 #endif  // COMMANDS_H

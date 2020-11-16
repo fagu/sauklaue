@@ -285,11 +285,19 @@ public:
 	int page_number() const {
 		return m_page_number;
 	}
+	void set_page_number(int page) {
+		if (m_page_number != page) {
+			m_page_number = page;
+			emit changed();
+		}
+	}
 	_PopplerPage* page() const {
 		return m_pdf->pages()[m_page_number];
 	}
 	// Size of the page (in our unit).
 	std::pair<int, int> size() const;
+signals:
+	void changed();
 
 private:
 	EmbeddedPDF* m_pdf;

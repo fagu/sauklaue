@@ -139,16 +139,22 @@ QRect DrawingLayerPicture::stroke_extents() {
 PDFLayerPicture::PDFLayerPicture(PDFLayer* layer, const PictureTransformation& transformation) :
     LayerPicture(transformation) {
 	m_layer = layer;
-	cairo_surface = Cairo::ImageSurface::create(Cairo::FORMAT_ARGB32, transformation.image_size.width(), transformation.image_size.height());
+	connect(m_layer, &PDFLayer::changed, this, &PDFLayerPicture::redraw);
+	redraw();
+}
+
+void PDFLayerPicture::redraw() {
+	cairo_surface = Cairo::ImageSurface::create(Cairo::FORMAT_ARGB32, transformation().image_size.width(), transformation().image_size.height());
 	Cairo::RefPtr<Cairo::Context> cr = Cairo::Context::create(cairo_surface);
 	cr->set_antialias(Cairo::ANTIALIAS_GRAY);
 	Cairo::FontOptions font_options;
 	font_options.set_antialias(Cairo::ANTIALIAS_GRAY);
 	cr->set_font_options(font_options);
-	double scale = POINT_TO_UNIT * transformation.unit2pixel;
+	double scale = POINT_TO_UNIT * transformation().unit2pixel;
 	cr->scale(scale, scale);
 	// TODO Render asynchronously
-	poppler_page_render(layer->page(), cr->cobj());
+	poppler_page_render(m_layer->page(), cr->cobj());
+	emit update(transformation().image_rect);
 }
 
 PagePicture::PagePicture(SPage* _page, int _width, int _height) :
