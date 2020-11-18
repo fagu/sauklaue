@@ -357,7 +357,8 @@ void MainWindow::createActions() {
 		std::vector<std::tuple<int, int, QString> > v = {
 		        {500, 8, "Small"},
 		        {1000, 16, "Medium"},
-		        {2000, 32, "Large"}};
+		        {1500, 24, "Large"},
+		        {2000, 32, "Huge"}};
 		for (const auto& p : v) {
 			int pen_size = std::get<0>(p);
 			int icon_size = std::get<1>(p);
