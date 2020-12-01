@@ -13,7 +13,7 @@
 #include <QCoreApplication>
 #include <QDataStream>
 
-const uint32_t FILE_FORMAT_VERSION = 5;
+const uint32_t FILE_FORMAT_VERSION = 6;
 constexpr std::string_view magic_string("sauklaue_9NyB3wiHcGwA1dPGoadQJry");
 
 void write_path(file4::Path::Builder s_path, const std::vector<Point>& points) {
@@ -91,6 +91,8 @@ void Serializer::save(Document* doc, QDataStream& stream) {
 				                      auto s_pdf_layer = s_layer.initPdf();
 				                      s_pdf_layer.setIndex(embedded_pdf_index[layer->pdf()]);
 				                      s_pdf_layer.setPage(layer->page_number());
+				                      s_pdf_layer.setMinPage(layer->min_page_number());
+				                      s_pdf_layer.setMaxPage(layer->max_page_number());
 			                      }},
 			           layer);
 		}
@@ -197,7 +199,12 @@ std::unique_ptr<Document> Serializer::load(QDataStream& stream) {
 				}
 				case file4::Layer::PDF: {
 					auto s_pdf_layer = s_layer.getPdf();
-					auto layer = std::make_unique<PDFLayer>(pdfs.at(s_pdf_layer.getIndex()), s_pdf_layer.getPage());
+					std::unique_ptr<PDFLayer> layer;
+					if (file_format_version >= 6) {
+						layer = std::make_unique<PDFLayer>(pdfs.at(s_pdf_layer.getIndex()), s_pdf_layer.getPage(), s_pdf_layer.getMinPage(), s_pdf_layer.getMaxPage());
+					} else {
+						layer = std::make_unique<PDFLayer>(pdfs.at(s_pdf_layer.getIndex()), s_pdf_layer.getPage(), PDFLayer::everything());
+					}
 					page->add_layer(page->layers().size(), std::move(layer));
 					break;
 				}

@@ -42,6 +42,8 @@ struct EmbeddedPDF {
 struct PDFLayer {
 	index @0 :Int32;
 	page @1 :Int32;
+	minPage @2 :Int32;
+	maxPage @3 :Int32;
 }
 
 struct Layer {

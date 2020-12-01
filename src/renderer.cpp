@@ -154,7 +154,7 @@ void PDFLayerPicture::redraw() {
 	cr->scale(scale, scale);
 	// TODO Render asynchronously
 	poppler_page_render(m_layer->page(), cr->cobj());
-	emit update(QRect(QPoint(0,0), transformation().image_size));
+	emit update(QRect(QPoint(0, 0), transformation().image_size));
 }
 
 PagePicture::PagePicture(SPage* _page, int _width, int _height) :

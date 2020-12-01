@@ -264,6 +264,8 @@ public:
 	auto pages() const {
 		return vector_wrapper_to_pointer(m_pages);
 	}
+	// List of page ranges [x,y] that have the same page label.
+	std::vector<std::pair<int, int> > page_label_ranges() const;
 
 private:
 	QString m_name;
@@ -275,9 +277,17 @@ private:
 class PDFLayer : public QObject {
 	Q_OBJECT
 public:
-	PDFLayer(EmbeddedPDF* pdf, int page_number) :
-	    m_pdf(pdf), m_page_number(page_number) {
-		assert(0 <= page_number && page_number < (int)m_pdf->pages().size());
+	struct everything {};
+	struct only_one {};
+	PDFLayer(EmbeddedPDF* pdf, int page_number, int min_page_number, int max_page_number) :
+	    m_pdf(pdf), m_page_number(page_number), m_min_page_number(min_page_number), m_max_page_number(max_page_number) {
+		assert(0 <= min_page_number && min_page_number <= page_number && page_number <= max_page_number && max_page_number < (int)m_pdf->pages().size());
+	}
+	PDFLayer(EmbeddedPDF* pdf, int page_number, only_one) :
+	    PDFLayer(pdf, page_number, page_number, page_number) {
+	}
+	PDFLayer(EmbeddedPDF* pdf, int page_number, everything) :
+	    PDFLayer(pdf, page_number, 0, (int)pdf->pages().size() - 1) {
 	}
 	EmbeddedPDF* pdf() const {
 		return m_pdf;
@@ -291,6 +301,12 @@ public:
 			emit changed();
 		}
 	}
+	int min_page_number() const {
+		return m_min_page_number;
+	}
+	int max_page_number() const {
+		return m_max_page_number;
+	}
 	_PopplerPage* page() const {
 		return m_pdf->pages()[m_page_number];
 	}
@@ -302,6 +318,8 @@ signals:
 private:
 	EmbeddedPDF* m_pdf;
 	int m_page_number;
+	int m_min_page_number;
+	int m_max_page_number;
 };
 
 // We call this class SPage instead of Page to avoid a collision with the class Page in the poppler library. Ridiculously, this name clash causes the destructor of our Page to be called instead of the destructor of poppler's Page, so the program crashes.^^

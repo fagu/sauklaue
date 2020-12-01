@@ -68,7 +68,10 @@ private:
 	void firstPage();
 	void lastPage();
 	void actionGotoPage();
-	void insertPDF(bool first_page_only);
+	enum insertPDFMode { normal,
+		             by_label,
+		             all_in_one };
+	void insertPDF(insertPDFMode mode);
 
 private:
 	PDFLayer* currentPDFLayer() const;

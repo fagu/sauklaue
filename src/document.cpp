@@ -91,6 +91,24 @@ EmbeddedPDF::EmbeddedPDF(const QString& name, const QByteArray& contents) :
 	}
 }
 
+std::vector<std::pair<int, int> > EmbeddedPDF::page_label_ranges() const {
+	std::vector<std::pair<int, int> > res;
+	char* prev_label = nullptr;
+	int start = 0;
+	for (int i = 0; i < (int)pages().size(); i++) {
+		char* cur_label = poppler_page_get_label(pages()[i]);
+		if (prev_label && strcmp(prev_label, cur_label)) {
+			res.emplace_back(start, i - 1);
+			start = i;
+		}
+		prev_label = cur_label;
+	}
+	if (prev_label) {
+		res.emplace_back(start, (int)pages().size() - 1);
+	}
+	return res;
+}
+
 // Document::Document(const Document& a) : QObject()
 // {
 // 	// Copy the pages.

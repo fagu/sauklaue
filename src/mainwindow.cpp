@@ -279,13 +279,19 @@ void MainWindow::createActions() {
 	{
 		QAction* action = new QAction(QIcon::fromTheme("document-import"), tr("&Insert PDF file"));
 		action->setStatusTip(tr("Insert a PDF file after the current page"));
-		connect(action, &QAction::triggered, this, [this]() { insertPDF(false); });
+		connect(action, &QAction::triggered, this, [this]() { insertPDF(normal); });
 		pagesMenu->addAction(action);
 	}
 	{
-		QAction* action = new QAction(QIcon::fromTheme("document-import"), tr("&Insert PDF file (first page only)"));
-		action->setStatusTip(tr("Insert the first page of a PDF file after the current page"));
-		connect(action, &QAction::triggered, this, [this]() { insertPDF(true); });
+		QAction* action = new QAction(QIcon::fromTheme("document-import"), tr("&Insert PDF file (by label)"));
+		action->setStatusTip(tr("Insert a PDF file after the current page, collecting pages with the same label"));
+		connect(action, &QAction::triggered, this, [this]() { insertPDF(by_label); });
+		pagesMenu->addAction(action);
+	}
+	{
+		QAction* action = new QAction(QIcon::fromTheme("document-import"), tr("&Insert PDF file (all-in-one)"));
+		action->setStatusTip(tr("Insert a PDF file after the current page, collecting all pages"));
+		connect(action, &QAction::triggered, this, [this]() { insertPDF(all_in_one); });
 		pagesMenu->addAction(action);
 	}
 	{
@@ -769,7 +775,7 @@ void MainWindow::actionGotoPage() {
 		gotoPage(page - 1);
 }
 
-void MainWindow::insertPDF(bool first_page_only) {
+void MainWindow::insertPDF(insertPDFMode mode) {
 	QStringList mimeTypeFilters({"application/pdf", "application/octet-stream"});
 	QFileDialog dialog(this, tr("Import PDF file"));
 	dialog.setMimeTypeFilters(mimeTypeFilters);
@@ -802,9 +808,21 @@ void MainWindow::insertPDF(bool first_page_only) {
 	new AddEmbeddedPDFCommand(doc.get(), std::move(pdf), cmd);
 	int number_of_pages = p_pdf->pages().size();
 	qDebug() << "Number of pages:" << number_of_pages;
+	std::vector<std::pair<int, int> > ranges;
+	if (mode == normal) {
+		for (int page_number = 0; page_number < number_of_pages; page_number++)
+			ranges.emplace_back(page_number, page_number);
+	} else if (mode == by_label) {
+		ranges = p_pdf->page_label_ranges();
+	} else if (mode == all_in_one) {
+		ranges.emplace_back(0, number_of_pages - 1);
+	} else {
+		assert(false);
+	}
 	std::vector<std::unique_ptr<SPage> > pages;
-	for (int page_number = 0; page_number < number_of_pages && (!first_page_only || page_number == 0); page_number++) {
-		auto p_pdf_layer = std::make_unique<PDFLayer>(p_pdf, page_number);
+	for (const auto& range : ranges) {
+		auto p_pdf_layer = std::make_unique<PDFLayer>(p_pdf, range.first, range.first, range.second);
+		// We use the size of the first page in the range. Note that later pages are therefore clipped if they are larger.
 		std::pair<int, int> size = p_pdf_layer->size();
 		auto page = std::make_unique<SPage>(size.first, size.second);
 		page->add_layer(0, std::move(p_pdf_layer));
@@ -838,14 +856,14 @@ PDFLayer* MainWindow::currentPDFLayer() const {
 
 void MainWindow::previousPDFPage() {
 	PDFLayer* layer = currentPDFLayer();
-	if (layer && layer->page_number() - 1 >= 0) {
+	if (layer && layer->page_number() - 1 >= layer->min_page_number()) {
 		m_tool_state->undoStack()->push(new GotoPDFPageCommand(layer, layer->page_number() - 1));
 	}
 }
 
 void MainWindow::nextPDFPage() {
 	PDFLayer* layer = currentPDFLayer();
-	if (layer && layer->page_number() + 1 < (int)layer->pdf()->pages().size()) {
+	if (layer && layer->page_number() + 1 <= layer->max_page_number()) {
 		m_tool_state->undoStack()->push(new GotoPDFPageCommand(layer, layer->page_number() + 1));
 	}
 }
