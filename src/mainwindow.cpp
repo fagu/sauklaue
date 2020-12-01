@@ -86,11 +86,14 @@ MainWindow::MainWindow(QWidget* parent) :
 	setDocument(std::make_unique<Document>());
 	setCurrentFile(QString());
 
-	{
-		QTimer* timer = new QTimer(this);
-		connect(timer, &QTimer::timeout, this, &MainWindow::autoSave);
-		timer->start(60000);
-	}
+	autoSaveTimer = new QTimer(this);
+	autoSaveTimer->setSingleShot(true);
+	connect(autoSaveTimer, &QTimer::timeout, this, &MainWindow::autoSave);
+	autoSaveTimer->start(std::max(1, Settings::self()->autoSaveInterval()) * 1000);
+
+	connect(Settings::self(), &Settings::autoSaveIntervalChanged, this, [this]() {
+		autoSaveTimer->start(std::min(autoSaveTimer->remainingTime(), std::max(1, Settings::self()->autoSaveInterval()) * 1000));
+	});
 
 	QGuiApplication::setFallbackSessionManagementEnabled(false);
 	connect(qApp, &QGuiApplication::commitDataRequest, this, &MainWindow::commitData);
@@ -276,13 +279,13 @@ void MainWindow::createActions() {
 	{
 		QAction* action = new QAction(QIcon::fromTheme("document-import"), tr("&Insert PDF file"));
 		action->setStatusTip(tr("Insert a PDF file after the current page"));
-		connect(action, &QAction::triggered, this, [this]() {insertPDF(false);});
+		connect(action, &QAction::triggered, this, [this]() { insertPDF(false); });
 		pagesMenu->addAction(action);
 	}
 	{
 		QAction* action = new QAction(QIcon::fromTheme("document-import"), tr("&Insert PDF file (first page only)"));
 		action->setStatusTip(tr("Insert the first page of a PDF file after the current page"));
-		connect(action, &QAction::triggered, this, [this]() {insertPDF(true);});
+		connect(action, &QAction::triggered, this, [this]() { insertPDF(true); });
 		pagesMenu->addAction(action);
 	}
 	{
@@ -613,6 +616,7 @@ void MainWindow::autoSave() {
 		qDebug() << "Autosaving...";
 		save();
 	}
+	autoSaveTimer->start(std::max(1, Settings::self()->autoSaveInterval()) * 1000);
 }
 
 void MainWindow::exportPDF() {
@@ -902,6 +906,8 @@ void MainWindow::nextView() {
 }
 
 void MainWindow::showSettings() {
+	if (KConfigDialog::showDialog("settings"))
+		return;
 	SettingsDialog* dialog = new SettingsDialog(this);
 	dialog->show();
 }

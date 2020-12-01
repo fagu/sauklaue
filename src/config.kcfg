@@ -3,4 +3,13 @@
       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
       xsi:schemaLocation="http://www.kde.org/standards/kcfg/1.0
                           http://www.kde.org/standards/kcfg/1.0/kcfg.xsd" >
+	<signal name="autoSaveIntervalChanged" />
+
+	<group name="General">
+		<entry name="AutoSaveInterval" type="Int">
+			<label>Autosave after this number of seconds.</label>
+			<default>60</default>
+			<emit signal="autoSaveIntervalChanged" />
+		</entry>
+	</group>
 </kcfg>

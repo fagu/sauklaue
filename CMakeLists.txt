@@ -49,7 +49,7 @@ link_libraries(${PopplerGlib_LDFLAGS})
 # Find the KConfig library
 find_package(KF5Config)
 link_libraries(KF5::ConfigCore KF5::ConfigGui)
-kconfig_add_kcfg_files(CONFIG_SRCS src/config.kcfgc)
+kconfig_add_kcfg_files(CONFIG_SRCS GENERATE_MOC src/config.kcfgc)
 
 # Find the KConfigWidgets library
 find_package(KF5ConfigWidgets)

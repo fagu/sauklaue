@@ -47,6 +47,9 @@ private:
 	void autoSave();
 	void exportPDF();
 
+private:
+	QTimer* autoSaveTimer;
+
 	/* Exit */
 protected:
 	void closeEvent(QCloseEvent* event) override;

@@ -6,12 +6,15 @@
 #include <QObject>
 #include <QString>
 #include <QDialog>
+#include <KConfigDialog>
 
 class QGridLayout;
 class QCheckBox;
 class QLabel;
 class QDoubleSpinBox;
 class QToolButton;
+class QSpinBox;
+class QShowEvent;
 
 class TabletRow : public QObject {
 	Q_OBJECT
@@ -35,19 +38,42 @@ private:
 	QCheckBox* m_both_sides;
 };
 
-class SettingsDialog : public QDialog {
+class SettingsGeneralWidget : public QWidget {
+	Q_OBJECT
+public:
+	SettingsGeneralWidget(QWidget* parent = nullptr);
+};
+
+class SettingsTabletWidget : public QWidget {
+	Q_OBJECT
+public:
+	SettingsTabletWidget(QWidget* parent = nullptr);
+	void reset();
+	void updateSettings();
+
+private:
+	QGridLayout* tabletGrid;
+	std::vector<std::unique_ptr<TabletRow> > m_rows;
+};
+
+class SettingsDialog : public KConfigDialog {
 	Q_OBJECT
 public:
 	SettingsDialog(QWidget* parent = nullptr);
 
-private:
-	void reload();
-	void ok();
-	void apply();
-	void cancel();
+protected:
+	void updateWidgets() override;
+	void updateWidgetsDefault() override;
+	void updateSettings() override;
+	bool hasChanged() override;
+	bool isDefault() override;
 
-	QGridLayout* tabletGrid;
-	std::vector<std::unique_ptr<TabletRow> > m_rows;
+	void pageChanged();
+
+private:
+	SettingsTabletWidget* tablet;
+	KPageWidgetItem* tabletItem;
+	QPushButton* reloadButton;
 };
 
 #endif

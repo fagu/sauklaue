@@ -9,6 +9,9 @@
 #include <QDoubleSpinBox>
 #include <QPushButton>
 #include <QToolButton>
+#include <QSpinBox>
+#include <QFormLayout>
+#include <QResizeEvent>
 
 #include <set>
 
@@ -92,13 +95,21 @@ TabletSettings TabletRow::get() const {
 	return res;
 }
 
-SettingsDialog::SettingsDialog(QWidget* parent) :
-    QDialog(parent) {
-	setWindowTitle(tr("Settings"));
+SettingsGeneralWidget::SettingsGeneralWidget(QWidget* parent) :
+    QWidget(parent) {
+	QFormLayout* layout = new QFormLayout;
+	{
+		QSpinBox* box = new QSpinBox;
+		box->setMinimum(1);
+		box->setObjectName("kcfg_AutoSaveInterval");
+		box->setSuffix("s");
+		layout->addRow(tr("Autosave every:"), box);
+	}
+	setLayout(layout);
+}
 
-	// It can be convenient to try out a setup with the preferences window open.
-	// We therefore don't make the window modal.
-
+SettingsTabletWidget::SettingsTabletWidget(QWidget* parent) :
+    QWidget(parent) {
 	QVBoxLayout* layout = new QVBoxLayout(this);
 
 	{
@@ -106,39 +117,15 @@ SettingsDialog::SettingsDialog(QWidget* parent) :
 		label->setWordWrap(true);
 		layout->addWidget(label);
 	}
-
 	tabletGrid = new QGridLayout;
 	layout->addLayout(tabletGrid);
+	layout->addStretch(1);
+	setLayout(layout);
 
-	QHBoxLayout* bottom = new QHBoxLayout;
-	layout->addLayout(bottom);
-	{
-		QPushButton* button = new QPushButton(QIcon::fromTheme("view-refresh"), tr("Reload"));
-		connect(button, &QPushButton::clicked, this, &SettingsDialog::reload);
-		bottom->addWidget(button);
-	}
-	bottom->addStretch();
-	{
-		QPushButton* button = new QPushButton(QIcon::fromTheme("dialog-ok-apply"), tr("OK"));
-		connect(button, &QPushButton::clicked, this, &SettingsDialog::ok);
-		button->setDefault(true);
-		bottom->addWidget(button);
-	}
-	{
-		QPushButton* button = new QPushButton(QIcon::fromTheme("dialog-ok-apply"), tr("Apply"));
-		connect(button, &QPushButton::clicked, this, &SettingsDialog::apply);
-		bottom->addWidget(button);
-	}
-	{
-		QPushButton* button = new QPushButton(QIcon::fromTheme("dialog-cancel"), tr("Cancel"));
-		connect(button, &QPushButton::clicked, this, &SettingsDialog::cancel);
-		bottom->addWidget(button);
-	}
-
-	reload();
+	reset();  // We immediately initialize the page so that we can compute the required size.
 }
 
-void SettingsDialog::reload() {
+void SettingsTabletWidget::reset() {
 	while (QLayoutItem* child = tabletGrid->takeAt(0)) {
 		delete child->widget();
 		delete child;
@@ -148,6 +135,7 @@ void SettingsDialog::reload() {
 		QFont font = label->font();
 		font.setBold(true);
 		label->setFont(font);
+		label->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
 		tabletGrid->addWidget(label, 0, 0);
 	}
 	{
@@ -194,12 +182,7 @@ void SettingsDialog::reload() {
 	}
 }
 
-void SettingsDialog::ok() {
-	apply();
-	close();
-}
-
-void SettingsDialog::apply() {
+void SettingsTabletWidget::updateSettings() {
 	std::vector<TabletSettings> tablets;
 	for (const auto& row : m_rows)
 		tablets.push_back(row->get());
@@ -207,6 +190,50 @@ void SettingsDialog::apply() {
 	Settings::self()->save();
 }
 
-void SettingsDialog::cancel() {
-	close();
+SettingsDialog::SettingsDialog(QWidget* parent) :
+    KConfigDialog(parent, "settings", Settings::self()) {
+	addPage(new SettingsGeneralWidget, tr("General"), "go-home");
+	tablet = new SettingsTabletWidget;
+	tabletItem = addPage(tablet, tr("Tablet"), "draw-freehand");
+
+	// FIXME Without the following hack, the settings dialog is a bit too slim for the tablet page.
+	setMinimumSize(sizeHint() + QSize(100, 0));
+
+	reloadButton = new QPushButton(QIcon::fromTheme("view-refresh"), tr("Reload"));
+	connect(reloadButton, &QPushButton::clicked, tablet, &SettingsTabletWidget::reset);
+	buttonBox()->addButton(reloadButton, QDialogButtonBox::ResetRole);
+
+	buttonBox()->removeButton(buttonBox()->button(QDialogButtonBox::Help));
+
+	connect(this, &KPageDialog::currentPageChanged, this, &SettingsDialog::pageChanged);
+	pageChanged();
+
+	// It can be convenient to try out a setup with the preferences window open.
+	// We therefore don't make the window modal.
+}
+
+void SettingsDialog::updateWidgets() {
+	tablet->reset();
+}
+
+void SettingsDialog::updateWidgetsDefault() {
+	tablet->reset();
+}
+
+void SettingsDialog::updateSettings() {
+	tablet->updateSettings();
+}
+
+bool SettingsDialog::hasChanged() {
+	// TODO
+	return true;
+}
+
+bool SettingsDialog::isDefault() {
+	// TODO
+	return true;
+}
+
+void SettingsDialog::pageChanged() {
+	reloadButton->setEnabled(currentPage() == tabletItem);
 }
