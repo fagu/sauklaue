@@ -33,6 +33,7 @@
 #include <QPainter>
 #include <QInputDialog>
 #include <QTimer>
+#include <QIconEngine>
 
 #include <KRecentFilesAction>
 #include <KCursorSaver>
@@ -60,6 +61,75 @@ std::array<int, 2> assign_pages_linked_fixing_one_view(int number_of_pages, int 
 	}
 	return res;
 }
+
+class ColorIconEngine : public QIconEngine {
+public:
+	ColorIconEngine(QColor color) :
+	    m_color(color) {
+	}
+	~ColorIconEngine() {
+	}
+	void paint(QPainter* painter, const QRect& rect, QIcon::Mode mode [[maybe_unused]], QIcon::State state [[maybe_unused]]) override {
+		painter->setRenderHint(QPainter::RenderHint::Antialiasing);
+		painter->setBrush(m_color);
+		painter->setPen(QColorConstants::Gray);
+		int margins = 0;
+		if (rect.width() > 16 && rect.height() > 16)
+			margins = 2;
+		else if (rect.width() > 8 && rect.height() > 8)
+			margins = 1;
+		painter->drawEllipse(rect.marginsRemoved(QMargins(margins, margins, margins, margins)));
+	}
+	QPixmap pixmap(const QSize& size, QIcon::Mode mode, QIcon::State state) override {
+		QPixmap pixmap(size);
+		pixmap.fill(Qt::transparent);
+		QPainter painter(&pixmap);
+		paint(&painter, QRect(QPoint(0, 0), size), mode, state);
+		return pixmap;
+	}
+	QIconEngine* clone(void) const override {
+		return new ColorIconEngine(m_color);
+	}
+
+private:
+	QColor m_color;
+};
+
+class SizeIconEngine : public QIconEngine {
+public:
+	SizeIconEngine(double size) :
+	    m_size(size) {
+	}
+	~SizeIconEngine() {
+	}
+	void paint(QPainter* painter, const QRect& rect, QIcon::Mode mode [[maybe_unused]], QIcon::State state [[maybe_unused]]) override {
+		painter->setRenderHint(QPainter::RenderHint::Antialiasing);
+		painter->setBrush(QColorConstants::Black);
+		int margins = 0;
+		if (rect.width() > 16 && rect.height() > 16)
+			margins = 2;
+		else if (rect.width() > 8 && rect.height() > 8)
+			margins = 1;
+		QRectF r = rect.marginsRemoved(QMargins(margins, margins, margins, margins));
+		double width = std::max<double>(r.width() * m_size, 1);
+		double height = std::max<double>(r.height() * m_size, 1);
+		r = QRectF(r.center() - QPoint(width / 2, height / 2), QSize(width, height));
+		painter->drawEllipse(r);
+	}
+	QPixmap pixmap(const QSize& size, QIcon::Mode mode, QIcon::State state) override {
+		QPixmap pixmap(size);
+		pixmap.fill(Qt::transparent);
+		QPainter painter(&pixmap);
+		paint(&painter, QRect(QPoint(0, 0), size), mode, state);
+		return pixmap;
+	}
+	QIconEngine* clone(void) const override {
+		return new SizeIconEngine(m_size);
+	}
+
+private:
+	double m_size;
+};
 
 MainWindow::MainWindow(QWidget* parent) :
     QMainWindow(parent),
@@ -344,13 +414,7 @@ void MainWindow::createActions() {
 		for (const auto& p : v) {
 			QColor color = p.first;
 			QString name = p.second;
-			QPixmap pixmap(64, 64);
-			pixmap.fill(Qt::transparent);
-			QPainter painter(&pixmap);
-			painter.setRenderHint(QPainter::RenderHint::Antialiasing);
-			painter.setBrush(color);
-			painter.drawEllipse(QRect(0, 0, 64, 64));
-			QAction* action = new QAction(pixmap, name, this);
+			QAction* action = new QAction(QIcon(new ColorIconEngine(color)), name, this);
 			action->setCheckable(true);
 			connect(action, &QAction::triggered, this, [this, color](bool on) {if (on) m_tool_state->setPenColor(color); });
 			for (QToolBar* tb : toolbars)
@@ -372,13 +436,7 @@ void MainWindow::createActions() {
 			int pen_size = std::get<0>(p);
 			int icon_size = std::get<1>(p);
 			QString name = std::get<2>(p);
-			QPixmap pixmap(64, 64);
-			pixmap.fill(Qt::transparent);
-			QPainter painter(&pixmap);
-			painter.setRenderHint(QPainter::RenderHint::Antialiasing);
-			painter.setBrush(QColorConstants::Black);
-			painter.drawEllipse(QPoint(32, 32), icon_size, icon_size);
-			QAction* action = new QAction(pixmap, name, this);
+			QAction* action = new QAction(QIcon(new SizeIconEngine(icon_size / 32.)), name, this);
 			action->setCheckable(true);
 			connect(action, &QAction::triggered, this, [this, pen_size](bool on) {if (on) m_tool_state->setPenSize(pen_size); });
 			for (QToolBar* tb : toolbars)
@@ -389,7 +447,7 @@ void MainWindow::createActions() {
 	}
 	for (QToolBar* tb : toolbars)
 		tb->addSeparator();
-	{
+	/*{
 		QPixmap pixmap(64, 64);
 		pixmap.fill(Qt::transparent);
 		QPainter painter(&pixmap);
@@ -407,7 +465,7 @@ void MainWindow::createActions() {
 		connect(action, &QAction::triggered, m_tool_state, &ToolState::setBlackboardMode);
 		for (QToolBar* tb : toolbars)
 			tb->addAction(action);
-	}
+	}*/
 	{
 		QAction* action = new QAction(QIcon::fromTheme("handle-move"), tr("Unlink views"), this);
 		action->setCheckable(true);
