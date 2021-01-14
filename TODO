@@ -73,10 +73,6 @@ For example, there is currently no way to change the background color.
  - Import from PDF
  - Export to PDF
 
-8. Side-by-side presentation mode
-
-Show the correct two pages in a beamer presentation with \pause. (As a hack, maybe use the table of contents to transmit information.)
-
 9. Configurable layout
 
 We might not always want two columns, one row.
@@ -94,8 +90,6 @@ For example, grid background.
 14. Object types other than strokes
 
 15. Automatically adjust window size to paper format.
-
-16. Add pages from another sauklaue file
 
 17. Open multiple files simultaneously (?)
 

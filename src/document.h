@@ -397,6 +397,9 @@ public:
 		m_embedded_pdfs.erase(it);
 		return pdf;
 	}
+	friend std::tuple<std::vector<std::unique_ptr<SPage> >, std::list<std::unique_ptr<EmbeddedPDF> > > extract_all(std::unique_ptr<Document> doc) {
+		return {std::move(doc->m_pages), std::move(doc->m_embedded_pdfs)};
+	}
 signals:
 	void pages_added(int first_page, int number_of_pages);
 	void pages_deleted(int first_page, int number_of_pages);

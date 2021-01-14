@@ -68,6 +68,7 @@ private:
 	void firstPage();
 	void lastPage();
 	void actionGotoPage();
+	void insertSauklaue();
 	enum insertPDFMode { normal,
 		             by_label,
 		             all_in_one };

@@ -347,6 +347,13 @@ void MainWindow::createActions() {
 	}
 	pagesMenu->addSeparator();
 	{
+		QAction* action = new QAction(QIcon::fromTheme("document-import"), tr("&Insert Sauklaue file"));
+		action->setStatusTip(tr("Insert a Sauklaue file after the current page"));
+		connect(action, &QAction::triggered, this, &MainWindow::insertSauklaue);
+		pagesMenu->addAction(action);
+	}
+	pagesMenu->addSeparator();
+	{
 		QAction* action = new QAction(QIcon::fromTheme("document-import"), tr("&Insert PDF file"));
 		action->setStatusTip(tr("Insert a PDF file after the current page"));
 		connect(action, &QAction::triggered, this, [this]() { insertPDF(normal); });
@@ -822,6 +829,41 @@ void MainWindow::actionGotoPage() {
 	int page = QInputDialog::getInt(this, tr("Go to Page"), tr("Page:"), page_numbers[focused_view] + 1, 1, doc->pages().size(), 1, &ok);
 	if (ok)
 		gotoPage(page - 1);
+}
+
+void MainWindow::insertSauklaue() {
+	QStringList mimeTypeFilters({"application/x-sauklaue", "application/octet-stream"});
+	QFileDialog dialog(this, tr("Import PDF file"));
+	dialog.setMimeTypeFilters(mimeTypeFilters);
+	dialog.setFileMode(QFileDialog::ExistingFile);
+	if (!dialog.exec())
+		return;
+	QString fileName = dialog.selectedFiles().first();
+	KCursorSaver cursor(Qt::WaitCursor);
+	QFileInfo info(fileName);
+	QFile file(fileName);
+	if (!file.open(QIODevice::ReadOnly))
+		return;
+	QDataStream in(&file);
+	std::unique_ptr<Document> importedDoc;
+	try {
+		KCursorSaver cursor(Qt::WaitCursor);
+		importedDoc = Serializer::load(in);
+	} catch (const SauklaueReadException& e) {
+		QMessageBox::warning(this, tr("Application"), tr("Cannot read file %1:\n%2").arg(QDir::toNativeSeparators(fileName), e.reason()));
+		return;
+	}
+	QUndoCommand* cmd = new QUndoCommand(tr("Insert Sauklaue file"));
+	auto [pages, embedded_pdfs] = extract_all(std::move(importedDoc));
+	qDebug() << "Number of embedded PDFs:" << embedded_pdfs.size();
+	qDebug() << "Number of pages:" << pages.size();
+	for (auto& embedded_pdf : embedded_pdfs)
+		new AddEmbeddedPDFCommand(doc.get(), std::move(embedded_pdf), cmd);
+	if (!pages.empty())
+		new AddPagesCommand(doc.get(), focused_view != -1 ? page_numbers[focused_view] + 1 : 0, std::move(pages), cmd);
+	// Run the command macro.
+	m_tool_state->undoStack()->push(cmd);
+	statusBar()->showMessage(tr("Inserted %1 pages").arg(pages.size()), 2000);
 }
 
 void MainWindow::insertPDF(insertPDFMode mode) {
