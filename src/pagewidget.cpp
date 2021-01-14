@@ -10,7 +10,7 @@
 #include <QPaintEvent>
 #include <QPainter>
 #include <QPen>
-// #include <QDebug>
+#include <QDebug>
 
 // const int DEFAULT_LINE_WIDTH = 1500;
 const int DEFAULT_ERASER_WIDTH = 1500 * 20;
@@ -235,7 +235,8 @@ void PageWidget::start_path(QPointF pp, StrokeType type) {
 			stroke = std::make_unique<PenStroke>(m_tool_state->penSize() * 4, color);
 			timeout = 3000;  // 3 second timeout
 		} else {
-			assert(false);
+			qDebug() << "Unknown stroke type";
+			std::abort();
 		}
 		if (timeout == -1) {
 			int layer_index = -1;

@@ -920,7 +920,8 @@ void MainWindow::insertPDF(insertPDFMode mode) {
 	} else if (mode == all_in_one) {
 		ranges.emplace_back(0, number_of_pages - 1);
 	} else {
-		assert(false);
+		qDebug() << "Unknown insert mode";
+		std::abort();
 	}
 	std::vector<std::unique_ptr<SPage> > pages;
 	for (const auto& range : ranges) {
