@@ -94,3 +94,5 @@ For example, grid background.
 17. Open multiple files simultaneously (?)
 
 18. Support pressure-sensitivity
+
+19. Instead of or in addition to autosaving, keep a journal file of all undo commands performed (or undone)
