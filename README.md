@@ -41,6 +41,22 @@ Xournal++ is based on [Xournal](<https://sourceforge.net/projects/xournal/>).
 1. KConfigWidgets library
 1. KGuiAddons library
 
+#### Arch Linux
+
+On Arch Linux, you need the following packages:
+
+```
+qt5-base capnproto cairomm poppler-glib hicolor-icon-theme libx11 libxi kconfig kconfigwidgets kguiaddons
+```
+
+#### Ubuntu
+
+On Ubuntu 20.04, you need the following packages:
+
+```
+qtbase5-dev libcairomm-1.0-dev capnproto libcapnp-dev libpoppler-glib-dev libkf5config-dev libkf5configwidgets-dev libkf5guiaddons-dev libxi-dev
+```
+
 ### Build instructions
 
 ```
