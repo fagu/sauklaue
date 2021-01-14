@@ -36,7 +36,17 @@
 #include <QIconEngine>
 
 #include <KRecentFilesAction>
-#include <KCursorSaver>
+
+// See KCursorSaver in KGuiAddons for a more complete implementation. It is unfortunately only available starting with KDE Frameworks 5.73.
+class SimpleCursorSaver {
+public:
+	SimpleCursorSaver(const QCursor& cursor) {
+		QGuiApplication::setOverrideCursor(cursor);
+	}
+	~SimpleCursorSaver() {
+		QGuiApplication::restoreOverrideCursor();
+	}
+};
 
 // Some helper functions for assigning pages to views.
 
@@ -547,7 +557,7 @@ void MainWindow::loadFile(const QString& fileName) {
 
 	QDataStream in(&file);
 	try {
-		KCursorSaver cursor(Qt::WaitCursor);
+		SimpleCursorSaver cursor(Qt::WaitCursor);
 		setDocument(Serializer::load(in));
 	} catch (const SauklaueReadException& e) {
 		QMessageBox::warning(this, tr("Application"), tr("Cannot read file %1:\n%2").arg(QDir::toNativeSeparators(fileName), e.reason()));
@@ -626,7 +636,7 @@ bool MainWindow::maybeSave() {
 bool MainWindow::saveFile(const QString& fileName) {
 	QSaveFile file(fileName);
 	if (file.open(QFile::WriteOnly)) {
-		KCursorSaver cursor(Qt::WaitCursor);
+		SimpleCursorSaver cursor(Qt::WaitCursor);
 		QDataStream out(&file);
 		QElapsedTimer save_timer;
 		save_timer.start();
@@ -689,7 +699,7 @@ void MainWindow::exportPDF() {
 	QFileInfo info(curFile);
 	QString pdf_file_name = info.path() + "/" + info.baseName() + ".pdf";
 	qDebug() << "Exporting to" << pdf_file_name;
-	KCursorSaver cursor(Qt::WaitCursor);
+	SimpleCursorSaver cursor(Qt::WaitCursor);
 	PDFExporter::save(doc.get(), pdf_file_name.toStdString());
 }
 
@@ -839,7 +849,7 @@ void MainWindow::insertSauklaue() {
 	if (!dialog.exec())
 		return;
 	QString fileName = dialog.selectedFiles().first();
-	KCursorSaver cursor(Qt::WaitCursor);
+	SimpleCursorSaver cursor(Qt::WaitCursor);
 	QFileInfo info(fileName);
 	QFile file(fileName);
 	if (!file.open(QIODevice::ReadOnly))
@@ -847,7 +857,7 @@ void MainWindow::insertSauklaue() {
 	QDataStream in(&file);
 	std::unique_ptr<Document> importedDoc;
 	try {
-		KCursorSaver cursor(Qt::WaitCursor);
+		SimpleCursorSaver cursor(Qt::WaitCursor);
 		importedDoc = Serializer::load(in);
 	} catch (const SauklaueReadException& e) {
 		QMessageBox::warning(this, tr("Application"), tr("Cannot read file %1:\n%2").arg(QDir::toNativeSeparators(fileName), e.reason()));
@@ -874,7 +884,7 @@ void MainWindow::insertPDF(insertPDFMode mode) {
 	if (!dialog.exec())
 		return;
 	QString fileName = dialog.selectedFiles().first();
-	KCursorSaver cursor(Qt::WaitCursor);
+	SimpleCursorSaver cursor(Qt::WaitCursor);
 	QFileInfo info(fileName);
 	QFile file(fileName);
 	if (!file.open(QIODevice::ReadOnly))
