@@ -4,3 +4,4 @@ arch
 *.sau.pdf
 .clangd
 .cache
+.kdev4
