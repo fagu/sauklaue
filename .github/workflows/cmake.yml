@@ -18,7 +18,7 @@ jobs:
     - uses: actions/checkout@v2
     
     - name: Install dependencies
-      run: sudo apt-get install --quiet qtbase5-dev libcairomm-1.0-dev capnproto libpoppler-glib-dev libkf5config-dev libkf5configwidgets-dev libkf5guiaddons-dev
+      run: sudo apt-get install --quiet qtbase5-dev libcairomm-1.0-dev libcapnp-dev libpoppler-glib-dev libkf5config-dev libkf5configwidgets-dev libkf5guiaddons-dev libxi-dev
 
     - name: Create Build Environment
       # Some projects don't allow in-source building, so create a separate build directory
