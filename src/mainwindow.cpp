@@ -380,20 +380,12 @@ void MainWindow::createActions() {
 	}
 	QMenu* viewsMenu = menuBar()->addMenu(tr("&Views"));
 	{
-		QAction* action = new QAction(QIcon::fromTheme("go-previous"), tr("&Previous View"));
-		action->setStatusTip(tr("Focus the previous view"));
-		action->setShortcut(QKeySequence(Qt::Key_Left));
-		connect(action, &QAction::triggered, this, &MainWindow::previousView);
-		viewsMenu->addAction(action);
-		previousViewAction = action;
-	}
-	{
-		QAction* action = new QAction(QIcon::fromTheme("go-next"), tr("&Next View"));
-		action->setStatusTip(tr("Focus the next view"));
+		QAction* action = new QAction(QIcon::fromTheme("go-next"), tr("&Other View"));
+		action->setStatusTip(tr("Focus the other view"));
 		action->setShortcut(QKeySequence(Qt::Key_Right));
-		connect(action, &QAction::triggered, this, &MainWindow::nextView);
+		connect(action, &QAction::triggered, this, &MainWindow::otherView);
 		viewsMenu->addAction(action);
-		nextViewAction = action;
+		otherViewAction = action;
 	}
 	for (QToolBar* tb : toolbars)
 		tb->addSeparator();
@@ -506,8 +498,7 @@ void MainWindow::updatePageNavigation() {
 	for (int i = 0; i < 2; i++)
 		if (page_numbers[i] != -1)
 			number_of_active_views++;
-	previousViewAction->setEnabled(number_of_active_views > 1);
-	nextViewAction->setEnabled(number_of_active_views > 1);
+	otherViewAction->setEnabled(number_of_active_views > 1);
 	for (size_t i = 0; i < 2; i++) {
 		if (page_numbers[i] != -1)
 			currentPageLabel[i]->setText(QString::number(page_numbers[i] + 1));
@@ -959,18 +950,7 @@ void MainWindow::focusView(int view_index) {
 	}
 }
 
-void MainWindow::previousView() {
-	assert(focused_view != -1);
-	int view = focused_view;
-	do {
-		view++;
-		if (view == 2)
-			view = 0;
-	} while (page_numbers[view] == -1);
-	focusView(view);
-}
-
-void MainWindow::nextView() {
+void MainWindow::otherView() {
 	assert(focused_view != -1);
 	int view = focused_view;
 	do {

@@ -95,11 +95,9 @@ public:
 	/* Views */
 private:
 	void focusView(int view_index);
-	void previousView();
-	void nextView();
+	void otherView();
 
-	QAction* previousViewAction;
-	QAction* nextViewAction;
+	QAction* otherViewAction;
 
 	/* Settings */
 private:
