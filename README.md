@@ -12,9 +12,9 @@ Documents can be exported to PDF and PDF files can be imported.
 
 Otherwise, the application is extremely simplistic: For example, there is only a fixed set of pen colors and sizes. You can only add hand-written notes, no vector graphics or text. You currently can't even set the page size in an easy way! (It's set to A4.)
 
-![Screenshot](docs/screenshot1.png)
+![Screenshot](docs/screenshot1.png?raw=true)
 
-![Screenshot](docs/screenshot2.png)
+![Screenshot](docs/screenshot2.png?raw=true)
 
 # Similar applications
 
