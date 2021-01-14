@@ -34,6 +34,8 @@
 #include <QInputDialog>
 #include <QTimer>
 #include <QIconEngine>
+#include <QWindow>
+#include <QtGlobal>
 
 #include <KRecentFilesAction>
 
@@ -529,7 +531,7 @@ void MainWindow::readGeometrySettings() {
 	KConfig* config = Settings::self()->config();
 	QByteArray geometry = config->group("Window").readEntry("geometry", QByteArray());
 	if (geometry.isEmpty()) {
-		QRect availableGeometry = screen()->availableGeometry();
+		QRect availableGeometry = myScreen()->availableGeometry();
 		resize(availableGeometry.width() / 2, availableGeometry.height() / 2);
 		showMaximized();
 	} else {
@@ -1044,7 +1046,24 @@ void MainWindow::updateTabletMap() {
 	for (PageWidget* p : pagewidgets)
 		rect_both = rect_both.united(p->minimum_rect_in_pixels());
 	QRectF rect = focused_view == -1 ? rect_both : pagewidgets[focused_view]->minimum_rect_in_pixels();
-	TabletHandler::self()->set_active_region(rect, rect_both, screen()->virtualSize());
+	TabletHandler::self()->set_active_region(rect, rect_both, myScreen()->virtualSize());
+}
+
+QScreen* MainWindow::myScreen() const {
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 14, 0))
+	return screen();
+#else
+	QWidget* w = window();
+	if (w) {
+		QWindow* wi = w->windowHandle();
+		if (wi) {
+			QScreen* s = wi->screen();
+			if (s)
+				return s;
+		}
+	}
+	return QGuiApplication::primaryScreen();
+#endif
 }
 
 void MainWindow::moveEvent(QMoveEvent*) {

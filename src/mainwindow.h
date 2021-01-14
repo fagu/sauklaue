@@ -112,6 +112,8 @@ private:
 	/* Tablet */
 	void updateTabletMap();
 
+	QScreen* myScreen() const;  // Similar to the screen() function, which was only introduced in Qt 5.14.
+
 protected:
 	void moveEvent(QMoveEvent* event) override;
 
