@@ -14,6 +14,8 @@ Otherwise, the application is extremely simplistic: For example, there is only a
 
 ![Screenshot](docs/screenshot1.png)
 
+![Screenshot](docs/screenshot2.png)
+
 # Similar applications
 
 I've previously used [Xournal++](<https://xournalpp.github.io/>) for online teaching. It works well and has many more features than Sauklaue, but lacks some of the main features of Sauklaue: Mapping an external graphics tablet to the currently active page, simultaneously showing nonadjacent pages, support for latex beamer presentations with `\pause`.
