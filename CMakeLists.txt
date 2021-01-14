@@ -39,7 +39,7 @@ find_package(CapnProto)
 capnp_generate_cpp(CAPNP_SRCS CAPNP_HDRS src/file4.capnp)
 set_property(SOURCE ${CAPNP_HDRS} PROPERTY SKIP_AUTOGEN ON)
 set_property(SOURCE ${CAPNP_SRCS} PROPERTY SKIP_AUTOGEN ON)
-link_libraries(CapnProto::capnp)
+link_libraries(${CAPNP_LIBRARIES})
 
 # Find the Poppler library
 pkg_search_module(PopplerGlib REQUIRED poppler-glib)
