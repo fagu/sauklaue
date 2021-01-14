@@ -1,6 +1,5 @@
 #include "document.h"
 
-#include <cassert>
 #include <iostream>
 
 #include <QTimer>

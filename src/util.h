@@ -3,6 +3,7 @@
 
 // Helpers for std::variant copied from https://en.cppreference.com/w/cpp/utility/variant/visit
 
+#include <cassert>
 #include <list>
 #include <memory>
 #include <variant>
