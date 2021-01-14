@@ -12,13 +12,13 @@ jobs:
     # well on Windows or Mac.  You can convert this to a matrix build if you need
     # cross-platform coverage.
     # See: https://docs.github.com/en/free-pro-team@latest/actions/learn-github-actions/managing-complex-workflows#using-a-build-matrix
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
 
     steps:
     - uses: actions/checkout@v2
     
     - name: Install dependencies
-      run: sudo apt-get install --quiet qtbase5-dev libcairomm-1.0-dev libcapnp-dev libpoppler-glib-dev libkf5config-dev libkf5configwidgets-dev libkf5guiaddons-dev libxi-dev
+      run: sudo apt-get install --quiet qtbase5-dev libcairomm-1.0-dev capnproto libcapnp-dev libpoppler-glib-dev libkf5config-dev libkf5configwidgets-dev libkf5guiaddons-dev libxi-dev
 
     - name: Create Build Environment
       # Some projects don't allow in-source building, so create a separate build directory
@@ -40,3 +40,12 @@ jobs:
       shell: bash
       # Execute the build.  You can specify a specific target with "--target <NAME>"
       run: cmake --build . --config $BUILD_TYPE
+    
+    - name: Install
+      working-directory: ${{github.workspace}}/build
+      shell: bash
+      run: sudo make install
+    
+    - name: Test help
+      shell: bash
+      run: sauklaue export -h
