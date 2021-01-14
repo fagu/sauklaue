@@ -6,7 +6,7 @@ In modern classrooms, there are usually multiple blackboard panels, and one alte
 
 Slideshow presentations usually suffer from a lack of a second projector displaying the previous slide. A brief moment of thought is enough and you don't read the last sentence on a slide before it disappears. Of course, hand-written online teaching suffers from the same problem if you use a single page that is periodically cleared. Common formats of computer screens suggest showing two portrait pages side by side. This is what Sauklaue does.
 
-Furthermore, an external graphics tablet can be mapped to only the currently active of the two pages. This way, you can write twice as big (in area) as you would otherwise, which generally improves handwriting.
+Furthermore, an the writing area on an external graphics tablet can be mapped to just one of the two displayed pages (the _current_ page). (Lay down your graphics tablet in portrait orientation.) This way, you can write twice as big (in area) as you would otherwise, which generally improves handwriting.
 
 Documents can be exported to PDF and PDF files can be imported.
 
@@ -74,33 +74,33 @@ sudo make install
 
 `sauklaue export` allows you to convert a file to pdf on the command line. Use `sauklaue export -h` for help.
 
-## Tips and tricks
+# Tips and tricks
 
-### Erasing
+## Erasing
 
 To erase, use the right "mouse button". (Map an appropriate button on the stylus to the right mouse button.)
 
-### Laser pointer
+## Laser pointer
 
 To point at a particular location, you can use a temporary red "laser pointer" with the middle "mouse button".
 
-### Showing earlier pages
+## Showing earlier pages
 
 Normally, the two columns are "linked": They are forced to always display consecutive pages of the document.
 
 With the "unlink views" button (below the pen size buttons), you can unlink the columns. You can then independently change the displayed page in both columns. This can for example be useful when you want to remind your audience of something mentioned earlier, while still showing the most recent page.
 
-### Slideshow presentations
+## Slideshow presentations
 
 If you want to give a presentation created with the LaTeX beamer package and "animations" (`\pause`, `\uncover`, etc.): Try including it with "Insert PDF file (by label)". You should see every frame in its first state (before the first `pause` command). Use "Next PDF page" to uncover more text on the current page (up to the next `pause`). Anything written on the current slide will remain visible when you do this.
 
-### Setting your own page size
+## Setting your own page size
 
 This is not implemented yet, but as a workaround, you can import a PDF file with empty pages of the correct size.
 
-## Troubleshooting
+# Troubleshooting
 
-### In a setup with multiple screens, the tablet is not mapped to the correct region
+## In a setup with multiple screens, the tablet is not mapped to the correct region
 
 Make sure that before starting Sauklaue, the tablet is mapped to the bounding box of all screens, not just to one screen. (For example, for the XP-PEN tablet, load the driver and make sure to set the mapping to "AllScreen". Sauklaue will manipulate the mapping assuming the internal setting is "AllScreen".)
 
