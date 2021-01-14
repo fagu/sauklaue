@@ -6,3 +6,5 @@ arch
 .cache
 .kdev4
 *.kdev4
+.kateproject
+compile_commands.json
