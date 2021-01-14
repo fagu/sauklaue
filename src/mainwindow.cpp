@@ -82,7 +82,7 @@ public:
 	void paint(QPainter* painter, const QRect& rect, QIcon::Mode mode [[maybe_unused]], QIcon::State state [[maybe_unused]]) override {
 		painter->setRenderHint(QPainter::RenderHint::Antialiasing);
 		painter->setBrush(m_color);
-		painter->setPen(QColorConstants::Gray);
+		painter->setPen(Qt::gray);
 		int margins = 0;
 		if (rect.width() > 16 && rect.height() > 16)
 			margins = 2;
@@ -114,7 +114,7 @@ public:
 	}
 	void paint(QPainter* painter, const QRect& rect, QIcon::Mode mode [[maybe_unused]], QIcon::State state [[maybe_unused]]) override {
 		painter->setRenderHint(QPainter::RenderHint::Antialiasing);
-		painter->setBrush(QColorConstants::Black);
+		painter->setBrush(Qt::black);
 		int margins = 0;
 		if (rect.width() > 16 && rect.height() > 16)
 			margins = 2;
@@ -409,17 +409,17 @@ void MainWindow::createActions() {
 	{
 		QActionGroup* group = new QActionGroup(this);
 		std::vector<std::pair<QColor, QString> > v = {
-		        {QColorConstants::White, "White"},
-		        {QColorConstants::Yellow, "Yellow"},
-		        {QColorConstants::Svg::orange, "Orange"},
-		        {QColorConstants::Magenta, "Magenta"},
-		        {QColorConstants::Green, "Green"},
-		        {QColorConstants::Cyan, "Cyan"},
-		        {QColorConstants::Gray, "Gray"},
-		        {QColorConstants::DarkGreen, "Dark Green"},
-		        {QColorConstants::Red, "Red"},
-		        {QColorConstants::Blue, "Blue"},
-		        {QColorConstants::Black, "Black"}};
+		        {Qt::white, "White"},
+		        {Qt::yellow, "Yellow"},
+		        {QColor("#ffa500"), "Orange"},
+		        {Qt::magenta, "Magenta"},
+		        {Qt::green, "Green"},
+		        {Qt::cyan, "Cyan"},
+		        {Qt::gray, "Gray"},
+		        {Qt::darkGreen, "Dark Green"},
+		        {Qt::red, "Red"},
+		        {Qt::blue, "Blue"},
+		        {Qt::black, "Black"}};
 		for (const auto& p : v) {
 			QColor color = p.first;
 			QString name = p.second;
@@ -461,9 +461,9 @@ void MainWindow::createActions() {
 		pixmap.fill(Qt::transparent);
 		QPainter painter(&pixmap);
 		painter.setRenderHint(QPainter::RenderHint::Antialiasing);
-		painter.setBrush(QColorConstants::Black);
+		painter.setBrush(Qt::black);
 		painter.drawRect(QRect(0, 10, 64, 44));
-		painter.setPen(QPen(QColorConstants::Yellow, 5));
+		painter.setPen(QPen(Qt::yellow, 5));
 		for (int j = 0; j < 3; j++) {
 			painter.drawLine(QPoint(15, 32 + (j - 1) * 10), QPoint(49, 32 + (j - 1) * 10));
 			painter.drawLine(QPoint(15, 32 + (j - 1) * 10), QPoint(49, 32 + (j - 1) * 10));

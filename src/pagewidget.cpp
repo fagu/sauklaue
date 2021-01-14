@@ -124,11 +124,11 @@ void PageWidget::paintEvent([[maybe_unused]] QPaintEvent* event) {
 	QPainter painter(this);
 	painter.setRenderHint(QPainter::Antialiasing, false);
 	// Background around the pages
-	painter.fillRect(0, 0, width(), height(), QColorConstants::LightGray);
+	painter.fillRect(0, 0, width(), height(), Qt::lightGray);
 	if (!m_page)
 		return;
 	// Page background color
-	painter.fillRect(m_page_picture->transformation().image_rect, m_tool_state->blackboardMode() ? QColorConstants::Black : QColorConstants::White);
+	painter.fillRect(m_page_picture->transformation().image_rect, m_tool_state->blackboardMode() ? Qt::black : Qt::white);
 	// Draw ordinary layers.
 	for (auto layer_picture : m_page_picture->layers()) {
 		LayerPicture* base_layer_picture = convert_variant<LayerPicture*>(layer_picture);
@@ -148,7 +148,7 @@ void PageWidget::paintEvent([[maybe_unused]] QPaintEvent* event) {
 	// Draw red border around focused pages.
 	if (has_focus) {
 		painter.save();
-		painter.setPen(QPen(QColorConstants::Red, 3));
+		painter.setPen(QPen(Qt::red, 3));
 		painter.drawRect(m_page_picture->transformation().image_rect);
 		painter.restore();
 	}
@@ -231,7 +231,7 @@ void PageWidget::start_path(QPointF pp, StrokeType type) {
 			stroke = std::make_unique<EraserStroke>(DEFAULT_ERASER_WIDTH);
 			timeout = -1;
 		} else if (type == StrokeType::LaserPointer) {
-			QColor color = QColorConstants::Red;
+			QColor color = Qt::red;
 			stroke = std::make_unique<PenStroke>(m_tool_state->penSize() * 4, color);
 			timeout = 3000;  // 3 second timeout
 		} else {
