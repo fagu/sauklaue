@@ -37,7 +37,7 @@ void Serializer::save(Document* doc, QDataStream& stream) {
 	qDebug() << "allocate" << allocate_timer.elapsed();*/
 	stream.writeRawData(magic_string.data(), magic_string.size());
 	stream << FILE_FORMAT_VERSION;
-	stream.setVersion(QDataStream::Qt_5_15);
+	stream.setVersion(QDataStream::Qt_5_6);
 	capnp::MallocMessageBuilder message;
 	QElapsedTimer construct_timer;
 	construct_timer.start();
@@ -135,7 +135,7 @@ std::unique_ptr<Document> Serializer::load(QDataStream& stream) {
 		throw SauklaueReadException(QCoreApplication::tr("File format %1 too new. Only formats up to %2 supported. Consider updating.").arg(file_format_version).arg(FILE_FORMAT_VERSION));
 	if (file_format_version < 4)
 		throw SauklaueReadException(QCoreApplication::tr("Not a Sauklaue file."));
-	stream.setVersion(QDataStream::Qt_5_15);
+	stream.setVersion(QDataStream::Qt_5_6);
 	char* c_data;
 	uint len;
 	stream.readBytes(c_data, len);
