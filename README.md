@@ -24,6 +24,10 @@ Xournal++ is based on [Xournal](<https://sourceforge.net/projects/xournal/>).
 
 # Installation
 
+## As a package
+
+There is an [AUR package](https://aur.archlinux.org/packages/sauklaue/) for Arch Linux.
+
 ## From source
 
 ### Dependencies
