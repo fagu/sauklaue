@@ -36,17 +36,6 @@ public:
 
 private:
 	int m_pen_size;
-
-public:
-	bool blackboardMode() {
-		return m_blackboard;
-	}
-	void setBlackboardMode(bool on);
-signals:
-	void blackboardModeToggled(bool on);
-
-private:
-	bool m_blackboard = false;
 };
 
 #endif  // TOOLSTATE_H

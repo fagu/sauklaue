@@ -66,7 +66,6 @@ PageWidget::PageWidget(ToolState* toolState) :
     QWidget(nullptr),
     m_tool_state(toolState) {
 	setMinimumSize(20, 20);
-	connect(m_tool_state, &ToolState::blackboardModeToggled, this, qOverload<>(&QWidget::update));
 }
 
 void PageWidget::setPage(SPage* page) {
@@ -128,7 +127,7 @@ void PageWidget::paintEvent([[maybe_unused]] QPaintEvent* event) {
 	if (!m_page)
 		return;
 	// Page background color
-	painter.fillRect(m_page_picture->transformation().image_rect, m_tool_state->blackboardMode() ? Qt::black : Qt::white);
+	painter.fillRect(m_page_picture->transformation().image_rect, Qt::white);
 	// Draw ordinary layers.
 	for (auto layer_picture : m_page_picture->layers()) {
 		LayerPicture* base_layer_picture = convert_variant<LayerPicture*>(layer_picture);

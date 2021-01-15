@@ -458,25 +458,6 @@ void MainWindow::createActions() {
 	}
 	for (QToolBar* tb : toolbars)
 		tb->addSeparator();
-	/*{
-		QPixmap pixmap(64, 64);
-		pixmap.fill(Qt::transparent);
-		QPainter painter(&pixmap);
-		painter.setRenderHint(QPainter::RenderHint::Antialiasing);
-		painter.setBrush(Qt::black);
-		painter.drawRect(QRect(0, 10, 64, 44));
-		painter.setPen(QPen(Qt::yellow, 5));
-		for (int j = 0; j < 3; j++) {
-			painter.drawLine(QPoint(15, 32 + (j - 1) * 10), QPoint(49, 32 + (j - 1) * 10));
-			painter.drawLine(QPoint(15, 32 + (j - 1) * 10), QPoint(49, 32 + (j - 1) * 10));
-		}
-		QAction* action = new QAction(pixmap, tr("Blackboard mode"), this);
-		action->setCheckable(true);
-		action->setStatusTip(tr("Blackboard mode"));
-		connect(action, &QAction::triggered, m_tool_state, &ToolState::setBlackboardMode);
-		for (QToolBar* tb : toolbars)
-			tb->addAction(action);
-	}*/
 	{
 		QAction* action = new QAction(QIcon::fromTheme("handle-move"), tr("Unlink views"), this);
 		action->setCheckable(true);

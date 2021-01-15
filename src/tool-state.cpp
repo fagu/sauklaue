@@ -13,10 +13,3 @@ void ToolState::setPenColor(QColor pen_color) {
 void ToolState::setPenSize(int pen_size) {
 	m_pen_size = pen_size;
 }
-
-void ToolState::setBlackboardMode(bool on) {
-	if (m_blackboard != on) {
-		m_blackboard = on;
-		emit blackboardModeToggled(on);
-	}
-}
