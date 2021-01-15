@@ -27,14 +27,6 @@ void write_path(file4::Path::Builder s_path, const std::vector<Point>& points) {
 }
 
 void Serializer::save(Document* doc, QDataStream& stream) {
-	/*QElapsedTimer copy_timer; copy_timer.start();
-	auto cop = std::make_unique<Document>(*this);
-	qDebug() << "copy" << copy_timer.elapsed();
-	QElapsedTimer allocate_timer; allocate_timer.start();
-	std::vector<unique_ptr_Stroke> strokes;
-	for (size_t i = 0; i < 75000; i++)
-		strokes.emplace_back(std::make_unique<PenStroke>(0, Color::BLACK));
-	qDebug() << "allocate" << allocate_timer.elapsed();*/
 	stream.writeRawData(magic_string.data(), magic_string.size());
 	stream << FILE_FORMAT_VERSION;
 	stream.setVersion(QDataStream::Qt_5_6);
