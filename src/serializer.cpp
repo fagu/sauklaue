@@ -114,7 +114,7 @@ void load_path_4(file4::Path::Reader s_path, PathStroke* path) {
 
 std::unique_ptr<Document> Serializer::load(QDataStream& stream) {
 	char magic_string_in[magic_string.size() + 10];
-	if (stream.readRawData(magic_string_in, magic_string.size()) != magic_string.size())
+	if (stream.readRawData(magic_string_in, magic_string.size()) != (int)magic_string.size())
 		throw SauklaueReadException(QCoreApplication::tr("Not a Sauklaue file."));
 	if (std::string_view(magic_string_in, magic_string.size()) != magic_string)
 		throw SauklaueReadException(QCoreApplication::tr("Not a Sauklaue file."));
