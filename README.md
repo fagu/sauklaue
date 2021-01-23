@@ -6,7 +6,7 @@ In modern classrooms, there are usually multiple blackboard panels, and one alte
 
 Slideshow presentations usually suffer from a lack of a second projector displaying the previous slide. A brief moment of thought is enough and you don't read the last sentence on a slide before it disappears. Of course, hand-written online teaching suffers from the same problem if you use a single page that is periodically cleared. Common formats of computer screens suggest showing two portrait pages side by side. This is what Sauklaue does.
 
-Furthermore, an the writing area on an external graphics tablet can be mapped to just one of the two displayed pages (the _current_ page). (Lay down your graphics tablet in portrait orientation.) This way, you can write twice as big (in area) as you would otherwise, which generally improves handwriting.
+Furthermore, the writing area on an external graphics tablet can be mapped to just one of the two displayed pages (the _current_ page). (Lay down your graphics tablet in portrait orientation.) This way, you can write twice as big (in area) as you would otherwise, which generally improves handwriting.
 
 Documents can be exported to PDF and PDF files can be imported.
 
@@ -58,7 +58,7 @@ qt5-base capnproto cairomm poppler-glib hicolor-icon-theme libx11 libxi kconfig 
 On Ubuntu 20.04, you need the following packages:
 
 ```
-qtbase5-dev libcairomm-1.0-dev capnproto libcapnp-dev libpoppler-glib-dev libkf5config-dev libkf5configwidgets-dev libkf5guiaddons-dev libxi-dev
+g++ cmake qtbase5-dev libcairomm-1.0-dev capnproto libcapnp-dev libpoppler-glib-dev libkf5config-dev libkf5configwidgets-dev libkf5guiaddons-dev libxi-dev
 ```
 
 ### Build instructions
@@ -67,6 +67,7 @@ qtbase5-dev libcairomm-1.0-dev capnproto libcapnp-dev libpoppler-glib-dev libkf5
 git clone https://github.com/fagu/sauklaue.git
 cd sauklaue
 mkdir build
+cd build
 cmake ..
 make
 sudo make install
