@@ -10,7 +10,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 if (MSVC)
 	add_compile_options(/W4 /WX)
 else()
-	add_compile_options(-Wall -Wextra -pedantic -Werror -Wno-deprecated-declarations)
+	add_compile_options(-Wall -Wextra -pedantic -Wno-deprecated-declarations)
 endif()
 
 # Find the QtWidgets library
