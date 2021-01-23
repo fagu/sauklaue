@@ -17,6 +17,9 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     
+    - name: apt update
+      run: sudo apt-get update
+    
     - name: Install dependencies
       run: sudo apt-get install --quiet qtbase5-dev libcairomm-1.0-dev capnproto libcapnp-dev libpoppler-glib-dev libkf5config-dev libkf5configwidgets-dev libkf5guiaddons-dev libxi-dev
 
