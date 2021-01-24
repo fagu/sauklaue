@@ -459,7 +459,7 @@ void MainWindow::createActions() {
 	for (QToolBar* tb : toolbars)
 		tb->addSeparator();
 	{
-		QAction* action = new QAction(QIcon::fromTheme("handle-move"), tr("Unlink views"), this);
+		QAction* action = new QAction(QIcon::fromTheme("sau-unlink-views"), tr("Unlink views"), this);
 		action->setCheckable(true);
 		action->setStatusTip(tr("Allow independently changing pages on different views"));
 		connect(action, &QAction::triggered, this, &MainWindow::setLinkedPages);
