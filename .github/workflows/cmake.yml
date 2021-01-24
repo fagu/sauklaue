@@ -49,6 +49,10 @@ jobs:
       shell: bash
       run: sudo make install
     
+    - name: Update MIME database
+      shell: bash
+      run: sudo update-mime-database /usr/local/share/mime
+    
     - name: Test help
       shell: bash
       run: sauklaue export -h

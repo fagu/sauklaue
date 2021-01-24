@@ -71,6 +71,8 @@ cd build
 cmake ..
 make
 sudo make install
+sudo update-mime-database /usr/local/share/mime
+sudo update-desktop-database /usr/local/share/applications
 ```
 
 # Usage
