@@ -75,6 +75,14 @@ void DrawingLayerPicture::stroke_added(ptr_Stroke stroke) {
 		draw_stroke(stroke);
 }
 
+void DrawingLayerPicture::redraw(QRect rect) {
+	cr->rectangle(rect.left(), rect.top(), rect.width(), rect.height());
+	cr->clip();
+	set_transparent();
+	draw_strokes();
+	emit update(rect);
+}
+
 void DrawingLayerPicture::stroke_deleted(ptr_Stroke stroke) {
 	CairoGroup cg(cr);
 	PathStroke* path_stroke = convert_variant<PathStroke*>(stroke);
@@ -85,11 +93,7 @@ void DrawingLayerPicture::stroke_deleted(ptr_Stroke stroke) {
 	// Forget the deleted path
 	cr->begin_new_path();
 	// Clip to only redraw the bounding rectangle of the deleted stroke.
-	cr->rectangle(rect.left(), rect.top(), rect.width(), rect.height());
-	cr->clip();
-	set_transparent();
-	draw_strokes();
-	emit update(rect);
+	redraw(rect);
 }
 
 void DrawingLayerPicture::setup_stroke(ptr_Stroke stroke) {
@@ -126,8 +130,8 @@ void DrawingLayerPicture::draw_line(Point a, Point b, ptr_Stroke stroke) {
 	cr->move_to(a.x * unit2pixel, a.y * unit2pixel);
 	cr->line_to(b.x * unit2pixel, b.y * unit2pixel);
 	QRect rect = stroke_extents();
-	cr->stroke();
-	emit update(rect);
+	cr->begin_new_path();
+	redraw(rect);
 }
 
 QRect DrawingLayerPicture::stroke_extents() {

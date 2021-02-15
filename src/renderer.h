@@ -85,6 +85,7 @@ public:
 
 private:
 	void stroke_added(ptr_Stroke stroke);
+	void redraw(QRect rect);
 	void stroke_deleted(ptr_Stroke stroke);
 
 	std::variant<NormalLayer*, TemporaryLayer*> m_layer;
