@@ -23,38 +23,6 @@ PictureTransformation::PictureTransformation(SPage* page, int widget_width, int 
 	image_rect = QRect(topLeft, image_size);
 }
 
-DrawingLayerPicture::DrawingLayerPicture(std::variant<NormalLayer*, TemporaryLayer*> layer, const PictureTransformation& transformation) :
-    LayerPicture(transformation),
-    m_layer(layer) {
-	connect(convert_variant<DrawingLayer*>(layer), &DrawingLayer::stroke_added, this, &DrawingLayerPicture::stroke_added);
-	connect(convert_variant<DrawingLayer*>(layer), &DrawingLayer::stroke_deleted, this, &DrawingLayerPicture::stroke_deleted);
-
-	cairo_surface = Cairo::ImageSurface::create(Cairo::FORMAT_ARGB32, transformation.image_size.width(), transformation.image_size.height());
-	cr = Cairo::Context::create(cairo_surface);
-	// 	cr->set_antialias(Cairo::ANTIALIAS_GRAY);
-	cr->set_line_cap(Cairo::LINE_CAP_ROUND);
-	cr->set_line_join(Cairo::LINE_JOIN_ROUND);
-	set_transparent();
-	draw_strokes();
-}
-
-void DrawingLayerPicture::set_transparent() {
-	CairoGroup cg(cr);
-	cr->set_source_rgba(0, 0, 0, 0);
-	cr->set_operator(Cairo::OPERATOR_SOURCE);
-	cr->paint();  // Reset every pixel to transparent.
-}
-
-void DrawingLayerPicture::draw_strokes() {
-	std::visit([&](auto layer) {
-		for (ptr_Stroke stroke : layer->strokes())
-			draw_stroke(stroke);
-	},
-	           m_layer);
-	if (m_current_stroke)
-		draw_stroke(m_current_stroke.value());
-}
-
 // We do not use Cairo's transformation matrix because I don't understand what it does when used together with get_stroke_extents.
 // We really want to know the bounding rectangle to be updated in image coordinates. But we get strange results when resetting the transformation matrix to the identity matrix between constructing the path and calling get_stroke_extents.
 void construct_path(Cairo::RefPtr<Cairo::Context> cr, const std::vector<Point>& points, double unit2pixel) {
@@ -68,36 +36,80 @@ void construct_path(Cairo::RefPtr<Cairo::Context> cr, const std::vector<Point>& 
 	}
 }
 
-void DrawingLayerPicture::stroke_added(ptr_Stroke stroke) {
-	if (m_current_stroke && m_current_stroke.value() == stroke)
-		reset_current_stroke();
-	else
-		draw_stroke(stroke);
-}
-
-void DrawingLayerPicture::redraw(QRect rect) {
-	cr->rectangle(rect.left(), rect.top(), rect.width(), rect.height());
-	cr->clip();
+Renderer::Renderer(const PictureTransformation& transformation) :
+    m_transformation(transformation) {
+	cairo_surface = Cairo::ImageSurface::create(Cairo::FORMAT_ARGB32, transformation.image_size.width(), transformation.image_size.height());
+	cr = Cairo::Context::create(cairo_surface);
+	// 	cr->set_antialias(Cairo::ANTIALIAS_GRAY);
+	cr->set_line_cap(Cairo::LINE_CAP_ROUND);
+	cr->set_line_join(Cairo::LINE_JOIN_ROUND);
 	set_transparent();
-	draw_strokes();
-	emit update(rect);
 }
 
-void DrawingLayerPicture::stroke_deleted(ptr_Stroke stroke) {
+void Renderer::set_transparent(std::optional<QRect> rect) {
 	CairoGroup cg(cr);
-	PathStroke* path_stroke = convert_variant<PathStroke*>(stroke);
-	setup_stroke(stroke);
-	// Construct the deleted path to find the area that needs to be redrawn.
-	construct_path(cr, path_stroke->points(), transformation().unit2pixel);
-	QRect rect = stroke_extents();
-	// Forget the deleted path
-	cr->begin_new_path();
-	// Clip to only redraw the bounding rectangle of the deleted stroke.
-	redraw(rect);
+	if (rect) {
+		cr->rectangle(rect->left(), rect->top(), rect->width(), rect->height());
+		cr->clip();
+	}
+	cr->set_source_rgba(0, 0, 0, 0);
+	cr->set_operator(Cairo::OPERATOR_SOURCE);
+	cr->paint();
 }
 
-void DrawingLayerPicture::setup_stroke(ptr_Stroke stroke) {
-	double unit2pixel = transformation().unit2pixel;
+QImage Renderer::img() const {
+	cairo_surface->flush();
+	return QImage((const uchar*)cairo_surface->get_data(), cairo_surface->get_width(), cairo_surface->get_height(), QImage::Format_ARGB32_Premultiplied);
+}
+
+void Renderer::copy_from(const Renderer& other_renderer, std::optional<QRect> rect) {
+	Cairo::RefPtr<Cairo::ImageSurface> other_surface = other_renderer.cairo_surface;
+	assert(cairo_surface->get_format() == Cairo::FORMAT_ARGB32);
+	assert(other_surface->get_format() == Cairo::FORMAT_ARGB32);
+	assert(other_surface->get_width() == cairo_surface->get_width());
+	assert(other_surface->get_height() == cairo_surface->get_height());
+	assert(other_surface->get_stride() == cairo_surface->get_stride());
+	cairo_surface->flush();
+	other_surface->flush();
+	QRect r = rect ? rect.value() : QRect(0, 0, cairo_surface->get_width(), cairo_surface->get_height());
+	int x1 = std::max(0, r.left());
+	int x2 = std::min(cairo_surface->get_width() - 1, r.right());
+	int y1 = std::max(0, r.top());
+	int y2 = std::min(cairo_surface->get_height() - 1, r.bottom());
+	unsigned char* this_data = cairo_surface->get_data();
+	const unsigned char* other_data = other_surface->get_data();
+	int stride = cairo_surface->get_stride();
+	if (y1 <= y2 && x1 <= x2) {
+		for (int y = y1; y <= y2; y++) {
+			size_t offset = (size_t)y * stride + 4 * x1;
+			memcpy(this_data + offset, other_data + offset, 4 * (x2 - x1 + 1));
+		}
+		cairo_surface->mark_dirty(x1, y1, x2 - x1 + 1, y2 - y1 + 1);
+	}
+}
+
+QRect Renderer::draw_stroke(ptr_Stroke stroke, std::optional<QRect> clip_rect) {
+	CairoGroup cg(cr);
+	if (clip_rect) {
+		cr->rectangle(clip_rect->left(), clip_rect->top(), clip_rect->width(), clip_rect->height());
+		cr->clip();
+	}
+	setup_stroke(stroke);
+	QRect rect = current_stroke_extents();
+	cr->stroke();
+	return rect;
+}
+
+QRect Renderer::stroke_extents(ptr_Stroke stroke) {
+	CairoGroup cg(cr);
+	setup_stroke(stroke);
+	QRect rect = current_stroke_extents();
+	cr->begin_new_path();
+	return rect;
+}
+
+void Renderer::setup_stroke(ptr_Stroke stroke) {
+	double unit2pixel = m_transformation.unit2pixel;
 	std::visit(overloaded{[&](const PenStroke* st) {
 		                      cr->set_line_width(st->width() * unit2pixel);
 		                      Color co = st->color();
@@ -110,34 +122,91 @@ void DrawingLayerPicture::setup_stroke(ptr_Stroke stroke) {
 		                      cr->set_operator(Cairo::OPERATOR_SOURCE);
 	                      }},
 	           stroke);
+	PathStroke* path_stroke = convert_variant<PathStroke*>(stroke);
+	construct_path(cr, path_stroke->points(), unit2pixel);
 }
 
-void DrawingLayerPicture::draw_stroke(ptr_Stroke stroke) {
-	CairoGroup cg(cr);
-	setup_stroke(stroke);
-	PathStroke* path_stroke = convert_variant<PathStroke*>(stroke);
-	construct_path(cr, path_stroke->points(), transformation().unit2pixel);
-	// It might be better to compute the union of the extents of the individual segments.
-	QRect rect = stroke_extents();
-	cr->stroke();
+QRect Renderer::current_stroke_extents() {
+	double x1, y1, x2, y2;
+	cr->get_stroke_extents(x1, y1, x2, y2);
+	return QRect(QPoint((int)x1 - 1, (int)y1 - 1), QPoint((int)x2 + 2, (int)y2 + 2));
+}
+
+DrawingLayerPicture::DrawingLayerPicture(std::variant<NormalLayer*, TemporaryLayer*> layer, const PictureTransformation& transformation) :
+    LayerPicture(transformation),
+    committed_strokes(transformation),
+    all_strokes(transformation),
+    m_layer(layer) {
+	connect(convert_variant<DrawingLayer*>(layer), &DrawingLayer::stroke_added, this, &DrawingLayerPicture::stroke_added);
+	connect(convert_variant<DrawingLayer*>(layer), &DrawingLayer::stroke_deleted, this, &DrawingLayerPicture::stroke_deleted);
+
+	committed_strokes.set_transparent();
+	redraw();
+}
+
+void DrawingLayerPicture::set_current_stroke(ptr_Stroke current_stroke) {
+	if (m_current_stroke != current_stroke) {
+		m_current_stroke = current_stroke;
+		redraw_current();
+	}
+}
+
+void DrawingLayerPicture::reset_current_stroke() {
+	if (m_current_stroke) {
+		m_current_stroke.reset();
+		redraw_current();
+	}
+}
+
+void DrawingLayerPicture::redraw(std::optional<QRect> rect) {
+	committed_strokes.set_transparent(rect);
+	std::visit([&](auto layer) {
+		for (ptr_Stroke stroke : layer->strokes())
+			committed_strokes.draw_stroke(stroke, rect);
+	},
+	           m_layer);
+	redraw_current(rect);
+}
+
+void DrawingLayerPicture::redraw_current(std::optional<QRect> rect) {
+	all_strokes.copy_from(committed_strokes, rect);
+	if (m_current_stroke)
+		all_strokes.draw_stroke(m_current_stroke.value(), rect);
+}
+
+void DrawingLayerPicture::stroke_added(ptr_Stroke stroke) {
+	if (m_current_stroke && m_current_stroke.value() == stroke)
+		reset_current_stroke();
+	QRect rect = committed_strokes.draw_stroke(stroke);
+	all_strokes.copy_from(committed_strokes, rect);
+	if (m_current_stroke)
+		all_strokes.draw_stroke(m_current_stroke.value(), rect);
+	emit update(rect);
+}
+
+void DrawingLayerPicture::stroke_deleted(ptr_Stroke stroke) {
+	QRect rect = committed_strokes.stroke_extents(stroke);
+	redraw(rect);
 	emit update(rect);
 }
 
 void DrawingLayerPicture::draw_line(Point a, Point b, ptr_Stroke stroke) {
-	double unit2pixel = transformation().unit2pixel;
-	CairoGroup cg(cr);
-	setup_stroke(stroke);
-	cr->move_to(a.x * unit2pixel, a.y * unit2pixel);
-	cr->line_to(b.x * unit2pixel, b.y * unit2pixel);
-	QRect rect = stroke_extents();
-	cr->begin_new_path();
-	redraw(rect);
-}
-
-QRect DrawingLayerPicture::stroke_extents() {
-	double x1, y1, x2, y2;
-	cr->get_stroke_extents(x1, y1, x2, y2);
-	return QRect(QPoint((int)x1 - 1, (int)y1 - 1), QPoint((int)x2 + 2, (int)y2 + 2));
+	ptr_Stroke final_line = std::visit(overloaded{[&](const PenStroke* st) -> ptr_Stroke {
+		                                              PenStroke* n = new PenStroke(st->width(), st->color());
+		                                              n->push_back(a);
+		                                              n->push_back(b);
+		                                              return n;
+	                                              },
+	                                              [&](const EraserStroke* st) -> ptr_Stroke {
+		                                              EraserStroke* n = new EraserStroke(st->width());
+		                                              n->push_back(a);
+		                                              n->push_back(b);
+		                                              return n;
+	                                              }},
+	                                   stroke);
+	QRect rect = all_strokes.stroke_extents(final_line);
+	redraw_current(rect);
+	emit update(rect);
 }
 
 PDFLayerPicture::PDFLayerPicture(PDFLayer* layer, const PictureTransformation& transformation) :

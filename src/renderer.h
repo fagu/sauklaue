@@ -62,40 +62,57 @@ private:
 	const PictureTransformation& m_transformation;
 };
 
+class Renderer {
+public:
+	Renderer(const PictureTransformation& transformation);
+
+	// Resets every pixel to transparent.
+	// If a rectangle is given, only pixels inside the rectangle (in pixel coordinates) are reset.
+	void set_transparent(std::optional<QRect> rect = std::nullopt);
+	QImage img() const;
+	// Copies the contents of the given rectangle from another cairo image.
+	void copy_from(const Renderer& other_renderer, std::optional<QRect> rect = std::nullopt);
+	QRect draw_stroke(ptr_Stroke stroke, std::optional<QRect> clip_rect = std::nullopt);
+	QRect stroke_extents(ptr_Stroke stroke);
+
+private:
+	const PictureTransformation& m_transformation;
+	Cairo::RefPtr<Cairo::ImageSurface> cairo_surface;
+	Cairo::RefPtr<Cairo::Context> cr;
+	void setup_stroke(ptr_Stroke stroke);
+	QRect current_stroke_extents();  // Bounding rectangle of the current path in output coordinates
+};
+
 class DrawingLayerPicture : public LayerPicture {
 	Q_OBJECT
 public:
 	DrawingLayerPicture(std::variant<NormalLayer*, TemporaryLayer*> layer, const PictureTransformation& transformation);
 
-	Cairo::RefPtr<Cairo::ImageSurface> cairo_surface;
-	Cairo::RefPtr<Cairo::Context> cr;
-
 	QImage img() const override {
-		cairo_surface->flush();
-		return QImage((const uchar*)cairo_surface->get_data(), cairo_surface->get_width(), cairo_surface->get_height(), QImage::Format_ARGB32_Premultiplied);
+		return all_strokes.img();
 	}
 
-	void set_current_stroke(ptr_Stroke current_stroke) {
-		m_current_stroke = current_stroke;
-	}
-
-	void reset_current_stroke() {
-		m_current_stroke.reset();
-	}
+	void set_current_stroke(ptr_Stroke current_stroke);
+	void reset_current_stroke();
 
 private:
+	// Redraw all strokes in the given rectangle.
+	void redraw(std::optional<QRect> rect = std::nullopt);
+	// Redraw only the current stroke in the given rectangle.
+	void redraw_current(std::optional<QRect> rect = std::nullopt);
+
 	void stroke_added(ptr_Stroke stroke);
-	void redraw(QRect rect);
 	void stroke_deleted(ptr_Stroke stroke);
+
+	// A picture of all strokes except the current one.
+	Renderer committed_strokes;
+	// A picture of all strokes including the current one.
+	Renderer all_strokes;
 
 	std::variant<NormalLayer*, TemporaryLayer*> m_layer;
 	std::optional<ptr_Stroke> m_current_stroke;  // This is drawn after all the strokes in m_layer. When the stroke is extended, you must call draw_line. When it is finished, add it to m_layer. The current_stroke is then automatically reset to nullptr.
-
-	void set_transparent();
 	void draw_strokes();
-	void setup_stroke(ptr_Stroke stroke);
-	void draw_stroke(ptr_Stroke stroke);
-	QRect stroke_extents();  // Bounding rectangle of the current path in output coordinates
+
 public:
 	void draw_line(Point a, Point b, ptr_Stroke stroke);
 };

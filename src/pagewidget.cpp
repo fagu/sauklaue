@@ -237,6 +237,7 @@ void PageWidget::start_path(QPointF pp, StrokeType type) {
 			qDebug() << "Unknown stroke type";
 			std::abort();
 		}
+		convert_variant<PathStroke*>(get(stroke))->push_back(p);
 		if (timeout == -1) {
 			int layer_index = -1;
 			for (size_t i = 0; i < m_page->layers().size(); i++) {
@@ -263,7 +264,6 @@ void PageWidget::start_path(QPointF pp, StrokeType type) {
 			        },
 			        layer_picture);
 		}
-		m_current_stroke->add_point(p);
 	}
 }
 
