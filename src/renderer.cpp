@@ -294,6 +294,7 @@ void PDFExporter::save(Document* doc, const std::string& file_name) {
 		}
 		qDebug() << "Drawing mode:" << (simplistic ? "simplistic" : "general");
 		surface->set_size(UNIT_TO_POINT * page->width(), UNIT_TO_POINT * page->height());
+		CairoGroup cg(cr);
 		cr->rectangle(0, 0, page->width(), page->height());
 		cr->clip();
 		if (!simplistic) {
