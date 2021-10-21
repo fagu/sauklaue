@@ -3,6 +3,8 @@
 
 #include "all-types.h"
 
+#include <optional>
+
 #include <QObject>
 #include <QImage>
 
