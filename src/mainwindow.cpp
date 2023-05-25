@@ -959,7 +959,8 @@ void MainWindow::setLinkedPages(bool on) {
 		if (m_views_linked) {
 			// Try to keep the focused view the same and change other views.
 			// This might be impossible if there are too few pages before or after the focused page.
-			showPages(assign_pages_linked_fixing_one_view(doc->pages().size(), focused_view, page_numbers[focused_view]), focused_view);
+			if (focused_view != -1)
+				showPages(assign_pages_linked_fixing_one_view(doc->pages().size(), focused_view, page_numbers[focused_view]), focused_view);
 		} else {
 			// Try to keep everything as is, but display the last page in all empty views, assuming the document is nonempty.
 			std::array<int, 2> res = page_numbers;
