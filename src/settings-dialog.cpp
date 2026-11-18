@@ -108,8 +108,8 @@ SettingsGeneralWidget::SettingsGeneralWidget(QWidget* parent) :
 	setLayout(layout);
 }
 
-SettingsTabletWidget::SettingsTabletWidget(QWidget* parent) :
-    QWidget(parent) {
+SettingsTabletWidget::SettingsTabletWidget(TabletHandler* tablet_handler, QWidget* parent) :
+    QWidget(parent), m_tablet_handler(tablet_handler) {
 	QVBoxLayout* layout = new QVBoxLayout(this);
 
 	{
@@ -169,7 +169,7 @@ void SettingsTabletWidget::reset() {
 		tablet_names.insert(tablet.name);
 	m_rows.clear();
 	std::set<QString> connected_tablets;
-	for (const QString& tablet_name : TabletHandler::self()->device_list()) {
+	for (const QString& tablet_name : m_tablet_handler->device_list()) {
 		connected_tablets.insert(tablet_name);
 		if (!tablet_names.count(tablet_name)) {
 			tablet_settings.emplace_back(tablet_name);
@@ -190,10 +190,10 @@ void SettingsTabletWidget::updateSettings() {
 	Settings::self()->save();
 }
 
-SettingsDialog::SettingsDialog(QWidget* parent) :
+SettingsDialog::SettingsDialog(TabletHandler* tablet_handler, QWidget* parent) :
     KConfigDialog(parent, "settings", Settings::self()) {
 	addPage(new SettingsGeneralWidget, tr("General"), "go-home");
-	tablet = new SettingsTabletWidget;
+	tablet = new SettingsTabletWidget(tablet_handler);
 	tabletItem = addPage(tablet, tr("Tablet"), "draw-freehand");
 
 	// FIXME Without the following hack, the settings dialog is a bit too slim for the tablet page.

@@ -13,11 +13,17 @@
 class QTimer;
 struct _XDisplay;
 
+class TabletInterface {
+public:
+	virtual ~TabletInterface() {}
+	virtual std::vector<std::pair<int,QString>> device_list() = 0;
+	virtual void set_matrix(int device_id, QMatrix mat) = 0;
+	virtual void commit() {}
+};
+
 class TabletHandler : public QObject {
 	Q_OBJECT
 public:
-	static TabletHandler* self();
-
 	TabletHandler();
 	~TabletHandler();
 
@@ -51,8 +57,8 @@ private:
 	QTimer* on_demand_timer;
 	// Occasionally try to set the transformation matrix just in case a tablet/pen was connected in the meantime.
 	QTimer* periodic_timer;
-
-	_XDisplay* display;
+	
+	std::unique_ptr<TabletInterface> interface;
 };
 
 #endif  // TABLET_H

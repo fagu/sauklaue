@@ -150,6 +150,10 @@ int save_command(int argc, char** argv) {
 }
 
 int main(int argc, char** argv) {
+	// Use xcb so that we can obtain coordinates relative to the screen.
+	// Without this line, QWidget::mapToGlobal returns coordinates relative to the main window, whereas the tablet settings require screen coordinates.
+	qputenv("QT_QPA_PLATFORM", "xcb");
+	
 	QCoreApplication::setApplicationName("sauklaue");
 	QCoreApplication::setOrganizationName("sauklaue");
 	int res;

@@ -1001,7 +1001,7 @@ void MainWindow::otherView() {
 void MainWindow::showSettings() {
 	if (KConfigDialog::showDialog("settings"))
 		return;
-	SettingsDialog* dialog = new SettingsDialog(this);
+	SettingsDialog* dialog = new SettingsDialog(&m_tablet_handler, this);
 	dialog->show();
 }
 
@@ -1029,7 +1029,7 @@ void MainWindow::updateTabletMap() {
 	for (PageWidget* p : pagewidgets)
 		rect_both = rect_both.united(p->minimum_rect_in_pixels());
 	QRectF rect = focused_view == -1 ? rect_both : pagewidgets[focused_view]->minimum_rect_in_pixels();
-	TabletHandler::self()->set_active_region(rect, rect_both, myScreen()->virtualSize());
+	m_tablet_handler.set_active_region(rect, rect_both, myScreen()->virtualSize());
 }
 
 QScreen* MainWindow::myScreen() const {

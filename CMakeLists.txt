@@ -19,6 +19,10 @@ link_libraries(Qt5::Widgets)
 #find_package(Qt5X11Extras CONFIG REQUIRED)
 #link_libraries(Qt5::X11Extras)
 
+# Find the QtDbus library
+find_package(Qt5DBus CONFIG REQUIRED)
+link_libraries(Qt5::DBus)
+
 include (FindPkgConfig)
 
 # Find the cairomm library

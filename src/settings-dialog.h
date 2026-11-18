@@ -2,6 +2,7 @@
 #define SETTINGS_DIALOG_H
 
 #include "all-types.h"
+#include "src/tablet.h"
 
 #include <QObject>
 #include <QString>
@@ -47,11 +48,12 @@ public:
 class SettingsTabletWidget : public QWidget {
 	Q_OBJECT
 public:
-	SettingsTabletWidget(QWidget* parent = nullptr);
+	SettingsTabletWidget(TabletHandler* tablet_handler, QWidget* parent = nullptr);
 	void reset();
 	void updateSettings();
 
 private:
+	TabletHandler* m_tablet_handler;
 	QGridLayout* tabletGrid;
 	std::vector<std::unique_ptr<TabletRow> > m_rows;
 };
@@ -59,7 +61,7 @@ private:
 class SettingsDialog : public KConfigDialog {
 	Q_OBJECT
 public:
-	SettingsDialog(QWidget* parent = nullptr);
+	SettingsDialog(TabletHandler* tablet_handler, QWidget* parent = nullptr);
 
 protected:
 	void updateWidgets() override;

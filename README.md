@@ -1,6 +1,6 @@
 # Introduction
 
-Sauklaue is a simplistic stylus note-taking application optimized for use with an external graphics tablet, especially for online teaching. It is also useful for giving slideshow presentations. It runs on Linux systems using the X11 windowing system.
+Sauklaue is a simplistic stylus note-taking application optimized for use with an external graphics tablet, especially for online teaching. It is also useful for giving slideshow presentations. It runs on Linux systems using the X11 windowing system or KDE Plasma.
 
 In modern classrooms, there are usually multiple blackboard panels, and one alternates between them. Only one blackboard panel is erased at a time.
 

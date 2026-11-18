@@ -2,6 +2,7 @@
 #define MAINWINDOW_H
 
 #include "all-types.h"
+#include "src/tablet.h"
 
 #include <QMainWindow>
 class KRecentFilesAction;
@@ -109,6 +110,8 @@ private:
 	void pages_added(int first_page, int number_of_pages);
 	void pages_deleted(int first_page, int number_of_pages);
 
+	TabletHandler m_tablet_handler;
+	
 	/* Tablet */
 	void updateTabletMap();
 
